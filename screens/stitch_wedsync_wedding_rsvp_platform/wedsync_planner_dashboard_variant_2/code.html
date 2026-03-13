@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>WedSync Planner Dashboard Variant 2</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@300;400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#b45308",
+                        "background-light": "#f8f7f5",
+                        "background-dark": "#221810",
+                    },
+                    fontFamily: {
+                        "display": ["Manrope", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100">
+<div class="flex h-screen overflow-hidden">
+<!-- SIDEBAR -->
+<aside class="w-64 bg-white dark:bg-zinc-900 border-r border-primary/10 flex flex-col h-full">
+<div class="p-6 flex items-center gap-3">
+<div class="size-10 bg-primary/10 rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-2xl">auto_awesome</span>
+</div>
+<div>
+<h1 class="text-primary font-extrabold text-xl tracking-tight">WedSync</h1>
+<p class="text-xs text-slate-500 font-medium">Planner Edition</p>
+</div>
+</div>
+<nav class="flex-1 px-4 space-y-1 mt-4">
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl bg-primary/10 text-primary font-semibold" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-primary/5 transition-colors" href="#">
+<span class="material-symbols-outlined">favorite</span>
+<span>Weddings</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-primary/5 transition-colors" href="#">
+<span class="material-symbols-outlined">group</span>
+<span>Guests</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-primary/5 transition-colors" href="#">
+<span class="material-symbols-outlined">storefront</span>
+<span>Vendors</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-primary/5 transition-colors" href="#">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+<span>Budgets</span>
+</a>
+</nav>
+<div class="p-4 mt-auto">
+<button class="w-full flex items-center justify-center gap-2 bg-primary text-white py-3 rounded-xl font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
+<span class="material-symbols-outlined text-sm">add</span>
+<span>New Wedding</span>
+</button>
+<div class="mt-6 border-t border-primary/5 pt-6 pb-4">
+<a class="flex items-center gap-3 px-4 py-2 text-slate-500 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-sm">Settings</span>
+</a>
+</div>
+</div>
+</aside>
+<!-- MAIN AREA -->
+<main class="flex-1 overflow-y-auto bg-stone-50 dark:bg-stone-950/20">
+<!-- Header -->
+<header class="sticky top-0 z-10 bg-stone-50/80 dark:bg-stone-950/80 backdrop-blur-md px-8 py-4 flex items-center justify-between">
+<div class="flex-1 max-w-lg">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+<input class="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-zinc-800 border border-primary/10 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm" placeholder="Search guests, events or vendors..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-slate-500 hover:bg-primary/5 rounded-full relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 size-2 bg-primary rounded-full ring-2 ring-stone-50"></span>
+</button>
+<div class="h-8 w-px bg-primary/10"></div>
+<div class="flex items-center gap-3">
+<div class="text-right">
+<p class="text-sm font-bold">Priya Sharma</p>
+<p class="text-[10px] uppercase tracking-wider text-primary font-bold">Senior Planner</p>
+</div>
+<div class="size-10 rounded-full bg-cover bg-center border-2 border-primary/20" data-alt="Portrait of a smiling professional wedding planner" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCuuxW_p6OzdX1vRZnlZoxxi5ro_pIH6OQu8vqIvC15x238vHSnrOgSRJxaPt8-47MG4yR1l5quJWdbNzVKu4K0n2Tp6a43GPPJhSGKYhB8ySM4qJlqPq7NPnFFugwOZmEeuodgBfMrh1afYfuB74yuTqNXMD6eO4G-fCiwGQALJ8OIVgfRgtB25BWQqGmo4_tTtjmdeFrMETZ5F1Cge96C8lpAs1eMrmcicjRYf3ys9K4i403kJRBYNSbeE1kf1PeLZANSLBU0xw')"></div>
+</div>
+</div>
+</header>
+<div class="p-8">
+<!-- GREETING -->
+<div class="mb-10">
+<h2 class="text-4xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">Welcome back, Priya 👋</h2>
+<p class="text-slate-500 mt-2 text-lg">You have 3 weddings happening in the next 30 days. Let's get things ready.</p>
+</div>
+<!-- METRICS -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+<div class="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-primary/5 shadow-sm">
+<div class="flex justify-between items-start mb-4">
+<span class="text-slate-500 font-medium uppercase text-xs tracking-widest">Active Weddings</span>
+<div class="p-2 bg-primary/10 rounded-lg">
+<span class="material-symbols-outlined text-primary">calendar_month</span>
+</div>
+</div>
+<p class="text-3xl font-extrabold">12</p>
+<p class="text-xs text-primary mt-2 font-bold">+2 from last month</p>
+</div>
+<div class="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-primary/5 shadow-sm">
+<div class="flex justify-between items-start mb-4">
+<span class="text-slate-500 font-medium uppercase text-xs tracking-widest">Total Guests</span>
+<div class="p-2 bg-primary/10 rounded-lg">
+<span class="material-symbols-outlined text-primary">group</span>
+</div>
+</div>
+<p class="text-3xl font-extrabold">1,240</p>
+<p class="text-xs text-primary mt-2 font-bold">+150 since Tuesday</p>
+</div>
+<div class="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-primary/5 shadow-sm">
+<div class="flex justify-between items-start mb-4">
+<span class="text-slate-500 font-medium uppercase text-xs tracking-widest">Confirmed RSVPs</span>
+<div class="p-2 bg-emerald-50 rounded-lg">
+<span class="material-symbols-outlined text-emerald-600">check_circle</span>
+</div>
+</div>
+<p class="text-3xl font-extrabold text-emerald-600">850</p>
+<p class="text-xs text-emerald-600 mt-2 font-bold">68% Completion rate</p>
+</div>
+<div class="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-primary/5 shadow-sm">
+<div class="flex justify-between items-start mb-4">
+<span class="text-slate-500 font-medium uppercase text-xs tracking-widest">Pending RSVPs</span>
+<div class="p-2 bg-amber-50 rounded-lg">
+<span class="material-symbols-outlined text-amber-600">pending</span>
+</div>
+</div>
+<p class="text-3xl font-extrabold text-amber-600">390</p>
+<p class="text-xs text-amber-600 mt-2 font-bold">Requires attention</p>
+</div>
+</div>
+<!-- WEDDING LIST -->
+<div class="flex items-center justify-between mb-6">
+<h3 class="text-xl font-extrabold tracking-tight uppercase text-slate-800 dark:text-slate-200">My Weddings</h3>
+<div class="flex gap-2">
+<button class="px-3 py-1.5 rounded-lg border border-primary/20 text-xs font-bold text-primary hover:bg-primary hover:text-white transition-all">Export All</button>
+<button class="px-3 py-1.5 rounded-lg bg-primary/10 text-xs font-bold text-primary">Filter</button>
+</div>
+</div>
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+<!-- Wedding Card 1 -->
+<div class="bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden border border-primary/5 shadow-xl shadow-primary/5">
+<div class="h-32 bg-primary relative overflow-hidden">
+<div class="absolute inset-0 opacity-20" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDqSj99zostkWxn7zqUlwUT2HnOumL5_7EgYpF2z3hzmGE9xUSKlszX7HBA6xQHUt9LFyu6hf92Byz2pQb4gEQDBEH_KNCLeIgbDD9PNaIIAvBHVQc_qWE3ESIMC3n1B92XlL0zGgSAnrhp0cG5qlNIHsN7cEDdrge_MDYinzoGG21fRWsbPGtBkQ6nTeFfPap_Jjk6EpWiGVtXfkRrTquBhLvwI7HrIl7zkZ60HW2adt7L0DHKRiXYJ4b4wFVi-wjdszZp_fcb5w')"></div>
+<div class="absolute inset-0 bg-gradient-to-r from-primary to-amber-700/80"></div>
+<div class="absolute bottom-4 left-6">
+<span class="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-white text-[10px] font-bold uppercase tracking-widest">Palace Wedding</span>
+<h4 class="text-white text-2xl font-bold mt-1 leading-tight">Arjun &amp; Diya</h4>
+</div>
+<div class="absolute bottom-4 right-6 text-right">
+<p class="text-white/80 text-xs font-medium uppercase tracking-tighter">Countdown</p>
+<p class="text-white text-lg font-bold">24 Days</p>
+</div>
+</div>
+<div class="p-6">
+<div class="flex items-center justify-between text-sm mb-6">
+<div class="flex items-center gap-2 text-slate-500">
+<span class="material-symbols-outlined text-sm">location_on</span>
+<span>Umaid Bhawan, Jodhpur</span>
+</div>
+<div class="flex items-center gap-2 text-slate-500">
+<span class="material-symbols-outlined text-sm">event</span>
+<span>Oct 14, 2024</span>
+</div>
+</div>
+<div class="space-y-4">
+<div class="flex justify-between items-end mb-1">
+<span class="text-xs font-bold text-slate-500 uppercase">RSVP Progress</span>
+<span class="text-xs font-extrabold text-primary">420 / 500</span>
+</div>
+<div class="w-full h-2.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full" style="width: 84%;"></div>
+</div>
+</div>
+<div class="mt-8 flex items-center justify-between">
+<div class="flex -space-x-2">
+<div class="size-8 rounded-full border-2 border-white dark:border-zinc-900 bg-slate-200 bg-cover" data-alt="Guest avatar profile" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDjrhSCqMZ29t95DD_UPK2Jl5zi0gIFgk_iUrGoA3NMg9H2W6QfAkT9Tm_kuC1eekLLz95jy_8ieBHWD94nXB6M-H9WRDpJkFdAhcvRLw2aVO1Q_s7FHfE8Fspk1kpIuGIvVBHY0rwyobBOssj6ikBP3gzzDYz6GRqrEs_k2MmX1_hLdaSq8GzuagPzoZG0cqDdydqV1BzZso2dpqiMiqW535RdzcG6l_BWWDHhj9hjSxtc9WRLsq6Qi4c3cMUcJ1PUHfYaR_pyeQ')"></div>
+<div class="size-8 rounded-full border-2 border-white dark:border-zinc-900 bg-slate-200 bg-cover" data-alt="Guest avatar profile" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuD7BQyCn1CUPgosZzgw6ZLaZ7ejp43mXqUwyQ-orJt2c5BQO0FeEDiPIffdtgjxVcnoIlpOWMDyeupRk7NFUIv1A8WAbtHjQMbb6IcGoKKqNi7ApxOv1j_c_dtNIQDy49Pd1y3hd9scVdB7zSE9CxknvU9l4gn63tG6iqb-DbjEh1o5_TDzqXXMEdSgrWgRCCuCDByBWa9pQOC8q2x0tH9GRt6GoVb9fX2CZxsHrBSZDHVMQ66SFe0L8Peg4gcBbwYicT7K4-vtEQ')"></div>
+<div class="size-8 rounded-full border-2 border-white dark:border-zinc-900 bg-slate-200 flex items-center justify-center text-[10px] font-bold">+418</div>
+</div>
+<button class="flex items-center gap-2 bg-primary text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:opacity-90 transition-all">
+<span>Open Dashboard</span>
+<span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Wedding Card 2 -->
+<div class="bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden border border-primary/5 shadow-xl shadow-primary/5">
+<div class="h-32 bg-stone-700 relative overflow-hidden">
+<div class="absolute inset-0 opacity-20" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAK_mjMxOJ1gvGSHIWYvopHSVwdqC1YTvOn45eHiI_wgvlJlOEc-9FyvOA_Qt9TzVnFtmp_gbMU7YYtoAtPSm-7oHUBlB_usM5hW2qcBpMhclg461fn6IzTPcBeCGkB1qk_e49Hp7esPHf_2RTHC2ZwlJSPdJdhfRL7l88vxcBy5TyBb44yKYdMqdmGIusR_U4-m4xt-2ujXY29tDpmDRpogguZhiXd18yLYpkjRoGPEiasLxe2to95xV-pN587dCcKO4pvjufKeQ')"></div>
+<div class="absolute inset-0 bg-gradient-to-r from-stone-800 to-primary/60"></div>
+<div class="absolute bottom-4 left-6">
+<span class="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-white text-[10px] font-bold uppercase tracking-widest">Beachside Gala</span>
+<h4 class="text-white text-2xl font-bold mt-1 leading-tight">Rohan &amp; Meera</h4>
+</div>
+<div class="absolute bottom-4 right-6 text-right">
+<p class="text-white/80 text-xs font-medium uppercase tracking-tighter">Countdown</p>
+<p class="text-white text-lg font-bold">58 Days</p>
+</div>
+</div>
+<div class="p-6">
+<div class="flex items-center justify-between text-sm mb-6">
+<div class="flex items-center gap-2 text-slate-500">
+<span class="material-symbols-outlined text-sm">location_on</span>
+<span>W Goa, Vagator</span>
+</div>
+<div class="flex items-center gap-2 text-slate-500">
+<span class="material-symbols-outlined text-sm">event</span>
+<span>Nov 18, 2024</span>
+</div>
+</div>
+<div class="space-y-4">
+<div class="flex justify-between items-end mb-1">
+<span class="text-xs font-bold text-slate-500 uppercase">RSVP Progress</span>
+<span class="text-xs font-extrabold text-primary">150 / 350</span>
+</div>
+<div class="w-full h-2.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full" style="width: 42%;"></div>
+</div>
+</div>
+<div class="mt-8 flex items-center justify-between">
+<div class="flex -space-x-2">
+<div class="size-8 rounded-full border-2 border-white dark:border-zinc-900 bg-slate-200 bg-cover" data-alt="Guest avatar profile" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDZTl9aKnfXDr9e1mzfbyBiDn2ckTYyylFaClpzLe2Udk3OGThd1oDxf2UG52k1j3-wKkxHkKHiQHWk8FAtmTfeW1KyCCtDJNfwdmtYo8WqsNKocOLsTptpGgS8QW5CLJFcExdZTrJB6MbMUOu6PziFSMXD8rAFyMu6WDoKfIewWCaCD0I0ePi-L6z6VRDDawLlTbYWNRRn5G5e83-6UHZGWOuLHwY3KfIJ_0M5uYz9ol_2C4GtRz-aWprA3DB4hPIHTkXqx5-SwA')"></div>
+<div class="size-8 rounded-full border-2 border-white dark:border-zinc-900 bg-slate-200 bg-cover" data-alt="Guest avatar profile" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDqNQstDooWOxLLo30SGudC7G5M6MFPH3Fd6ka-RMF2DV0IvpiDSwcn68uQByUqu1MlXvRHUKImNWsQGL7lnOeMdrmb2dHA8VAzfy5-EgRIsz2WS5hgaC2p0xQZA56HGnOQq32I8vx9U4-BvS6q95YCM6WovOr1gcMekTKwwsuWbwgx6LW4Vsz7YR2GDZgsGY4IVRb6pdwbCcO7VH_3zYCMiI93F5wzoNLdIYZbK9EwSBqOG4PgtJmvI7t8SR6ThbM1ZMD-jBuNig')"></div>
+<div class="size-8 rounded-full border-2 border-white dark:border-zinc-900 bg-slate-200 flex items-center justify-center text-[10px] font-bold">+148</div>
+</div>
+<button class="flex items-center gap-2 bg-primary text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:opacity-90 transition-all">
+<span>Open Dashboard</span>
+<span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- RECENT TASKS / FEED -->
+<div class="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
+<div class="lg:col-span-2 bg-white dark:bg-zinc-900 p-8 rounded-2xl border border-primary/5">
+<h3 class="text-lg font-extrabold mb-6">Upcoming Milestones</h3>
+<div class="space-y-6">
+<div class="flex gap-4">
+<div class="flex flex-col items-center">
+<div class="size-10 rounded-full bg-primary flex items-center justify-center text-white shrink-0">
+<span class="material-symbols-outlined">restaurant</span>
+</div>
+<div class="w-0.5 h-full bg-slate-100 dark:bg-zinc-800 my-2"></div>
+</div>
+<div class="pb-6">
+<p class="text-sm font-extrabold">Finalize Catering Menu</p>
+<p class="text-xs text-slate-500 mt-1">Arjun &amp; Diya Wedding • Due in 2 days</p>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="flex flex-col items-center">
+<div class="size-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
+<span class="material-symbols-outlined">payments</span>
+</div>
+<div class="w-0.5 h-full bg-slate-100 dark:bg-zinc-800 my-2"></div>
+</div>
+<div class="pb-6">
+<p class="text-sm font-extrabold">Vendor Deposit: Photographer</p>
+<p class="text-xs text-slate-500 mt-1">Rohan &amp; Meera Wedding • Due tomorrow</p>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="flex flex-col items-center">
+<div class="size-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+<span class="material-symbols-outlined">done_all</span>
+</div>
+</div>
+<div class="">
+<p class="text-sm font-extrabold">Guest List Approved</p>
+<p class="text-xs text-slate-500 mt-1">Kabir &amp; Isha Wedding • Completed</p>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-primary/5 p-8 rounded-2xl border border-primary/10 flex flex-col items-center text-center justify-center">
+<div class="size-20 bg-white rounded-full flex items-center justify-center shadow-lg mb-6">
+<span class="material-symbols-outlined text-primary text-4xl">contact_support</span>
+</div>
+<h3 class="text-lg font-extrabold text-slate-800">Need help?</h3>
+<p class="text-sm text-slate-600 mt-2 px-4">Our dedicated support team is available 24/7 for premium planners.</p>
+<button class="mt-8 px-6 py-3 bg-white text-primary border border-primary/20 rounded-xl font-bold text-sm w-full hover:bg-primary hover:text-white transition-all">
+                            Talk to Support
+                        </button>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

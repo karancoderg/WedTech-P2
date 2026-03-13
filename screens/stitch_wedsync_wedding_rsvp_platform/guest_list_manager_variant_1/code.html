@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>WedSync - Guest List Manager</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#b35309",
+                        "background-light": "#f8f7f5",
+                        "background-dark": "#221810",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen">
+<div class="flex min-h-screen">
+<!-- Sidebar -->
+<aside class="w-64 bg-white dark:bg-background-dark border-r border-slate-200 dark:border-slate-800 flex flex-col fixed h-full z-10">
+<div class="p-6">
+<div class="flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined text-3xl font-bold">favorite</span>
+<h1 class="text-xl font-black tracking-tight text-slate-900 dark:text-white uppercase">WedSync</h1>
+</div>
+<p class="text-slate-500 text-xs mt-1 uppercase tracking-widest font-semibold">Wedding Planner</p>
+</div>
+<nav class="flex-1 px-4 space-y-2">
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-primary/10 rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="text-sm font-medium">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 bg-primary/10 text-primary rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="text-sm font-semibold">Guest List</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-primary/10 rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined">calendar_today</span>
+<span class="text-sm font-medium">Events</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-primary/10 rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined">storefront</span>
+<span class="text-sm font-medium">Vendors</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-primary/10 rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-sm font-medium">Settings</span>
+</a>
+</nav>
+<div class="p-4 mt-auto">
+<div class="bg-primary/5 dark:bg-primary/20 p-4 rounded-xl border border-primary/20">
+<p class="text-xs font-bold text-primary uppercase mb-2">Pro Plan</p>
+<p class="text-xs text-slate-600 dark:text-slate-300 mb-3">Unlock unlimited guests and WhatsApp RSVPs.</p>
+<button class="w-full bg-primary text-white text-xs font-bold py-2 rounded-lg hover:bg-primary/90 transition-all">
+                        Upgrade Now
+                    </button>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 ml-64 p-8 pb-32">
+<!-- Header -->
+<div class="flex justify-between items-start mb-8">
+<div>
+<h2 class="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Guest List</h2>
+<p class="text-slate-500 font-medium">Sharma-Kapoor Wedding · <span class="text-primary">156 guests</span></p>
+</div>
+<div class="flex gap-3">
+<button class="flex items-center gap-2 px-4 py-2 border-2 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-lg font-bold text-sm hover:bg-white dark:hover:bg-slate-800 transition-all">
+<span class="material-symbols-outlined text-xl">upload_file</span>
+                        Import CSV
+                    </button>
+<button class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg font-bold text-sm hover:shadow-lg hover:shadow-primary/20 transition-all">
+<span class="material-symbols-outlined text-xl">person_add</span>
+                        Add Guest
+                    </button>
+</div>
+</div>
+<!-- Tabs & Search -->
+<div class="bg-white dark:bg-background-dark rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden mb-6">
+<div class="border-b border-slate-200 dark:border-slate-800 flex px-2 overflow-x-auto">
+<button class="px-6 py-4 text-sm font-bold border-b-2 border-primary text-primary whitespace-nowrap">All Guests</button>
+<button class="px-6 py-4 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 whitespace-nowrap">Sangeet</button>
+<button class="px-6 py-4 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 whitespace-nowrap">Haldi</button>
+<button class="px-6 py-4 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 whitespace-nowrap">Reception</button>
+</div>
+<div class="p-4 flex flex-wrap gap-4 items-center justify-between">
+<div class="flex-1 min-w-[300px]">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+<input class="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm transition-all" placeholder="Search by name, phone or tag..." type="text"/>
+</div>
+</div>
+<div class="flex gap-3 items-center">
+<span class="text-sm font-semibold text-slate-500">Filter by:</span>
+<select class="form-select bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm font-medium focus:ring-primary/20 py-2 pl-4 pr-10">
+<option>Status: All</option>
+<option>Confirmed</option>
+<option>Pending</option>
+<option>Declined</option>
+</select>
+<button class="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+<span class="material-symbols-outlined">filter_list</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Guest Table -->
+<div class="bg-white dark:bg-background-dark rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+<table class="w-full text-left border-collapse">
+<thead class="bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800">
+<tr>
+<th class="py-4 px-6 w-12">
+<input class="rounded border-slate-300 dark:border-slate-700 text-primary focus:ring-primary" type="checkbox"/>
+</th>
+<th class="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Guest Name</th>
+<th class="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Functions</th>
+<th class="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Tags</th>
+<th class="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+<th class="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+<!-- Guest 1 -->
+<tr class="hover:bg-slate-50/80 dark:hover:bg-slate-900/40 transition-colors group">
+<td class="py-4 px-6">
+<input checked="" class="rounded border-slate-300 dark:border-slate-700 text-primary focus:ring-primary" type="checkbox"/>
+</td>
+<td class="py-4 px-6">
+<div class="font-bold text-slate-900 dark:text-white">Ananya Sharma</div>
+<div class="text-xs text-slate-500">+91 98765 43210</div>
+</td>
+<td class="py-4 px-6">
+<div class="flex gap-1.5">
+<span class="size-6 flex items-center justify-center rounded-full bg-blue-100 text-blue-700 text-[10px] font-black" title="Sangeet">S</span>
+<span class="size-6 flex items-center justify-center rounded-full bg-orange-100 text-orange-700 text-[10px] font-black" title="Haldi">H</span>
+<span class="size-6 flex items-center justify-center rounded-full bg-purple-100 text-purple-700 text-[10px] font-black" title="Reception">R</span>
+</div>
+</td>
+<td class="py-4 px-6">
+<div class="flex flex-wrap gap-2">
+<span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded text-[10px] font-bold">Family</span>
+<span class="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded text-[10px] font-bold">VIP</span>
+</div>
+</td>
+<td class="py-4 px-6">
+<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">
+<span class="size-1.5 rounded-full bg-green-500 mr-2"></span>
+                                    Confirmed
+                                </span>
+</td>
+<td class="py-4 px-6 text-right">
+<div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-2 text-slate-400 hover:text-[#25D366] transition-colors" title="Send WhatsApp">
+<span class="material-symbols-outlined">chat</span>
+</button>
+<button class="p-2 text-slate-400 hover:text-red-500 transition-colors" title="Delete">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Guest 2 -->
+<tr class="hover:bg-slate-50/80 dark:hover:bg-slate-900/40 transition-colors group">
+<td class="py-4 px-6">
+<input checked="" class="rounded border-slate-300 dark:border-slate-700 text-primary focus:ring-primary" type="checkbox"/>
+</td>
+<td class="py-4 px-6">
+<div class="font-bold text-slate-900 dark:text-white">Rohan Kapoor</div>
+<div class="text-xs text-slate-500">+91 91234 56789</div>
+</td>
+<td class="py-4 px-6">
+<div class="flex gap-1.5">
+<span class="size-6 flex items-center justify-center rounded-full bg-blue-100 text-blue-700 text-[10px] font-black" title="Sangeet">S</span>
+<span class="size-6 flex items-center justify-center rounded-full bg-purple-100 text-purple-700 text-[10px] font-black" title="Reception">R</span>
+</div>
+</td>
+<td class="py-4 px-6">
+<div class="flex flex-wrap gap-2">
+<span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded text-[10px] font-bold">Groom Side</span>
+</div>
+</td>
+<td class="py-4 px-6">
+<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700">
+<span class="size-1.5 rounded-full bg-amber-500 mr-2"></span>
+                                    Pending
+                                </span>
+</td>
+<td class="py-4 px-6 text-right">
+<div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-2 text-slate-400 hover:text-[#25D366] transition-colors">
+<span class="material-symbols-outlined">chat</span>
+</button>
+<button class="p-2 text-slate-400 hover:text-red-500 transition-colors">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Guest 3 -->
+<tr class="hover:bg-slate-50/80 dark:hover:bg-slate-900/40 transition-colors group">
+<td class="py-4 px-6">
+<input checked="" class="rounded border-slate-300 dark:border-slate-700 text-primary focus:ring-primary" type="checkbox"/>
+</td>
+<td class="py-4 px-6">
+<div class="font-bold text-slate-900 dark:text-white">Meera Deshmukh</div>
+<div class="text-xs text-slate-500">+91 88888 77777</div>
+</td>
+<td class="py-4 px-6">
+<div class="flex gap-1.5">
+<span class="size-6 flex items-center justify-center rounded-full bg-orange-100 text-orange-700 text-[10px] font-black" title="Haldi">H</span>
+</div>
+</td>
+<td class="py-4 px-6">
+<div class="flex flex-wrap gap-2">
+<span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded text-[10px] font-bold">Bride Side</span>
+</div>
+</td>
+<td class="py-4 px-6">
+<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700">
+<span class="size-1.5 rounded-full bg-red-500 mr-2"></span>
+                                    Declined
+                                </span>
+</td>
+<td class="py-4 px-6 text-right">
+<div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-2 text-slate-400 hover:text-[#25D366] transition-colors">
+<span class="material-symbols-outlined">chat</span>
+</button>
+<button class="p-2 text-slate-400 hover:text-red-500 transition-colors">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Extra Rows for visual fill -->
+<tr class="hover:bg-slate-50/80 dark:hover:bg-slate-900/40 transition-colors group">
+<td class="py-4 px-6"><input class="rounded border-slate-300 dark:border-slate-700 text-primary focus:ring-primary" type="checkbox"/></td>
+<td class="py-4 px-6">
+<div class="font-bold text-slate-900 dark:text-white">Vikram Malhotra</div>
+<div class="text-xs text-slate-500">+91 99900 11122</div>
+</td>
+<td class="py-4 px-6">
+<div class="flex gap-1.5">
+<span class="size-6 flex items-center justify-center rounded-full bg-blue-100 text-blue-700 text-[10px] font-black">S</span>
+<span class="size-6 flex items-center justify-center rounded-full bg-purple-100 text-purple-700 text-[10px] font-black">R</span>
+</div>
+</td>
+<td class="py-4 px-6">
+<span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded text-[10px] font-bold">Friend</span>
+</td>
+<td class="py-4 px-6">
+<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">
+<span class="size-1.5 rounded-full bg-green-500 mr-2"></span>
+                                    Confirmed
+                                </span>
+</td>
+<td class="py-4 px-6 text-right">
+<div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-2 text-slate-400 hover:text-[#25D366] transition-colors"><span class="material-symbols-outlined">chat</span></button>
+<button class="p-2 text-slate-400 hover:text-red-500 transition-colors"><span class="material-symbols-outlined">delete</span></button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="px-6 py-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+<p class="text-xs font-medium text-slate-500">Showing 1 to 4 of 156 guests</p>
+<div class="flex gap-2">
+<button class="p-1 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-500"><span class="material-symbols-outlined text-sm">chevron_left</span></button>
+<button class="px-2 py-1 border border-primary rounded bg-primary text-white text-xs font-bold">1</button>
+<button class="px-2 py-1 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-500 text-xs font-bold">2</button>
+<button class="px-2 py-1 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-500 text-xs font-bold">3</button>
+<button class="p-1 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-500"><span class="material-symbols-outlined text-sm">chevron_right</span></button>
+</div>
+</div>
+</div>
+</main>
+<!-- Floating Bulk Action Bar -->
+<div class="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-20">
+<div class="bg-slate-900 text-white p-4 rounded-2xl shadow-2xl shadow-slate-900/40 flex items-center justify-between border border-white/10">
+<div class="flex items-center gap-4 pl-2">
+<div class="bg-primary size-8 rounded-full flex items-center justify-center font-black text-sm">3</div>
+<div>
+<p class="text-sm font-bold">3 guests selected</p>
+<p class="text-[10px] text-slate-400 font-medium">Ready for bulk actions</p>
+</div>
+</div>
+<div class="flex gap-3">
+<button class="px-4 py-2 text-sm font-bold hover:bg-white/10 rounded-lg transition-colors">
+                        Edit Tags
+                    </button>
+<button class="px-5 py-2 bg-[#25D366] text-white rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-[#20bd5c] transition-all">
+<span class="material-symbols-outlined text-xl">send</span>
+                        Send Invites
+                    </button>
+</div>
+</div>
+</div>
+</div>
+</body></html>
