@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Playfair+Display:wght@700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#b35309",
+                        "background-light": "#f8f7f5",
+                        "background-dark": "#221810",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "serif": ["Playfair Display", "serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<title>WedSync - Priya &amp; Rahul RSVP</title>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display antialiased">
+<div class="relative flex min-h-screen w-full flex-col max-w-md mx-auto bg-background-light dark:bg-background-dark">
+<!-- Sticky Header -->
+<header class="sticky top-0 z-50 flex items-center bg-white/80 dark:bg-background-dark/80 backdrop-blur-md px-4 py-4 justify-between border-b border-primary/10">
+<div class="text-slate-900 dark:text-slate-100 flex size-10 shrink-0 items-center justify-center cursor-pointer">
+<span class="material-symbols-outlined">close</span>
+</div>
+<h2 class="font-serif text-primary text-xl font-bold leading-tight flex-1 text-center">Priya &amp; Rahul</h2>
+<div class="size-10 shrink-0"></div> <!-- Spacer for symmetry -->
+</header>
+<main class="flex-1 overflow-y-auto pb-32">
+<!-- Hero Question Section -->
+<section class="px-6 pt-8 pb-4 text-center">
+<h3 class="text-slate-900 dark:text-slate-100 text-2xl font-bold leading-tight mb-2">Will you be attending Sangeet?</h3>
+<p class="text-slate-600 dark:text-slate-400 text-sm">Join us for an evening of dance and celebration</p>
+</section>
+<!-- Attendance Selection -->
+<div class="px-6 space-y-3 mb-8">
+<label class="relative flex items-center p-4 rounded-xl border-2 border-primary bg-white dark:bg-slate-900 shadow-sm cursor-pointer transition-all">
+<input checked="" class="hidden" name="attendance" type="radio" value="yes"/>
+<div class="flex items-center justify-between w-full">
+<div class="flex items-center gap-3">
+<div class="bg-green-100 dark:bg-green-900/30 p-2 rounded-full text-green-600">
+<span class="material-symbols-outlined">check_circle</span>
+</div>
+<span class="font-semibold text-slate-900 dark:text-slate-100 text-lg">Yes, I'll be there</span>
+</div>
+<div class="w-6 h-6 rounded-full border-2 border-primary flex items-center justify-center">
+<div class="w-3 h-3 bg-primary rounded-full"></div>
+</div>
+</div>
+</label>
+<label class="relative flex items-center p-4 rounded-xl border-2 border-transparent bg-white dark:bg-slate-900 shadow-sm cursor-pointer transition-all hover:border-primary/20">
+<input class="hidden" name="attendance" type="radio" value="no"/>
+<div class="flex items-center justify-between w-full">
+<div class="flex items-center gap-3">
+<div class="bg-red-100 dark:bg-red-900/30 p-2 rounded-full text-red-600">
+<span class="material-symbols-outlined">cancel</span>
+</div>
+<span class="font-semibold text-slate-600 dark:text-slate-400 text-lg">Sorry, can't make it</span>
+</div>
+<div class="w-6 h-6 rounded-full border-2 border-slate-200 dark:border-slate-700"></div>
+</div>
+</label>
+</div>
+<!-- Detailed Form Section (Conditional View) -->
+<div class="px-6 space-y-6">
+<div class="bg-white dark:bg-slate-900 rounded-xl p-5 shadow-sm space-y-6">
+<!-- Plus-Ones Stepper -->
+<div>
+<div class="flex items-center justify-between mb-3">
+<h4 class="font-bold text-slate-900 dark:text-slate-100">Plus-Ones</h4>
+<span class="text-xs text-primary font-medium uppercase tracking-wider">Adults Only</span>
+</div>
+<div class="flex items-center justify-between bg-background-light dark:bg-background-dark p-3 rounded-lg border border-primary/10">
+<p class="text-slate-600 dark:text-slate-400 text-sm">Number of Guests</p>
+<div class="flex items-center gap-4">
+<button class="size-8 rounded-full bg-white dark:bg-slate-800 shadow-sm flex items-center justify-center text-primary font-bold border border-primary/20">-</button>
+<span class="font-bold text-slate-900 dark:text-slate-100 w-4 text-center">1</span>
+<button class="size-8 rounded-full bg-white dark:bg-slate-800 shadow-sm flex items-center justify-center text-primary font-bold border border-primary/20">+</button>
+</div>
+</div>
+</div>
+<!-- Children Stepper -->
+<div>
+<div class="flex items-center justify-between mb-3">
+<h4 class="font-bold text-slate-900 dark:text-slate-100">Children</h4>
+<span class="text-xs text-primary font-medium uppercase tracking-wider">Below 12 yrs</span>
+</div>
+<div class="flex items-center justify-between bg-background-light dark:bg-background-dark p-3 rounded-lg border border-primary/10">
+<p class="text-slate-600 dark:text-slate-400 text-sm">Number of Kids</p>
+<div class="flex items-center gap-4">
+<button class="size-8 rounded-full bg-white dark:bg-slate-800 shadow-sm flex items-center justify-center text-primary font-bold border border-primary/20">-</button>
+<span class="font-bold text-slate-900 dark:text-slate-100 w-4 text-center">0</span>
+<button class="size-8 rounded-full bg-white dark:bg-slate-800 shadow-sm flex items-center justify-center text-primary font-bold border border-primary/20">+</button>
+</div>
+</div>
+</div>
+<hr class="border-primary/10"/>
+<!-- Dietary Preference -->
+<div>
+<h4 class="font-bold text-slate-900 dark:text-slate-100 mb-4">Dietary Preference</h4>
+<div class="flex gap-2">
+<label class="flex-1">
+<input checked="" class="hidden peer" name="diet" type="radio" value="veg"/>
+<div class="text-center py-3 rounded-xl border border-primary/20 bg-background-light dark:bg-background-dark text-slate-600 dark:text-slate-400 peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary transition-all cursor-pointer">
+<span class="text-lg block mb-1">🥦</span>
+<span class="text-xs font-bold uppercase">Veg</span>
+</div>
+</label>
+<label class="flex-1">
+<input class="hidden peer" name="diet" type="radio" value="jain"/>
+<div class="text-center py-3 rounded-xl border border-primary/20 bg-background-light dark:bg-background-dark text-slate-600 dark:text-slate-400 peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary transition-all cursor-pointer">
+<span class="text-lg block mb-1">🌿</span>
+<span class="text-xs font-bold uppercase">Jain</span>
+</div>
+</label>
+<label class="flex-1">
+<input class="hidden peer" name="diet" type="radio" value="nonveg"/>
+<div class="text-center py-3 rounded-xl border border-primary/20 bg-background-light dark:bg-background-dark text-slate-600 dark:text-slate-400 peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary transition-all cursor-pointer">
+<span class="text-lg block mb-1">🍗</span>
+<span class="text-xs font-bold uppercase">Non-Veg</span>
+</div>
+</label>
+</div>
+</div>
+<hr class="border-primary/10"/>
+<!-- Accommodation -->
+<div class="flex items-center justify-between">
+<div>
+<h4 class="font-bold text-slate-900 dark:text-slate-100">Accommodation needed?</h4>
+<p class="text-xs text-slate-500">We've blocked rooms at the venue</p>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox" value=""/>
+<div class="w-12 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+</label>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Action Button -->
+<footer class="fixed bottom-0 left-0 right-0 max-w-md mx-auto p-6 bg-gradient-to-t from-background-light via-background-light to-transparent dark:from-background-dark dark:via-background-dark">
+<button class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 transition-transform active:scale-[0.98]">
+                Confirm My RSVP
+                <span class="material-symbols-outlined">check</span>
+</button>
+</footer>
+</div>
+</body></html>
