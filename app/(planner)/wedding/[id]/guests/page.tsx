@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Wedding, Guest, WeddingFunction, RSVP } from "@/lib/types";
-import { generateWhatsAppLink } from "@/lib/whatsapp";
+import { generateWhatsAppLink, generateWhatsAppMessage, normalizePhone } from "@/lib/whatsapp";
 import { toast } from "sonner";
 
 export default function GuestListPage() {
@@ -435,25 +435,28 @@ export default function GuestListPage() {
                 onClick={async () => {
                   if (!wedding) return;
                   const selectedGuests = guests.filter((g) => selectedIds.has(g.id));
-                  // Open WhatsApp links with stagger to avoid popup blocking
-                  selectedGuests.forEach((g, i) => {
-                    setTimeout(() => {
-                      window.open(generateWhatsAppLink(g, wedding, functions), "_blank");
-                    }, i * 500);
-                  });
+                  // Export for extension
+                  const payload = selectedGuests.map(g => ({
+                    phone: normalizePhone(g.phone).replace('+', ''),
+                    message: generateWhatsAppMessage(g, wedding, functions)
+                  }));
+                  
+                  await navigator.clipboard.writeText(JSON.stringify(payload));
+                  
                   // Mark all as sent
                   await supabase
                     .from("guests")
                     .update({ invite_sent_at: new Date().toISOString() })
                     .in("id", Array.from(selectedIds));
-                  toast.success(`📨 Opened ${selectedGuests.length} WhatsApp invites`);
+                    
+                  toast.success(`📋 Copied ${selectedGuests.length} invites to clipboard! Open the WedSync Extension on WhatsApp Web.`);
                   setSelectedIds(new Set());
                   fetchData();
                 }}
-                className="px-5 py-2 bg-[#25D366] text-white rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-[#20bd5c] transition-all"
+                className="px-5 py-2 bg-primary text-white rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-primary/90 transition-all hover:shadow-lg hover:shadow-primary/20"
               >
-                <span className="material-symbols-outlined text-xl">send</span>
-                Send Invites
+                <span className="material-symbols-outlined text-xl">extension</span>
+                Export for Extension
               </button>
             </div>
           </div>

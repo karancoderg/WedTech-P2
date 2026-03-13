@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "WedSync WhatsApp Bulk Sender",
+  "version": "1.0",
+  "description": "Automates WhatsApp Web messaging for WedSync guest invites.",
+  "permissions": [
+    "storage",
+    "tabs",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://web.whatsapp.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "WedSync Bulk Sender"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://web.whatsapp.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
