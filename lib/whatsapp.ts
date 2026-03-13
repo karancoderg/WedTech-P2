@@ -26,7 +26,7 @@ export function normalizePhone(phone: string): string {
 /**
  * Generate a personalized WhatsApp deep link for a single guest
  */
-export function generateWhatsAppLink(
+export function generateWhatsAppMessage(
   guest: Guest,
   wedding: Wedding,
   functions: WeddingFunction[]
@@ -36,14 +36,23 @@ export function generateWhatsAppLink(
     .map((f) => `${f.name} on ${formatDate(f.date)} at ${f.venue_name}`)
     .join('\n• ');
 
-  const message =
-    `Hi ${guest.name}! 🎊\n\n` +
+  return `Hi ${guest.name}! 🎊\n\n` +
     `You're invited to ${wedding.bride_name} & ${wedding.groom_name}'s wedding celebrations.\n\n` +
     `*Your Events:*\n• ${guestFunctions}\n\n` +
     `Please RSVP here 👇\n` +
     `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/invite/${guest.invite_token}\n\n` +
     `We look forward to celebrating with you! 🙏`;
+}
 
+/**
+ * Generate a personalized WhatsApp deep link for a single guest
+ */
+export function generateWhatsAppLink(
+  guest: Guest,
+  wedding: Wedding,
+  functions: WeddingFunction[]
+): string {
+  const message = generateWhatsAppMessage(guest, wedding, functions);
   const phone = normalizePhone(guest.phone).replace('+', '');
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
