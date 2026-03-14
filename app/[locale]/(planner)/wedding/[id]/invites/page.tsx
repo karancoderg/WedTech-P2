@@ -13,20 +13,31 @@ export default function InvitesPage() {
 
   const [wedding, setWedding] = useState<Wedding | null>(null);
   const [guests, setGuests] = useState<Guest[]>([]);
+  const [guestGroups, setGuestGroups] = useState<{ id: string; name: string }[]>([]);
   const [functions, setFunctions] = useState<WeddingFunction[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "pending" | "sent">("all");
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 50;
 
+  // Collapsed family groups state
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  function toggleGroupCollapse(groupId: string) {
+    const next = new Set(collapsedGroups);
+    next.has(groupId) ? next.delete(groupId) : next.add(groupId);
+    setCollapsedGroups(next);
+  }
+
   const fetchData = useCallback(async () => {
-    const [weddingRes, guestRes, funcRes] = await Promise.all([
+    const [weddingRes, guestRes, groupRes, funcRes] = await Promise.all([
       supabase.from("weddings").select("*").eq("id", weddingId).single(),
       supabase.from("guests").select("*").eq("wedding_id", weddingId),
+      supabase.from("guest_groups").select("*").eq("wedding_id", weddingId),
       supabase.from("wedding_functions").select("*").eq("wedding_id", weddingId).order("sort_order"),
     ]);
     if (weddingRes.data) setWedding(weddingRes.data);
     if (guestRes.data) setGuests(guestRes.data);
+    if (groupRes.data) setGuestGroups(groupRes.data);
     if (funcRes.data) setFunctions(funcRes.data);
     setLoading(false);
   }, [weddingId]);
@@ -190,64 +201,131 @@ export default function InvitesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-primary/5">
-              {paginatedGuests.map((guest) => (
-                <tr key={guest.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="size-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary uppercase">
-                        {getInitials(guest.name)}
-                      </div>
-                      <p className="font-bold text-sm">{guest.name}</p>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-slate-500">{guest.phone}</td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
-                      guest.invite_sent_at ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
-                    }`}>
-                      {guest.invite_sent_at ? "Sent" : "Not Sent"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`text-xs font-bold ${
-                      guest.overall_status === "confirmed" ? "text-green-600"
-                        : guest.overall_status === "declined" ? "text-red-500"
-                        : "text-slate-400 italic"
-                    }`}>
-                      {guest.overall_status === "confirmed" ? "Attending"
-                        : guest.overall_status === "declined" ? "Declined"
-                        : guest.invite_sent_at ? "Awaiting Response" : "—"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => copyInviteLink(guest.invite_token)}
-                        className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-primary transition-colors"
-                        title="Copy Link"
-                      >
-                        <span className="material-symbols-outlined text-lg">content_copy</span>
-                      </button>
-                      {wedding && (
-                        <a
-                          href={generateWhatsAppLink(guest, wedding, functions)}
-                          target="_blank"
-                          rel="noopener"
-                          onClick={() => markAsSent(guest.id)}
-                          className={`p-2 rounded-lg transition-all ${
-                            guest.invite_sent_at
-                              ? "hover:bg-green-50 text-slate-400 hover:text-green-600"
-                              : "bg-green-500 text-white active:scale-95 shadow-sm"
-                          }`}
-                          title="Send WhatsApp"
-                        >
-                          <span className="material-symbols-outlined text-lg">chat</span>
-                        </a>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {(() => {
+                const rows: React.ReactNode[] = [];
+
+                // Separate grouped and ungrouped guests (from paginated list)
+                const grouped = new Map<string, Guest[]>();
+                const ungrouped: Guest[] = [];
+
+                for (const g of paginatedGuests) {
+                  if (g.group_id) {
+                    if (!grouped.has(g.group_id)) grouped.set(g.group_id, []);
+                    grouped.get(g.group_id)!.push(g);
+                  } else {
+                    ungrouped.push(g);
+                  }
+                }
+
+                // Helper: render one invite row
+                function InviteRow({ guest, indent }: { guest: Guest; indent?: boolean }) {
+                  return (
+                    <tr key={guest.id} className={`hover:bg-slate-50/50 transition-colors ${indent ? "bg-slate-50/30" : ""}`}>
+                      <td className={`${indent ? "pl-10 pr-6" : "px-6"} py-4`}>
+                        <div className="flex items-center gap-3">
+                          {indent && <span className="text-slate-300 text-sm">└</span>}
+                          <div className="size-7 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary uppercase shrink-0">
+                            {getInitials(guest.name)}
+                          </div>
+                          <p className="font-semibold text-sm">{guest.name}</p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-500">{guest.phone}</td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
+                          guest.invite_sent_at ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
+                        }`}>
+                          {guest.invite_sent_at ? "Sent" : "Not Sent"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`text-xs font-bold ${
+                          guest.overall_status === "confirmed" ? "text-green-600"
+                            : guest.overall_status === "declined" ? "text-red-500"
+                            : "text-slate-400 italic"
+                        }`}>
+                          {guest.overall_status === "confirmed" ? "Attending"
+                            : guest.overall_status === "declined" ? "Declined"
+                            : guest.invite_sent_at ? "Awaiting Response" : "—"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button onClick={() => copyInviteLink(guest.invite_token)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-primary transition-colors" title="Copy Link">
+                            <span className="material-symbols-outlined text-lg">content_copy</span>
+                          </button>
+                          {wedding && (
+                            <a
+                              href={generateWhatsAppLink(guest, wedding, functions)}
+                              target="_blank"
+                              rel="noopener"
+                              onClick={() => markAsSent(guest.id)}
+                              className={`p-2 rounded-lg transition-all ${
+                                guest.invite_sent_at
+                                  ? "hover:bg-green-50 text-slate-400 hover:text-green-600"
+                                  : "bg-green-500 text-white active:scale-95 shadow-sm"
+                              }`}
+                              title="Send WhatsApp"
+                            >
+                              <span className="material-symbols-outlined text-lg">chat</span>
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                }
+
+                // Render family sections
+                for (const [groupId, members] of grouped.entries()) {
+                  const group = guestGroups.find((g) => g.id === groupId);
+                  const isCollapsed = collapsedGroups.has(groupId);
+                  const allSent = members.every((m) => m.invite_sent_at);
+                  const noneSent = members.every((m) => !m.invite_sent_at);
+                  rows.push(
+                    <tr key={`group-header-${groupId}`} className="bg-primary/5 border-b border-primary/10">
+                      <td className="px-6 py-3" colSpan={5}>
+                        <div className="flex items-center gap-3">
+                          <button onClick={() => toggleGroupCollapse(groupId)} className="flex items-center gap-2 flex-1 text-left">
+                            <span className="material-symbols-outlined text-primary text-[18px]">
+                              {isCollapsed ? "chevron_right" : "expand_more"}
+                            </span>
+                            <span className="material-symbols-outlined text-primary text-[16px]">family_restroom</span>
+                            <span className="font-bold text-primary text-sm">{group?.name || "Unknown Family"}</span>
+                            <span className="ml-1 px-2 py-0.5 bg-primary/10 text-primary text-[11px] font-bold rounded-full">
+                              {members.length} {members.length === 1 ? "member" : "members"}
+                            </span>
+                          </button>
+                          {/* Family-level send all button */}
+                          {!allSent && wedding && (
+                            <button
+                              onClick={() => markAllAsSent(members.filter((m) => !m.invite_sent_at).map((m) => m.id))}
+                              className="ml-auto text-[11px] font-bold text-primary hover:underline whitespace-nowrap flex items-center gap-1"
+                            >
+                              <span className="material-symbols-outlined text-[14px]">mark_email_read</span>
+                              {noneSent ? "Mark all sent" : "Mark remaining sent"}
+                            </button>
+                          )}
+                          {allSent && (
+                            <span className="ml-auto text-[11px] font-bold text-green-600 flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                              All sent
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                  if (!isCollapsed) {
+                    members.forEach((guest) => rows.push(<InviteRow key={guest.id} guest={guest} indent />));
+                  }
+                }
+
+                // Render ungrouped guests normally
+                ungrouped.forEach((guest) => rows.push(<InviteRow key={guest.id} guest={guest} />));
+
+                return rows;
+              })()}
             </tbody>
           </table>
         </div>
