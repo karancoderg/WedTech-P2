@@ -420,7 +420,7 @@ export default function SeatingPlanPage() {
                       </div>
 
                       {/* Visual Table Representation */}
-                      <div className="relative w-56 h-56 mx-auto mb-10 flex items-center justify-center">
+                      <div className="relative w-72 h-72 mx-auto mb-10 flex items-center justify-center translate-y-2">
                         {table.shape === 'round' ? (
                           <>
                             {/* Round Table UI */}
@@ -428,7 +428,7 @@ export default function SeatingPlanPage() {
                               <circle
                                 cx="50%"
                                 cy="50%"
-                                r="45%"
+                                r="46%"
                                 fill="none"
                                 stroke="#f8fafc"
                                 strokeWidth="4"
@@ -436,23 +436,24 @@ export default function SeatingPlanPage() {
                               <circle
                                 cx="50%"
                                 cy="50%"
-                                r="45%"
+                                r="46%"
                                 fill="none"
                                 stroke="#B45309"
                                 strokeWidth="4"
-                                strokeDasharray="283"
-                                strokeDashoffset={283 - (283 * fillPercentage) / 100}
+                                strokeDasharray="415"
+                                strokeDashoffset={415 - (415 * fillPercentage) / 100}
                                 className="transition-all duration-1000 ease-out"
                               />
                             </svg>
-                            <div className="w-32 h-32 rounded-full bg-white shadow-xl flex items-center justify-center border border-slate-50 relative z-10">
-                              <span className="material-symbols-outlined text-slate-100 text-4xl">restaurant</span>
+                            <div className="w-40 h-40 rounded-full bg-white shadow-[0_15px_40px_rgba(0,0,0,0.06)] flex items-center justify-center border border-slate-50 relative z-10 transition-transform duration-500 hover:scale-105">
+                              <span className="material-symbols-outlined text-slate-100 text-5xl">restaurant</span>
                             </div>
                             
                             {/* Seats Around Round Table */}
                             {Array.from({ length: table.capacity }).map((_, i) => {
                               const angle = (i * 360) / table.capacity;
-                              const radius = 95;
+                              // Increased radius for more spacing
+                              const radius = 122;
                               const x = Math.cos((angle * Math.PI) / 180) * radius;
                               const y = Math.sin((angle * Math.PI) / 180) * radius;
                               const guest = table.assigned_guests?.[i];
@@ -460,8 +461,10 @@ export default function SeatingPlanPage() {
                               return (
                                 <div 
                                   key={i}
-                                  className={`absolute w-14 h-14 rounded-full border-[4px] transition-all duration-700 z-30 flex items-center justify-center group/seat shadow-lg ${
-                                    guest ? "bg-white border-[#B45309] text-[#B45309] scale-110" : "bg-slate-50 border-slate-100 text-slate-200 scale-[0.8]"
+                                  className={`absolute w-14 h-14 rounded-full border-[4px] transition-all duration-700 z-30 flex items-center justify-center group/seat shadow-[0_8px_25px_rgba(0,0,0,0.05)] ${
+                                    guest 
+                                      ? "bg-white border-[#B45309] text-[#B45309] scale-110" 
+                                      : "bg-slate-50/80 backdrop-blur-sm border-slate-100/50 text-slate-200 scale-[0.85] hover:scale-100 hover:bg-white hover:border-[#B45309]/20"
                                   }`}
                                   style={{ 
                                     transform: `translate(${x}px, ${y}px)`,

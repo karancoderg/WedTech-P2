@@ -38,7 +38,7 @@ export default function CreateWeddingPage() {
   ]);
 
   function addFunction() {
-    if (functions.length >= 5) return;
+    if (functions.length >= 10) return;
     const suggestions = FUNCTION_SUGGESTIONS.filter(
       (s) => !functions.some((f) => f.name === s)
     );
@@ -292,7 +292,7 @@ export default function CreateWeddingPage() {
               </div>
             ))}
 
-            {functions.length < 5 && (
+            {functions.length < 10 && (
               <Button
                 variant="outline"
                 onClick={addFunction}
