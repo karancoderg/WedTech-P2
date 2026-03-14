@@ -141,6 +141,7 @@ export interface SeatingTable {
   function_id: string;
   name: string;
   capacity: number;
+  shape: 'round' | 'rectangular';
   created_at: string;
   assigned_guests?: Guest[];
 }
