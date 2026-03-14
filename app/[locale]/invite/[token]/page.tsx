@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import { useParams as useInviteParams, useRouter } from "next/navigation";
-import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { useTranslations, useLocale } from "next-intl";
 import { supabase } from "@/lib/supabase";
 import type { Wedding, Guest, WeddingFunction } from "@/lib/types";
 import { formatDate } from "@/lib/whatsapp";
 
 export default function InviteLandingPage() {
   const params = useParams();
+  const router = useRouter();
   const token = params.token as string;
+  const t_i18n = useTranslations("Invite");
+  const locale = useLocale();
 
   const [wedding, setWedding] = useState<Wedding | null>(null);
   const [guest, setGuest] = useState<Guest | null>(null);
@@ -108,13 +110,13 @@ export default function InviteLandingPage() {
       {/* Hero Section */}
       <div className="relative pt-12 pb-8 px-6 text-center mt-4">
         <p className={`${t.textAccent} ${t.fontDisplay} text-2xl mb-4 opacity-90`}>
-          You&apos;re invited to
+          {t_i18n("invitedTo")}
         </p>
         <h1 className={`${t.textPrimary} ${t.fontHeading} text-4xl leading-tight mb-8`}>
           {wedding.bride_name} &amp; {wedding.groom_name}&apos;s
           <br />
           <span className="text-2xl font-sans font-light tracking-widest uppercase mt-3 block opacity-80">
-            Wedding
+            {t_i18n("wedding")}
           </span>
         </h1>
       </div>
@@ -127,7 +129,7 @@ export default function InviteLandingPage() {
           </div>
           <div className="space-y-1">
             <h2 className={`${t.textPrimary} text-xl font-medium tracking-tight`}>{formatDate(func.date)}</h2>
-            <p className={`${t.textSecondary} text-base`}>{func.time} onwards</p>
+            <p className={`${t.textSecondary} text-base`}>{func.time} {t_i18n("onwards")}</p>
           </div>
           <div className="flex items-center gap-2 pt-2">
             <span className={`material-symbols-outlined text-xl ${t.icon}`}>location_on</span>
@@ -135,7 +137,7 @@ export default function InviteLandingPage() {
           </div>
           {func.maps_url && (
             <a href={func.maps_url} target="_blank" rel="noopener" className={`${t.textAccent} text-sm font-semibold underline opacity-90 hover:opacity-100`}>
-              View on Maps →
+              {t_i18n("viewOnMaps")} →
             </a>
           )}
         </div>
@@ -145,25 +147,48 @@ export default function InviteLandingPage() {
       <div className="mt-4 px-6">
         <div className={`${t.cardBg} border rounded-xl p-5 text-center shadow-sm`}>
           <p className={`${t.textPrimary} text-lg`}>
-            Dear <span className="font-bold">{guest.name}</span>,
+            {t_i18n("dear")} <span className="font-bold">{guest.name}</span>,
           </p>
-          <p className={`${t.textSecondary} text-sm mt-2 italic`}>We request the pleasure of your company</p>
+          <p className={`${t.textSecondary} text-sm mt-2 italic`}>{t_i18n("requestPleasure")}</p>
         </div>
       </div>
 
       {/* RSVP Button */}
-      <div className="mt-8 px-6 pb-12">
-        <Link href={`/invite/${token}/rsvp`}>
-          <button className={`w-full h-14 ${t.button} font-bold text-lg rounded-full shadow-lg hover:brightness-110 active:scale-[0.98] transition-all uppercase tracking-widest flex items-center justify-center gap-2`}>
-            RSVP Now
-            <span className="material-symbols-outlined">chevron_right</span>
-          </button>
-        </Link>
+      <div className="mt-8 px-6">
+        <button 
+          onClick={() => router.push(`/invite/${token}/rsvp`)}
+          className={`w-full h-14 ${t.button} font-bold text-lg rounded-full shadow-lg hover:brightness-110 active:scale-[0.98] transition-all uppercase tracking-widest flex items-center justify-center gap-2`}
+        >
+          {t_i18n("rsvpNow")}
+          <span className="material-symbols-outlined">chevron_right</span>
+        </button>
       </div>
+
+      {/* Language Switcher */}
+      <div className="mt-6 px-6 flex justify-center gap-4">
+        <button
+          onClick={() => router.push(`/en/invite/${token}`)}
+          className={`text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border transition-all ${
+            locale === 'en' ? t.button : `${t.cardBg} ${t.textSecondary} ${t.divider}`
+          }`}
+        >
+          English
+        </button>
+        <button
+          onClick={() => router.push(`/hi/invite/${token}`)}
+          className={`text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border transition-all ${
+            locale === 'hi' ? t.button : `${t.cardBg} ${t.textSecondary} ${t.divider}`
+          }`}
+        >
+          हिन्दी
+        </button>
+      </div>
+
+      <div className="pb-12" />
 
       {/* Footer */}
       <div className={`mt-auto py-6 border-t ${t.divider} flex flex-col items-center`}>
-        <p className={`${t.textSecondary} text-[10px] tracking-[0.2em] uppercase opacity-70`}>Powered by</p>
+        <p className={`${t.textSecondary} text-[10px] tracking-[0.2em] uppercase opacity-70`}>{t_i18n("poweredBy")}</p>
         <div className="flex items-center gap-1 mt-1 opacity-80">
           <span className={`material-symbols-outlined text-xs ${t.icon}`}>diamond</span>
           <span className={`${t.textPrimary} font-bold text-sm tracking-tight font-serif`}>WedSync</span>

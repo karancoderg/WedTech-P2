@@ -13,15 +13,24 @@ function startLookingForSendButton() {
     
     // 1. Look for Invalid number dialog
     const invalidDialog = document.evaluate(
-      "//div[contains(text(), 'invalid') or contains(text(), 'Invalid')]", 
+      "//div[contains(text(), 'invalid') or contains(text(), 'Invalid') or contains(text(), \"isn't on WhatsApp\")]", 
       document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null
     ).singleNodeValue;
     
     if (invalidDialog) {
       clearInterval(checkInterval);
-      console.log("WedSync: Invalid number detected.");
-      const okBtn = document.evaluate("//div[@role='button' and contains(., 'OK')]", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-      if (okBtn) okBtn.click();
+      console.log("WedSync: Invalid number or 'Not on WhatsApp' detected.");
+      
+      // Try to click 'OK' or 'CLOSE'
+      const okBtn = document.evaluate(
+        "//div[@role='button' and (contains(., 'OK') or contains(., 'CLOSE'))]", 
+        document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null
+      ).singleNodeValue;
+      
+      if (okBtn) {
+        console.log("WedSync: Clicking OK/CLOSE button");
+        okBtn.click();
+      }
       
       chrome.runtime.sendMessage({ action: 'INVALID_NUMBER' });
       return;
