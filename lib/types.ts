@@ -44,6 +44,7 @@ export interface WeddingFunction {
 export interface Guest {
   id: string;
   wedding_id: string;
+  group_id: string | null;
   name: string;
   phone: string;
   email: string | null;
@@ -53,7 +54,7 @@ export interface Guest {
   invite_token: string;
   invite_sent_at: string | null;
   overall_status: 'pending' | 'confirmed' | 'declined' | 'partial';
-  imported_via: 'csv' | 'manual';
+  imported_via: 'csv' | 'excel' | 'manual';
   created_at: string;
 }
 
@@ -132,4 +133,21 @@ export interface TemplateConfig {
   accentClass: string;
   bgImage?: string;
   description: string;
+}
+
+export interface SeatingTable {
+  id: string;
+  wedding_id: string;
+  function_id: string;
+  name: string;
+  capacity: number;
+  created_at: string;
+  assigned_guests?: Guest[];
+}
+
+export interface GuestSeating {
+  id: string;
+  table_id: string;
+  guest_id: string;
+  created_at: string;
 }

@@ -2,9 +2,11 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
+import * as XLSX from "xlsx";
 import { supabase } from "@/lib/supabase";
 import type { Wedding, Guest, WeddingFunction, RSVP } from "@/lib/types";
 import { generateWhatsAppLink, generateWhatsAppMessage, normalizePhone } from "@/lib/whatsapp";
+import { generateEmailLink } from "@/lib/email";
 import { toast } from "sonner";
 
 export default function GuestListPage() {
@@ -13,6 +15,7 @@ export default function GuestListPage() {
 
   const [wedding, setWedding] = useState<Wedding | null>(null);
   const [guests, setGuests] = useState<Guest[]>([]);
+  const [guestGroups, setGuestGroups] = useState<{ id: string; name: string }[]>([]);
   const [functions, setFunctions] = useState<WeddingFunction[]>([]);
   const [rsvps, setRsvps] = useState<RSVP[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,6 +33,7 @@ export default function GuestListPage() {
   // Add guest form
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
+  const [newEmail, setNewEmail] = useState("");
   const [newSide, setNewSide] = useState<"bride" | "groom" | "both">("both");
   const [newTags, setNewTags] = useState("");
 
@@ -37,18 +41,21 @@ export default function GuestListPage() {
   const [editingGuest, setEditingGuest] = useState<Guest | null>(null);
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
+  const [editEmail, setEditEmail] = useState("");
   const [editSide, setEditSide] = useState<"bride" | "groom" | "both">("both");
   const [editTags, setEditTags] = useState("");
 
   const fetchData = useCallback(async () => {
-    const [weddingRes, guestRes, funcRes, rsvpRes] = await Promise.all([
+    const [weddingRes, guestRes, groupRes, funcRes, rsvpRes] = await Promise.all([
       supabase.from("weddings").select("*").eq("id", weddingId).single(),
       supabase.from("guests").select("*").eq("wedding_id", weddingId),
+      supabase.from("guest_groups").select("*").eq("wedding_id", weddingId),
       supabase.from("wedding_functions").select("*").eq("wedding_id", weddingId).order("sort_order"),
       supabase.from("rsvps").select("*").eq("wedding_id", weddingId),
     ]);
     if (weddingRes.data) setWedding(weddingRes.data);
     if (guestRes.data) setGuests(guestRes.data);
+    if (groupRes.data) setGuestGroups(groupRes.data);
     if (funcRes.data) setFunctions(funcRes.data);
     if (rsvpRes.data) setRsvps(rsvpRes.data);
     setLoading(false);
@@ -91,7 +98,7 @@ export default function GuestListPage() {
     const token = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
     const funcIds = functions.map((f) => f.id);
     const { data: newGuest, error } = await supabase.from("guests").insert({
-      wedding_id: weddingId, name: newName, phone: newPhone, side: newSide,
+      wedding_id: weddingId, name: newName, phone: newPhone, email: newEmail, side: newSide,
       tags: newTags.split(",").map((t) => t.trim()).filter(Boolean),
       function_ids: funcIds, invite_token: token,
       overall_status: "pending", imported_via: "manual",
@@ -104,7 +111,7 @@ export default function GuestListPage() {
     });
     toast.success("✅ Guest added!");
     setShowAddDialog(false);
-    setNewName(""); setNewPhone(""); setNewTags("");
+    setNewName(""); setNewPhone(""); setNewEmail(""); setNewTags("");
     fetchData();
   }
 
@@ -113,6 +120,7 @@ export default function GuestListPage() {
     setEditingGuest(guest);
     setEditName(guest.name);
     setEditPhone(guest.phone);
+    setEditEmail(guest.email || "");
     setEditSide(guest.side);
     setEditTags(guest.tags.join(", "));
   }
@@ -125,6 +133,7 @@ export default function GuestListPage() {
     const { error } = await supabase.from("guests").update({
       name: editName,
       phone: editPhone,
+      email: editEmail,
       side: editSide,
       tags: editTags.split(",").map((t) => t.trim()).filter(Boolean),
     }).eq("id", editingGuest.id);
@@ -142,36 +151,119 @@ export default function GuestListPage() {
     toast.success("Guest removed");
     fetchData();
   }
+  
+  // Grouping Actions
+  async function handleCreateGroup() {
+    const groupName = prompt("Enter Family/Group Name (e.g. The Sharma Family):");
+    if (!groupName) return;
 
-  // CSV Import
-  async function handleCSVImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const { data: group, error: groupError } = await supabase
+      .from("guest_groups")
+      .insert({ wedding_id: weddingId, name: groupName })
+      .select()
+      .single();
+
+    if (groupError || !group) {
+      toast.error("Failed to create group");
+      return;
+    }
+
+    const { error: updateError } = await supabase
+      .from("guests")
+      .update({ group_id: group.id })
+      .in("id", Array.from(selectedIds));
+
+    if (updateError) {
+      toast.error("Failed to assign guests to group");
+    } else {
+      toast.success(`✅ Group "${groupName}" created!`);
+      setSelectedIds(new Set());
+      fetchData();
+    }
+  }
+
+  async function handleRemoveFromGroup(guestId: string) {
+    const { error } = await supabase
+      .from("guests")
+      .update({ group_id: null })
+      .eq("id", guestId);
+    
+    if (error) toast.error("Failed to remove from group");
+    else {
+      toast.success("Guest removed from group");
+      fetchData();
+    }
+  }
+
+  // Import Guests (CSV/Excel)
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const text = await file.text();
-    const lines = text.split("\n").slice(1); // skip header
-    const funcIds = functions.map((f) => f.id);
-    let count = 0;
-    for (const line of lines) {
-      const [name, phone, side, tags] = line.split(",").map((s) => s.trim());
-      if (!name || !phone) continue;
-      const token = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
-      const { data: newGuest } = await supabase.from("guests").insert({
-        wedding_id: weddingId, name, phone,
-        side: (side as "bride" | "groom" | "both") || "both",
-        tags: tags ? tags.split(";").map((t) => t.trim()) : [],
-        function_ids: funcIds, invite_token: token,
-        overall_status: "pending", imported_via: "csv",
-      }).select().single();
-      if (newGuest) {
-        await supabase.from("invite_tokens").insert({
-          token, wedding_id: weddingId, guest_id: newGuest.id,
-          function_ids: funcIds, used: false,
-        });
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "buffer" });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const data = XLSX.utils.sheet_to_json(worksheet) as any[];
+
+      const funcIds = functions.map((f) => f.id);
+      let count = 0;
+
+      for (const row of data) {
+        // Handle various header variations
+        const name = row.Name || row.name || row.Guest || row.guest;
+        const phone = row.Phone || row.phone || row.Mobile || row.mobile || row.Number || row.number;
+        const email = row.Email || row.email || row.Mail || row.mail;
+        const sideStr = String(row.Side || row.side || "both").toLowerCase().trim();
+        const tagsStr = row.Tags || row.tags || "";
+
+        if (!name || !phone) continue;
+
+        // DB constraints check
+        const allowedSides = ["bride", "groom", "both"];
+        const side = allowedSides.includes(sideStr) ? sideStr : "both";
+
+        const token = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+        const { data: newGuest, error: guestError } = await supabase.from("guests").insert({
+          wedding_id: weddingId,
+          name: String(name).trim(),
+          phone: String(phone).trim(),
+          email: email ? String(email).trim() : null,
+          side: side as "bride" | "groom" | "both",
+          tags: tagsStr ? String(tagsStr).split(/[;,]/).map((t: string) => t.trim()).filter(Boolean) : [],
+          function_ids: funcIds,
+          invite_token: token,
+          overall_status: "pending",
+          imported_via: file.name.endsWith(".csv") ? "csv" : "excel",
+        }).select().single();
+
+        if (guestError) {
+          console.error("Supabase insert error:", guestError);
+          continue;
+        }
+
+        if (newGuest) {
+          const { error: tokenError } = await supabase.from("invite_tokens").insert({
+            token,
+            wedding_id: weddingId,
+            guest_id: newGuest.id,
+            function_ids: funcIds,
+            used: false,
+          });
+          if (tokenError) console.error("Token insert error:", tokenError);
+          count++;
+        }
       }
-      count++;
+
+      toast.success(`📥 Imported ${count} guests from ${file.name}`);
+      fetchData();
+    } catch (error) {
+      console.error("Import error:", error);
+      toast.error("Failed to import file. Please check the format.");
+    } finally {
+      if (csvRef.current) csvRef.current.value = "";
     }
-    toast.success(`📥 Imported ${count} guests`);
-    fetchData();
   }
 
   function getInitials(name: string) {
@@ -211,9 +303,15 @@ export default function GuestListPage() {
             className="flex items-center gap-2 px-4 py-2 border-2 border-slate-200 text-slate-700 rounded-lg font-bold text-sm hover:bg-white transition-all"
           >
             <span className="material-symbols-outlined text-xl">upload_file</span>
-            Import CSV
+            Import List
           </button>
-          <input ref={csvRef} type="file" accept=".csv" className="hidden" onChange={handleCSVImport} />
+          <input 
+            ref={csvRef} 
+            type="file" 
+            accept=".csv, .xlsx, .xls" 
+            className="hidden" 
+            onChange={handleImport} 
+          />
           <button
             onClick={() => setShowAddDialog(true)}
             className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg font-bold text-sm hover:shadow-lg hover:shadow-primary/20 transition-all"
@@ -311,8 +409,26 @@ export default function GuestListPage() {
                     />
                   </td>
                   <td className="py-4 px-6">
-                    <div className="font-bold text-slate-900">{guest.name}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="font-bold text-slate-900">{guest.name}</div>
+                      {guest.group_id && (
+                        <div 
+                          className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-black uppercase flex items-center gap-1 cursor-help group/tip relative"
+                          title={`Group: ${guestGroups.find(g => g.id === guest.group_id)?.name || 'Unknown'}`}
+                        >
+                          <span className="material-symbols-outlined text-[12px]">group</span>
+                          Family
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleRemoveFromGroup(guest.id); }}
+                            className="ml-1 opacity-0 group-hover/tip:opacity-100 hover:text-red-500 transition-opacity"
+                          >
+                            <span className="material-symbols-outlined text-[10px]">close</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <div className="text-xs text-slate-500">{guest.phone}</div>
+                    {guest.email && <div className="text-[10px] text-slate-400">{guest.email}</div>}
                   </td>
                   <td className="py-4 px-6">
                     <div className="flex gap-1.5">
@@ -365,6 +481,15 @@ export default function GuestListPage() {
                           title="Send WhatsApp"
                         >
                           <span className="material-symbols-outlined">chat</span>
+                        </a>
+                      )}
+                      {wedding && guest.email && (
+                        <a
+                          href={generateEmailLink(guest, wedding, functions)}
+                          className="p-2 text-slate-400 hover:text-blue-500 transition-colors"
+                          title="Send Email"
+                        >
+                          <span className="material-symbols-outlined">mail</span>
                         </a>
                       )}
                       <button
@@ -426,10 +551,11 @@ export default function GuestListPage() {
             </div>
             <div className="flex gap-3">
               <button
-                onClick={() => setSelectedIds(new Set())}
-                className="px-4 py-2 text-sm font-bold hover:bg-white/10 rounded-lg transition-colors"
+                onClick={handleCreateGroup}
+                className="px-5 py-2 hover:bg-white/10 text-white rounded-lg font-bold text-sm flex items-center gap-2 transition-all"
               >
-                Clear
+                <span className="material-symbols-outlined text-xl">group_add</span>
+                Group Together
               </button>
               <button
                 onClick={async () => {
@@ -483,6 +609,14 @@ export default function GuestListPage() {
                   className="w-full mt-1 px-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-primary focus:border-primary"
                   value={newPhone} onChange={(e) => setNewPhone(e.target.value)}
                   placeholder="+91 98765 43210"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Email</label>
+                <input
+                  className="w-full mt-1 px-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-primary focus:border-primary"
+                  value={newEmail} onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="guest@example.com"
                 />
               </div>
               <div>
@@ -548,6 +682,14 @@ export default function GuestListPage() {
                   className="w-full mt-1 px-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-primary focus:border-primary"
                   value={editPhone} onChange={(e) => setEditPhone(e.target.value)}
                   placeholder="+91 98765 43210"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Email</label>
+                <input
+                  className="w-full mt-1 px-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-primary focus:border-primary"
+                  value={editEmail} onChange={(e) => setEditEmail(e.target.value)}
+                  placeholder="guest@example.com"
                 />
               </div>
               <div>
