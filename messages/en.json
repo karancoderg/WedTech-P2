@@ -1,0 +1,34 @@
+{
+  "Invite": {
+    "invitedTo": "You're invited to",
+    "wedding": "Wedding",
+    "onwards": "onwards",
+    "viewOnMaps": "View on Maps",
+    "dear": "Dear",
+    "requestPleasure": "We request the pleasure of your company",
+    "rsvpNow": "RSVP Now",
+    "poweredBy": "Powered by"
+  },
+  "RSVP": {
+    "willYouAttend": "Will you be attending {function}?",
+    "joinUs": "Join us for the celebration",
+    "yes": "Yes, I'll be there",
+    "no": "Sorry, can't make it",
+    "adultsOnly": "Adults Only",
+    "below12": "Below 12 yrs",
+    "numberOfGuests": "Number of Guests",
+    "numberOfKids": "Number of Kids",
+    "dietaryPreference": "Dietary Preference",
+    "veg": "Veg",
+    "jain": "Jain",
+    "nonVeg": "Non-Veg",
+    "accommodationNeeded": "Accommodation needed?",
+    "blockedRooms": "We've blocked rooms at the venue",
+    "confirmRSVP": "Confirm My RSVP",
+    "submitting": "Submitting...",
+    "respondAll": "Please respond to all events",
+    "error": "Something went wrong — please try again",
+    "thankYou": "Thank You!",
+    "rsvpCompleted": "Your RSVP has been confirmed. See you at the celebrations!"
+  }
+}

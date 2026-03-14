@@ -20,6 +20,9 @@ export default function CheckInPage() {
   const [loading, setLoading] = useState(true);
   const [lastCheckedIn, setLastCheckedIn] = useState<string | null>(null);
   const [showScanner, setShowScanner] = useState(false);
+  const [showGroupDialog, setShowGroupDialog] = useState(false);
+  const [groupGuests, setGroupGuests] = useState<Guest[]>([]);
+  const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set());
 
   const fetchData = useCallback(async () => {
     const [weddingRes, funcRes, guestRes, rsvpRes] = await Promise.all([
@@ -53,6 +56,21 @@ export default function CheckInPage() {
         scanner.pause(true);
         const guest = guests.find((g) => g.invite_token === decodedText);
         if (guest) {
+          if (guest.group_id) {
+            const family = guests.filter((g) => g.group_id === guest.group_id);
+            setGroupGuests(family);
+            // Auto-select those who are confirmed but not checked-in
+            const toCheckIn = family.filter(f => {
+              const r = rsvps.find(r => r.guest_id === f.id && r.function_id === selectedFunction);
+              return r?.status === "confirmed" && !r?.checked_in;
+            }).map(f => f.id);
+            setSelectedGroupIds(new Set(toCheckIn));
+            setShowGroupDialog(true);
+            scanner.clear();
+            setShowScanner(false);
+            return;
+          }
+
           const rsvp = rsvps.find((r) => r.guest_id === guest.id && r.function_id === selectedFunction);
           if (rsvp?.checked_in) {
             toast.info(`${guest.name} is already checked in.`);
@@ -102,6 +120,36 @@ export default function CheckInPage() {
     toast.success("✅ Guest checked in!");
     fetchData();
     setTimeout(() => setLastCheckedIn(null), 3000);
+  }
+
+  async function handleBulkCheckIn() {
+    const ids = Array.from(selectedGroupIds);
+    if (ids.length === 0) return;
+
+    for (const guestId of ids) {
+      const rsvp = rsvps.find((r) => r.guest_id === guestId && r.function_id === selectedFunction);
+      await supabase.from("rsvps").upsert({
+        id: rsvp?.id,
+        wedding_id: weddingId,
+        guest_id: guestId,
+        function_id: selectedFunction,
+        status: "confirmed",
+        total_pax: rsvp?.total_pax || 1,
+        checked_in: true,
+        checked_in_at: new Date().toISOString(),
+      });
+    }
+
+    toast.success(`✅ ${ids.length} entries checked in!`);
+    setShowGroupDialog(false);
+    fetchData();
+  }
+
+  function toggleGuestSelection(id: string) {
+    const next = new Set(selectedGroupIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedGroupIds(next);
   }
 
   const functionGuests = guests.filter((g) => {
@@ -279,6 +327,72 @@ export default function CheckInPage() {
           })
         )}
       </div>
+
+      {/* GROUP CHECK-IN MODAL */}
+      {showGroupDialog && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="font-black text-slate-900 text-xl tracking-tight">Family Check-In</h3>
+                <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-0.5">Select members to admit</p>
+              </div>
+              <button onClick={() => setShowGroupDialog(false)} className="text-slate-400 hover:text-slate-600">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            
+            <div className="p-6 max-h-[60vh] overflow-y-auto space-y-3">
+              {groupGuests.map((g) => {
+                const r = rsvps.find(rsvp => rsvp.guest_id === g.id && rsvp.function_id === selectedFunction);
+                const isSelected = selectedGroupIds.has(g.id);
+                const alreadyIn = r?.checked_in;
+
+                return (
+                  <label key={g.id} className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all cursor-pointer ${
+                    alreadyIn ? "bg-slate-50 border-transparent opacity-50" : 
+                    isSelected ? "border-primary bg-primary/5 shadow-sm" : "border-slate-100 hover:border-primary/20"
+                  }`}>
+                    <input 
+                      type="checkbox" 
+                      className="size-5 rounded-lg text-primary border-slate-300 focus:ring-primary disabled:opacity-50"
+                      checked={isSelected || alreadyIn}
+                      disabled={alreadyIn}
+                      onChange={() => toggleGuestSelection(g.id)}
+                    />
+                    <div className="flex-1">
+                      <p className={`font-bold ${alreadyIn ? "text-slate-400" : "text-slate-900"}`}>{g.name}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                          r?.status === "confirmed" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
+                        }`}>
+                          {r?.status || "No RSVP"}
+                        </span>
+                        {alreadyIn && <span className="text-[10px] font-black text-emerald-600 uppercase">Already Admitted</span>}
+                      </div>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="p-6 bg-slate-50 flex gap-3">
+              <button 
+                onClick={() => setShowGroupDialog(false)}
+                className="flex-1 py-4 text-slate-600 font-bold text-sm hover:text-slate-900 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleBulkCheckIn}
+                className="flex-[2] bg-primary text-white py-4 rounded-2xl font-black text-sm shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+              >
+                Check In Selection ({selectedGroupIds.size})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* SCANNER MODAL */}
       {showScanner && (
