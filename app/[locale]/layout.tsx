@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import "../globals.css";
+import { BackgroundDoodles } from "@/components/BackgroundDoodles";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -43,9 +44,10 @@ export default async function RootLayout({
           />
         </head>
         <body
-          className={`${inter.variable} ${playfair.variable} font-sans antialiased`}
+          className={`${inter.variable} ${playfair.variable} font-sans antialiased overflow-x-hidden`}
         >
           <NextIntlClientProvider messages={messages}>
+            <BackgroundDoodles />
             {children}
             <Toaster richColors position="bottom-right" />
           </NextIntlClientProvider>

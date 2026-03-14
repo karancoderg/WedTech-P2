@@ -24,6 +24,8 @@ export default function GuestListPage() {
   const [activeTab, setActiveTab] = useState("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showGroupDialog, setShowGroupDialog] = useState(false);
+  const [groupName, setGroupName] = useState("");
   const csvRef = useRef<HTMLInputElement>(null);
 
   // Pagination
@@ -161,7 +163,7 @@ export default function GuestListPage() {
   }
   
   // Grouping Actions
-  async function handleCreateGroup() {
+  async function handlePreCreateGroup() {
     // Guard: prevent adding a guest who already belongs to a DIFFERENT group
     const alreadyInGroup = guests.filter(
       (g) => selectedIds.has(g.id) && g.group_id !== null
@@ -175,12 +177,15 @@ export default function GuestListPage() {
       return;
     }
 
-    const groupName = prompt("Enter Family/Group Name (e.g. The Sharma Family):");
-    if (!groupName) return;
+    setShowGroupDialog(true);
+  }
+
+  async function handleCreateGroup() {
+    if (!groupName.trim()) return;
 
     const { data: group, error: groupError } = await supabase
       .from("guest_groups")
-      .insert({ wedding_id: weddingId, name: groupName })
+      .insert({ wedding_id: weddingId, name: groupName.trim() })
       .select()
       .single();
 
@@ -199,6 +204,8 @@ export default function GuestListPage() {
     } else {
       toast.success(`✅ Family "${groupName}" created with ${selectedIds.size} members!`);
       setSelectedIds(new Set());
+      setGroupName("");
+      setShowGroupDialog(false);
       fetchData();
     }
   }
@@ -599,7 +606,7 @@ export default function GuestListPage() {
             </div>
             <div className="flex gap-3">
               <button
-                onClick={handleCreateGroup}
+                onClick={handlePreCreateGroup}
                 className="px-5 py-2 hover:bg-white/10 text-white rounded-lg font-bold text-sm flex items-center gap-2 transition-all"
               >
                 <span className="material-symbols-outlined text-xl">group_add</span>
@@ -772,6 +779,40 @@ export default function GuestListPage() {
                 className="flex-1 py-2.5 bg-primary text-white rounded-lg font-bold text-sm hover:bg-primary/90 shadow-md shadow-primary/20"
               >
                 Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Group Together Dialog */}
+      {showGroupDialog && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-all" onClick={() => setShowGroupDialog(false)}>
+          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl animate-in fade-in" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-black text-slate-900 mb-2">Group Together</h3>
+            <p className="text-sm text-slate-500 mb-6">Enter Family/Group Name (e.g. The Sharma Family):</p>
+            <div className="space-y-4">
+              <div>
+                <input
+                  className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg text-sm focus:ring-primary focus:border-primary outline-none transition-all"
+                  value={groupName} onChange={(e) => setGroupName(e.target.value)}
+                  placeholder="Family Name"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowGroupDialog(false)}
+                className="flex-1 py-2.5 border-2 border-slate-200 rounded-lg font-bold text-sm text-slate-600 hover:bg-slate-50 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateGroup}
+                className="flex-1 py-2.5 bg-primary text-white rounded-lg font-bold text-sm hover:bg-primary/90 shadow-md shadow-primary/20 transition-all"
+              >
+                Create Group
               </button>
             </div>
           </div>

@@ -78,14 +78,14 @@ export default function CheckInPage() {
             return;
           }
           await supabase.from("rsvps").upsert({
-             id: rsvp?.id,
-             wedding_id: weddingId,
-             guest_id: guest.id,
-             function_id: selectedFunction,
-             status: "confirmed",
-             total_pax: rsvp?.total_pax || 1,
-             checked_in: true,
-             checked_in_at: new Date().toISOString(),
+            id: rsvp?.id,
+            wedding_id: weddingId,
+            guest_id: guest.id,
+            function_id: selectedFunction,
+            status: "confirmed",
+            total_pax: rsvp?.total_pax || 1,
+            checked_in: true,
+            checked_in_at: new Date().toISOString(),
           });
           setLastCheckedIn(guest.id);
           toast.success(`📷 Scanned: ${guest.name} checked in!`);
@@ -198,11 +198,10 @@ export default function CheckInPage() {
           <button
             key={f.id}
             onClick={() => setSelectedFunction(f.id)}
-            className={`px-8 py-3 border-b-2 font-bold text-sm whitespace-nowrap transition-colors ${
-              selectedFunction === f.id
+            className={`px-8 py-3 border-b-2 font-bold text-sm whitespace-nowrap transition-colors ${selectedFunction === f.id
                 ? "border-primary text-primary"
                 : "border-transparent text-slate-500 hover:text-primary"
-            }`}
+              }`}
           >
             {f.name}
           </button>
@@ -255,13 +254,12 @@ export default function CheckInPage() {
             return (
               <div
                 key={guest.id}
-                className={`bg-white p-5 rounded-2xl flex items-center justify-between group transition-all ${
-                  isJustCheckedIn
+                className={`bg-white p-5 rounded-2xl flex items-center justify-between group transition-all ${isJustCheckedIn
                     ? "border border-emerald-200 shadow-[0_0_15px_rgba(16,185,129,0.1)] animate-row-highlight"
                     : isCheckedIn
-                    ? "border border-emerald-200 opacity-60"
-                    : "border border-slate-100 shadow-sm hover:border-primary/30"
-                }`}
+                      ? "border border-emerald-200 opacity-60"
+                      : "border border-slate-100 shadow-sm hover:border-primary/30"
+                  }`}
               >
                 <div className="flex items-center gap-4 flex-1">
                   <div className="size-12 bg-primary/10 rounded-full flex items-center justify-center text-primary font-black text-lg">
@@ -274,13 +272,12 @@ export default function CheckInPage() {
                     </div>
                     <div className="col-span-1 flex flex-col gap-1">
                       <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full w-fit uppercase tracking-tight ${
-                          rsvp?.status === "confirmed"
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full w-fit uppercase tracking-tight ${rsvp?.status === "confirmed"
                             ? "bg-emerald-100 text-emerald-700"
                             : rsvp?.status === "declined"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-amber-100 text-amber-700"
-                        }`}
+                              ? "bg-red-100 text-red-700"
+                              : "bg-amber-100 text-amber-700"
+                          }`}
                       >
                         {rsvp?.status || "Pending"}
                       </span>
@@ -341,7 +338,7 @@ export default function CheckInPage() {
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
-            
+
             <div className="p-6 max-h-[60vh] overflow-y-auto space-y-3">
               {groupGuests.map((g) => {
                 const r = rsvps.find(rsvp => rsvp.guest_id === g.id && rsvp.function_id === selectedFunction);
@@ -349,12 +346,11 @@ export default function CheckInPage() {
                 const alreadyIn = r?.checked_in;
 
                 return (
-                  <label key={g.id} className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all cursor-pointer ${
-                    alreadyIn ? "bg-slate-50 border-transparent opacity-50" : 
-                    isSelected ? "border-primary bg-primary/5 shadow-sm" : "border-slate-100 hover:border-primary/20"
-                  }`}>
-                    <input 
-                      type="checkbox" 
+                  <label key={g.id} className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all cursor-pointer ${alreadyIn ? "bg-slate-50 border-transparent opacity-50" :
+                      isSelected ? "border-primary bg-primary/5 shadow-sm" : "border-slate-100 hover:border-primary/20"
+                    }`}>
+                    <input
+                      type="checkbox"
                       className="size-5 rounded-lg text-primary border-slate-300 focus:ring-primary disabled:opacity-50"
                       checked={isSelected || alreadyIn}
                       disabled={alreadyIn}
@@ -363,9 +359,8 @@ export default function CheckInPage() {
                     <div className="flex-1">
                       <p className={`font-bold ${alreadyIn ? "text-slate-400" : "text-slate-900"}`}>{g.name}</p>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
-                          r?.status === "confirmed" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
-                        }`}>
+                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${r?.status === "confirmed" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
+                          }`}>
                           {r?.status || "No RSVP"}
                         </span>
                         {alreadyIn && <span className="text-[10px] font-black text-emerald-600 uppercase">Already Admitted</span>}
@@ -377,13 +372,13 @@ export default function CheckInPage() {
             </div>
 
             <div className="p-6 bg-slate-50 flex gap-3">
-              <button 
+              <button
                 onClick={() => setShowGroupDialog(false)}
                 className="flex-1 py-4 text-slate-600 font-bold text-sm hover:text-slate-900 transition-colors"
               >
                 Cancel
               </button>
-              <button 
+              <button
                 onClick={handleBulkCheckIn}
                 className="flex-[2] bg-primary text-white py-4 rounded-2xl font-black text-sm shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
               >
