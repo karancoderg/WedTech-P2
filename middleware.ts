@@ -1,4 +1,8 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import createMiddleware from 'next-intl/middleware';
+import { routing } from './i18n/routing';
+
+const intlMiddleware = createMiddleware(routing);
 
 const isProtectedRoute = createRouteMatcher([
   '/dashboard(.*)',
@@ -6,9 +10,13 @@ const isProtectedRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
+  // Determine if it's a public invite route or a protected dashboard route
   if (isProtectedRoute(req)) {
     await auth.protect();
   }
+
+  // Handle localization
+  return intlMiddleware(req);
 });
 
 export const config = {

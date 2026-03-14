@@ -9,9 +9,11 @@ import { toast } from "sonner";
 const NAV_ITEMS = [
   { label: "Dashboard", icon: "dashboard", href: "/dashboard" },
   { label: "Guest List", icon: "group", hrefFn: (id: string) => `/wedding/${id}/guests` },
+  { label: "Seating Plan", icon: "table_chart", hrefFn: (id: string) => `/wedding/${id}/seating` },
   { label: "Invitations", icon: "mail", hrefFn: (id: string) => `/wedding/${id}/invites` },
   { label: "Analytics", icon: "analytics", hrefFn: (id: string) => `/wedding/${id}/analytics` },
   { label: "Check-In", icon: "qr_code_scanner", hrefFn: (id: string) => `/wedding/${id}/checkin` },
+  { label: "Briefings", icon: "assignment", hrefFn: (id: string) => `/wedding/${id}/briefings` },
 ];
 
 export default function PlannerLayout({ children }: { children: React.ReactNode }) {
