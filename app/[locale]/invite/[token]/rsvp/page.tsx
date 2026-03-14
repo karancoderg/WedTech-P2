@@ -13,8 +13,6 @@ interface FunctionResponse {
   functionId: string;
   functionName: string;
   status: "confirmed" | "declined" | "";
-  plusOnes: number;
-  children: number;
   dietaryPreference: "veg" | "jain" | "non-veg" | null;
   needsAccommodation: boolean;
 }
@@ -34,6 +32,8 @@ export default function RSVPFormPage() {
   const [submitting, setSubmitting] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
+  const [globalChildrenCount, setGlobalChildrenCount] = useState<number>(0);
+  const [additionalGuests, setAdditionalGuests] = useState<{name: string, phone: string}[]>([]);
 
   useEffect(() => {
     async function fetchData() {
@@ -70,8 +70,6 @@ export default function RSVPFormPage() {
           functionId: f.id,
           functionName: f.name,
           status: "",
-          plusOnes: 0,
-          children: 0,
           dietaryPreference: null,
           needsAccommodation: false,
         }));
@@ -109,18 +107,21 @@ export default function RSVPFormPage() {
     
     setSubmitting(true);
     try {
+      const primaryGuest = guests[0];
+
       for (const guestId of Object.keys(responses)) {
         const guestResponses = responses[guestId];
+        const isPrimary = guestId === primaryGuest.id;
         for (const resp of guestResponses) {
-          const totalPax = resp.status === "confirmed" ? 1 + resp.plusOnes + resp.children : 0;
+          const totalPax = resp.status === "confirmed" ? 1 + (isPrimary ? globalChildrenCount : 0) : 0;
           await supabase.from("rsvps").upsert({
             wedding_id: wedding!.id, 
             guest_id: guestId, 
             function_id: resp.functionId,
             invite_token: token, 
             status: resp.status, 
-            plus_ones: resp.plusOnes,
-            children: resp.children, 
+            plus_ones: 0,
+            children: isPrimary && resp.status === "confirmed" ? globalChildrenCount : 0, 
             total_pax: totalPax, 
             dietary_preference: resp.dietaryPreference,
             needs_accommodation: resp.needsAccommodation, 
@@ -137,6 +138,46 @@ export default function RSVPFormPage() {
         // Sync with CRM (Product 1)
         if (allConfirmed || !allDeclined) {
           syncGuestWithCRM(guestId);
+        }
+      }
+
+      const validAdditionalGuests = additionalGuests.filter(ag => ag.name.trim());
+      for (const ag of validAdditionalGuests) {
+        // Create a new guest linked to the primary guest's group
+        const { data: newGuest, error: insertError } = await supabase.from("guests").insert({
+          wedding_id: wedding!.id,
+          group_id: primaryGuest.group_id || primaryGuest.id, // Group them together
+          name: ag.name.trim(),
+          phone: ag.phone.trim(),
+          side: primaryGuest.side,
+          tags: primaryGuest.tags,
+          function_ids: primaryGuest.function_ids,
+          invite_token: window.crypto.randomUUID().replace(/-/g, '').slice(0, 16), // Generate a unique token for this new guest
+          overall_status: "confirmed",
+          imported_via: "manual"
+        }).select().single();
+
+        if (insertError) {
+          console.error("Failed to insert additional guest:", insertError);
+        } else if (newGuest) {
+          // Add confirmed RSVPs for this new guest, defaulting to the primary guest's responses
+          const primaryResponses = responses[primaryGuest.id];
+          for (const resp of primaryResponses) {
+            await supabase.from("rsvps").upsert({
+              wedding_id: wedding!.id,
+              guest_id: newGuest.id,
+              function_id: resp.functionId,
+              invite_token: token,
+              status: resp.status, // Copy the primary guest's status
+              plus_ones: 0,
+              children: 0,
+              total_pax: resp.status === "confirmed" ? 1 : 0,
+              dietary_preference: null,
+              needs_accommodation: resp.needsAccommodation,
+              responded_at: new Date().toISOString(),
+            }, { onConflict: "guest_id,function_id" });
+          }
+          syncGuestWithCRM(newGuest.id);
         }
       }
       
@@ -350,7 +391,7 @@ export default function RSVPFormPage() {
                     className={`relative flex items-center p-4 rounded-xl border-2 ${t.bgSub} shadow-sm cursor-pointer transition-all ${
                       resp.status === "declined" ? "border-red-400" : t.cardInactive
                     }`}
-                    onClick={() => updateResponse(g.id, index, { status: "declined", plusOnes: 0, children: 0, dietaryPreference: null, needsAccommodation: false })}
+                    onClick={() => updateResponse(g.id, index, { status: "declined", dietaryPreference: null, needsAccommodation: false })}
                   >
                     <div className="flex items-center justify-between w-full">
                       <div className="flex items-center gap-3">
@@ -372,40 +413,6 @@ export default function RSVPFormPage() {
                 {resp.status === "confirmed" && (
                   <div className="px-6 space-y-6 animate-in fade-in">
                     <div className={`${t.bgSub} rounded-xl p-5 shadow-sm space-y-6 border ${t.borderTop}`}>
-                      {/* Plus-Ones */}
-                      <div>
-                        <div className="flex items-center justify-between mb-3">
-                          <h4 className={`font-bold ${t.textPrimary}`}>{t_i18n("adultsOnly")}</h4>
-                          <span className={`text-xs ${t.textAccent} font-medium uppercase tracking-wider`}>{t_i18n("adultsOnly")}</span>
-                        </div>
-                        <div className={`flex items-center justify-between ${t.cardBg} p-3 rounded-lg border`}>
-                          <p className={`${t.textSecondary} text-sm`}>{t_i18n("numberOfGuests")}</p>
-                          <div className="flex items-center gap-4">
-                            <button onClick={() => updateResponse(g.id, index, { plusOnes: Math.max(0, resp.plusOnes - 1) })} className={`size-8 rounded-full ${t.bgSub} shadow-sm flex items-center justify-center ${t.textAccent} font-bold border ${t.borderTop}`}>−</button>
-                            <span className={`font-bold ${t.textPrimary} w-4 text-center`}>{resp.plusOnes}</span>
-                            <button onClick={() => updateResponse(g.id, index, { plusOnes: resp.plusOnes + 1 })} className={`size-8 rounded-full ${t.bgSub} shadow-sm flex items-center justify-center ${t.textAccent} font-bold border ${t.borderTop}`}>+</button>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Children */}
-                      <div>
-                        <div className="flex items-center justify-between mb-3">
-                          <h4 className={`font-bold ${t.textPrimary}`}>{t_i18n("below12")}</h4>
-                          <span className={`text-xs ${t.textAccent} font-medium uppercase tracking-wider`}>{t_i18n("below12")}</span>
-                        </div>
-                        <div className={`flex items-center justify-between ${t.cardBg} p-3 rounded-lg border`}>
-                          <p className={`${t.textSecondary} text-sm`}>{t_i18n("numberOfKids")}</p>
-                          <div className="flex items-center gap-4">
-                            <button onClick={() => updateResponse(g.id, index, { children: Math.max(0, resp.children - 1) })} className={`size-8 rounded-full ${t.bgSub} shadow-sm flex items-center justify-center ${t.textAccent} font-bold border ${t.borderTop}`}>−</button>
-                            <span className={`font-bold ${t.textPrimary} w-4 text-center`}>{resp.children}</span>
-                            <button onClick={() => updateResponse(g.id, index, { children: resp.children + 1 })} className={`size-8 rounded-full ${t.bgSub} shadow-sm flex items-center justify-center ${t.textAccent} font-bold border ${t.borderTop}`}>+</button>
-                          </div>
-                        </div>
-                      </div>
-
-                      <hr className={t.borderTop} />
-
                       {/* Dietary Preference */}
                       <div>
                         <h4 className={`font-bold ${t.textPrimary} mb-4`}>{t_i18n("dietaryPreference")}</h4>
@@ -460,6 +467,91 @@ export default function RSVPFormPage() {
             ))}
           </div>
         ))}
+
+        {/* Global Additional Guests & Children Section */}
+        {Object.values(responses).some(resps => resps.some(r => r.status === "confirmed")) && (
+          <div className={`border-t-4 ${t.borderTop} mt-12 pt-8 px-6 space-y-8 pb-10`}>
+            {/* Additional Guests */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className={`${t.textPrimary} text-xl font-bold leading-tight`}>
+                  Bringing additional guests?
+                </h3>
+              </div>
+              <p className={`${t.textSecondary} text-sm mb-4`}>
+                Please provide their details so we can properly check them in at the venue.
+              </p>
+              
+              <div className="space-y-4">
+                {additionalGuests.map((ag, index) => (
+                  <div key={index} className={`p-4 rounded-xl border ${t.borderTop} ${t.cardBg} space-y-3 relative`}>
+                    <button 
+                      onClick={() => setAdditionalGuests(prev => prev.filter((_, i) => i !== index))}
+                      className="absolute -top-3 -right-3 size-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center border border-red-200 shadow-sm hover:bg-red-200"
+                    >
+                      <span className="material-symbols-outlined text-sm">close</span>
+                    </button>
+                    <div>
+                      <label className={`text-xs font-bold uppercase tracking-widest ${t.textSecondary} mb-1 block`}>Guest Name</label>
+                      <input 
+                        type="text" 
+                        placeholder="E.g. John Doe"
+                        value={ag.name}
+                        onChange={(e) => {
+                          const newGuests = [...additionalGuests];
+                          newGuests[index].name = e.target.value;
+                          setAdditionalGuests(newGuests);
+                        }}
+                        className={`w-full p-3 rounded-lg border ${t.borderTop} focus:outline-none focus:border-[${t.icon}] bg-white`}
+                      />
+                    </div>
+                    <div>
+                      <label className={`text-xs font-bold uppercase tracking-widest ${t.textSecondary} mb-1 block`}>Mobile Number (Optional)</label>
+                      <input 
+                        type="tel" 
+                        placeholder="E.g. +91 98765 43210"
+                        value={ag.phone}
+                        onChange={(e) => {
+                          const newGuests = [...additionalGuests];
+                          newGuests[index].phone = e.target.value;
+                          setAdditionalGuests(newGuests);
+                        }}
+                        className={`w-full p-3 rounded-lg border ${t.borderTop} focus:outline-none focus:border-[${t.icon}] bg-white`}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button 
+                onClick={() => setAdditionalGuests(prev => [...prev, { name: "", phone: "" }])}
+                className={`w-full mt-4 py-3 rounded-xl border-2 border-dashed ${t.borderTop} ${t.textAccent} font-semibold flex items-center justify-center gap-2 hover:bg-black/5 transition-all`}
+              >
+                <span className="material-symbols-outlined">person_add</span>
+                Add Guest
+              </button>
+            </div>
+
+            <hr className={t.borderTop} />
+
+            {/* Global Children Count */}
+            <div>
+              <div className="mb-4">
+                <h3 className={`${t.textPrimary} text-xl font-bold leading-tight`}>
+                  Children below 12 yrs
+                </h3>
+              </div>
+              <div className={`flex items-center justify-between ${t.cardBg} p-4 rounded-xl border shadow-sm`}>
+                <p className={`${t.textSecondary} text-sm font-medium`}>Special arrangements</p>
+                <div className="flex items-center gap-5">
+                  <button onClick={() => setGlobalChildrenCount(prev => Math.max(0, prev - 1))} className={`size-10 rounded-full ${t.bgSub} shadow flex items-center justify-center ${t.textAccent} font-bold border ${t.borderTop} text-xl`}>−</button>
+                  <span className={`font-black text-xl ${t.textPrimary} w-6 text-center`}>{globalChildrenCount}</span>
+                  <button onClick={() => setGlobalChildrenCount(prev => prev + 1)} className={`size-10 rounded-full ${t.bgSub} shadow flex items-center justify-center ${t.textAccent} font-bold border ${t.borderTop} text-xl`}>+</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Fixed Bottom CTA */}

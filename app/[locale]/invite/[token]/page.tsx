@@ -17,6 +17,7 @@ export default function InviteLandingPage() {
   const [wedding, setWedding] = useState<Wedding | null>(null);
   const [guest, setGuest] = useState<Guest | null>(null);
   const [functions, setFunctions] = useState<WeddingFunction[]>([]);
+  const [hasConfirmedRsvp, setHasConfirmedRsvp] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -25,14 +26,18 @@ export default function InviteLandingPage() {
       const { data: tokenData } = await supabase.from("invite_tokens").select("*").eq("token", token).single();
       if (!tokenData) { setError(true); setLoading(false); return; }
 
-      const [weddingRes, guestRes, funcRes] = await Promise.all([
+      const [weddingRes, guestRes, funcRes, rsvpRes] = await Promise.all([
         supabase.from("weddings").select("*").eq("id", tokenData.wedding_id).single(),
         supabase.from("guests").select("*").eq("id", tokenData.guest_id).single(),
         supabase.from("wedding_functions").select("*").eq("wedding_id", tokenData.wedding_id).in("id", tokenData.function_ids).order("sort_order"),
+        supabase.from("rsvps").select("status").eq("guest_id", tokenData.guest_id),
       ]);
       if (weddingRes.data) setWedding(weddingRes.data);
       if (guestRes.data) setGuest(guestRes.data);
       if (funcRes.data) setFunctions(funcRes.data);
+      if (rsvpRes.data) {
+        setHasConfirmedRsvp(rsvpRes.data.some((r) => r.status === "confirmed"));
+      }
       setLoading(false);
     }
     fetchInvite();
@@ -155,13 +160,23 @@ export default function InviteLandingPage() {
 
       {/* RSVP Button */}
       <div className="mt-8 px-6">
-        <button 
-          onClick={() => router.push(`/invite/${token}/rsvp`)}
-          className={`w-full h-14 ${t.button} font-bold text-lg rounded-full shadow-lg hover:brightness-110 active:scale-[0.98] transition-all uppercase tracking-widest flex items-center justify-center gap-2`}
-        >
-          {t_i18n("rsvpNow")}
-          <span className="material-symbols-outlined">chevron_right</span>
-        </button>
+        {hasConfirmedRsvp ? (
+          <button 
+            onClick={() => router.push(`/${locale}/invite/${token}/confirmed`)}
+            className={`w-full h-14 ${t.button} font-bold text-lg rounded-full shadow-lg hover:brightness-110 active:scale-[0.98] transition-all uppercase tracking-widest flex items-center justify-center gap-2`}
+          >
+            SHOW EVENT PASS
+            <span className="material-symbols-outlined">qr_code_2</span>
+          </button>
+        ) : (
+          <button 
+            onClick={() => router.push(`/${locale}/invite/${token}/rsvp`)}
+            className={`w-full h-14 ${t.button} font-bold text-lg rounded-full shadow-lg hover:brightness-110 active:scale-[0.98] transition-all uppercase tracking-widest flex items-center justify-center gap-2`}
+          >
+            {t_i18n("rsvpNow")}
+            <span className="material-symbols-outlined">chevron_right</span>
+          </button>
+        )}
       </div>
 
       {/* Language Switcher */}
