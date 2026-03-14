@@ -56,33 +56,66 @@ body {
 }
 
 /* ===== Custom Wedding Color Utilities ===== */
-.text-wedding-gold { color: #b35309; }
-.bg-wedding-gold { background-color: #b35309; }
-.border-wedding-gold { border-color: #b35309; }
-.text-wedding-gold-light { color: #d97706; }
-.bg-wedding-gold-light { background-color: #d97706; }
+.text-wedding-gold {
+  color: #b35309;
+}
+
+.bg-wedding-gold {
+  background-color: #b35309;
+}
+
+.border-wedding-gold {
+  border-color: #b35309;
+}
+
+.text-wedding-gold-light {
+  color: #d97706;
+}
+
+.bg-wedding-gold-light {
+  background-color: #d97706;
+}
 
 /* ===== Animations ===== */
 @keyframes scale-in {
-  0% { transform: scale(0.5); opacity: 0; }
-  60% { transform: scale(1.1); }
-  100% { transform: scale(1); opacity: 1; }
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+
+  60% {
+    transform: scale(1.1);
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
+
 .animate-scale-in {
   animation: scale-in 0.6s ease-out forwards;
 }
 
 @keyframes row-highlight {
-  0% { background-color: rgba(16, 185, 129, 0.15); }
-  100% { background-color: transparent; }
+  0% {
+    background-color: rgba(16, 185, 129, 0.15);
+  }
+
+  100% {
+    background-color: transparent;
+  }
 }
+
 .animate-row-highlight {
   animation: row-highlight 2s ease-out forwards;
 }
 
 /* Ping animation for live indicator */
 @keyframes ping-slow {
-  75%, 100% {
+
+  75%,
+  100% {
     transform: scale(2);
     opacity: 0;
   }

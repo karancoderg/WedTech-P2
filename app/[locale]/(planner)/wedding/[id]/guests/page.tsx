@@ -78,6 +78,14 @@ export default function GuestListPage() {
 
   useEffect(() => { setCurrentPage(1); }, [searchQuery, statusFilter, activeTab]);
 
+  // Collapsed family groups state
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  function toggleGroupCollapse(groupId: string) {
+    const next = new Set(collapsedGroups);
+    next.has(groupId) ? next.delete(groupId) : next.add(groupId);
+    setCollapsedGroups(next);
+  }
+
   // Selection
   function toggleSelect(id: string) {
     const newSet = new Set(selectedIds);
@@ -154,6 +162,19 @@ export default function GuestListPage() {
   
   // Grouping Actions
   async function handleCreateGroup() {
+    // Guard: prevent adding a guest who already belongs to a DIFFERENT group
+    const alreadyInGroup = guests.filter(
+      (g) => selectedIds.has(g.id) && g.group_id !== null
+    );
+    if (alreadyInGroup.length > 0) {
+      const names = alreadyInGroup.map((g) => g.name).join(", ");
+      toast.error(
+        `Cannot group: ${names} already belong to a family. Remove them from their current family first.`,
+        { duration: 5000 }
+      );
+      return;
+    }
+
     const groupName = prompt("Enter Family/Group Name (e.g. The Sharma Family):");
     if (!groupName) return;
 
@@ -176,7 +197,7 @@ export default function GuestListPage() {
     if (updateError) {
       toast.error("Failed to assign guests to group");
     } else {
-      toast.success(`✅ Group "${groupName}" created!`);
+      toast.success(`✅ Family "${groupName}" created with ${selectedIds.size} members!`);
       setSelectedIds(new Set());
       fetchData();
     }
@@ -396,121 +417,148 @@ export default function GuestListPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {paginatedGuests.map((guest) => {
-              const status = statusColors[guest.overall_status] || statusColors.pending;
-              return (
-                <tr key={guest.id} className="hover:bg-slate-50/80 transition-colors group">
-                  <td className="py-4 px-6">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(guest.id)}
-                      onChange={() => toggleSelect(guest.id)}
-                      className="rounded border-slate-300 text-primary focus:ring-primary"
-                    />
-                  </td>
-                  <td className="py-4 px-6">
-                    <div className="flex items-center gap-2">
-                      <div className="font-bold text-slate-900">{guest.name}</div>
-                      {guest.group_id && (
-                        <div 
-                          className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-black uppercase flex items-center gap-1 cursor-help group/tip relative"
-                          title={`Group: ${guestGroups.find(g => g.id === guest.group_id)?.name || 'Unknown'}`}
-                        >
-                          <span className="material-symbols-outlined text-[12px]">group</span>
-                          Family
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); handleRemoveFromGroup(guest.id); }}
-                            className="ml-1 opacity-0 group-hover/tip:opacity-100 hover:text-red-500 transition-opacity"
-                          >
-                            <span className="material-symbols-outlined text-[10px]">close</span>
+            {(() => {
+              // Build a grouped render: family sections first, then ungrouped
+              const rows: React.ReactNode[] = [];
+
+              // Group the PAGINATED guests by group_id
+              const grouped = new Map<string, Guest[]>();
+              const ungrouped: Guest[] = [];
+
+              for (const g of paginatedGuests) {
+                if (g.group_id) {
+                  if (!grouped.has(g.group_id)) grouped.set(g.group_id, []);
+                  grouped.get(g.group_id)!.push(g);
+                } else {
+                  ungrouped.push(g);
+                }
+              }
+
+              // Helper: render a single guest row
+              function GuestRow({ guest, indent }: { guest: Guest; indent?: boolean }) {
+                const status = statusColors[guest.overall_status] || statusColors.pending;
+                return (
+                  <tr key={guest.id} className={`hover:bg-slate-50/80 transition-colors group ${indent ? "bg-slate-50/40" : ""}`}>
+                    <td className="py-3.5 px-6">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(guest.id)}
+                        onChange={() => toggleSelect(guest.id)}
+                        className="rounded border-slate-300 text-primary focus:ring-primary"
+                      />
+                    </td>
+                    <td className={`py-3.5 ${indent ? "pl-10 pr-6" : "px-6"}`}>
+                      <div className="flex items-center gap-2">
+                        {indent && <span className="text-slate-300 text-sm">└</span>}
+                        <div className="font-semibold text-slate-900 text-sm">{guest.name}</div>
+                      </div>
+                      <div className={`text-xs text-slate-500 ${indent ? "pl-4" : ""}`}>{guest.phone}</div>
+                      {guest.email && <div className={`text-[10px] text-slate-400 ${indent ? "pl-4" : ""}`}>{guest.email}</div>}
+                    </td>
+                    <td className="py-3.5 px-6">
+                      <div className="flex gap-1.5">
+                        {functions
+                          .filter((f) => guest.function_ids.includes(f.id))
+                          .map((f, i) => {
+                            const colors = ["bg-blue-100 text-blue-700", "bg-orange-100 text-orange-700", "bg-purple-100 text-purple-700", "bg-pink-100 text-pink-700"];
+                            return (
+                              <span key={f.id} className={`size-6 flex items-center justify-center rounded-full text-[10px] font-black ${colors[i % colors.length]}`} title={f.name}>
+                                {f.name[0]}
+                              </span>
+                            );
+                          })}
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-6">
+                      <div className="flex flex-wrap gap-2">
+                        {guest.tags.map((tag) => (
+                          <span key={tag} className={`px-2 py-0.5 rounded text-[10px] font-bold ${ tag.toLowerCase() === "vip" ? "bg-yellow-100 text-yellow-700" : "bg-slate-100 text-slate-600" }`}>
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-6">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${status.bg} ${status.text}`}>
+                        <span className={`size-1.5 rounded-full ${status.dot} mr-2`} />
+                        {guest.overall_status.charAt(0).toUpperCase() + guest.overall_status.slice(1)}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-6 text-right">
+                      <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {guest.group_id && (
+                          <button onClick={() => handleRemoveFromGroup(guest.id)} className="p-1.5 text-slate-400 hover:text-red-500 transition-colors" title="Remove from Family">
+                            <span className="material-symbols-outlined text-[18px]">group_remove</span>
                           </button>
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-xs text-slate-500">{guest.phone}</div>
-                    {guest.email && <div className="text-[10px] text-slate-400">{guest.email}</div>}
-                  </td>
-                  <td className="py-4 px-6">
-                    <div className="flex gap-1.5">
-                      {functions
-                        .filter((f) => guest.function_ids.includes(f.id))
-                        .map((f, i) => {
-                          const colors = ["bg-blue-100 text-blue-700", "bg-orange-100 text-orange-700", "bg-purple-100 text-purple-700", "bg-pink-100 text-pink-700"];
-                          return (
-                            <span
-                              key={f.id}
-                              className={`size-6 flex items-center justify-center rounded-full text-[10px] font-black ${colors[i % colors.length]}`}
-                              title={f.name}
-                            >
-                              {f.name[0]}
-                            </span>
-                          );
-                        })}
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div className="flex flex-wrap gap-2">
-                      {guest.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            tag.toLowerCase() === "vip"
-                              ? "bg-yellow-100 text-yellow-700"
-                              : "bg-slate-100 text-slate-600"
-                          }`}
-                        >
-                          {tag}
+                        )}
+                        {wedding && (
+                          <a href={generateWhatsAppLink(guest, wedding, functions)} target="_blank" rel="noopener" className="p-1.5 text-slate-400 hover:text-[#25D366] transition-colors" title="WhatsApp">
+                            <span className="material-symbols-outlined text-[18px]">chat</span>
+                          </a>
+                        )}
+                        {wedding && guest.email && (
+                          <a href={generateEmailLink(guest, wedding, functions)} className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors" title="Email">
+                            <span className="material-symbols-outlined text-[18px]">mail</span>
+                          </a>
+                        )}
+                        <button onClick={() => openEditDialog(guest)} className="p-1.5 text-slate-400 hover:text-primary transition-colors" title="Edit">
+                          <span className="material-symbols-outlined text-[18px]">edit</span>
+                        </button>
+                        <button onClick={() => handleDelete(guest.id)} className="p-1.5 text-slate-400 hover:text-red-500 transition-colors" title="Delete">
+                          <span className="material-symbols-outlined text-[18px]">delete</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              }
+
+              // Render family group sections
+              for (const [groupId, members] of grouped.entries()) {
+                const group = guestGroups.find((g) => g.id === groupId);
+                const isCollapsed = collapsedGroups.has(groupId);
+                rows.push(
+                  <tr key={`group-header-${groupId}`} className="bg-primary/5 border-b border-primary/10">
+                    <td className="py-3 px-6">
+                      <input
+                        type="checkbox"
+                        checked={members.every((m) => selectedIds.has(m.id))}
+                        onChange={() => {
+                          const next = new Set(selectedIds);
+                          const allSelected = members.every((m) => selectedIds.has(m.id));
+                          members.forEach((m) => allSelected ? next.delete(m.id) : next.add(m.id));
+                          setSelectedIds(next);
+                        }}
+                        className="rounded border-slate-300 text-primary focus:ring-primary"
+                      />
+                    </td>
+                    <td className="py-3 px-6" colSpan={5}>
+                      <button
+                        onClick={() => toggleGroupCollapse(groupId)}
+                        className="flex items-center gap-2 w-full text-left"
+                      >
+                        <span className="material-symbols-outlined text-primary text-[18px]">
+                          {isCollapsed ? "chevron_right" : "expand_more"}
                         </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${status.bg} ${status.text}`}>
-                      <span className={`size-1.5 rounded-full ${status.dot} mr-2`} />
-                      {guest.overall_status.charAt(0).toUpperCase() + guest.overall_status.slice(1)}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6 text-right">
-                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {wedding && (
-                        <a
-                          href={generateWhatsAppLink(guest, wedding, functions)}
-                          target="_blank"
-                          rel="noopener"
-                          className="p-2 text-slate-400 hover:text-[#25D366] transition-colors"
-                          title="Send WhatsApp"
-                        >
-                          <span className="material-symbols-outlined">chat</span>
-                        </a>
-                      )}
-                      {wedding && guest.email && (
-                        <a
-                          href={generateEmailLink(guest, wedding, functions)}
-                          className="p-2 text-slate-400 hover:text-blue-500 transition-colors"
-                          title="Send Email"
-                        >
-                          <span className="material-symbols-outlined">mail</span>
-                        </a>
-                      )}
-                      <button
-                        onClick={() => openEditDialog(guest)}
-                        className="p-2 text-slate-400 hover:text-primary transition-colors"
-                        title="Edit"
-                      >
-                        <span className="material-symbols-outlined">edit</span>
+                        <span className="material-symbols-outlined text-primary text-[16px]">family_restroom</span>
+                        <span className="font-bold text-primary text-sm">{group?.name || "Unknown Family"}</span>
+                        <span className="ml-2 px-2 py-0.5 bg-primary/10 text-primary text-[11px] font-bold rounded-full">
+                          {members.length} {members.length === 1 ? "member" : "members"}
+                        </span>
                       </button>
-                      <button
-                        onClick={() => handleDelete(guest.id)}
-                        className="p-2 text-slate-400 hover:text-red-500 transition-colors"
-                        title="Delete"
-                      >
-                        <span className="material-symbols-outlined">delete</span>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
+                    </td>
+                  </tr>
+                );
+                if (!isCollapsed) {
+                  members.forEach((guest) => rows.push(<GuestRow key={guest.id} guest={guest} indent />));
+                }
+              }
+
+              // Render ungrouped guests normally
+              ungrouped.forEach((guest) => rows.push(<GuestRow key={guest.id} guest={guest} />));
+
+              return rows;
+            })()}
           </tbody>
         </table>
         <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
