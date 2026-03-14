@@ -70,13 +70,23 @@ export default function SeatingPlanPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => { fetchTables(); }, [fetchTables]);
 
-  const filteredGuests = guests.filter(g => 
-    g.function_ids.includes(selectedFunctionId) &&
-    !tables.some(t => t.assigned_guests?.some(ag => ag.id === g.id))
-  ).filter(g => {
+  const filteredGuests = guests.filter(g => {
+    // Basic filter: Guest must be invited to this function
+    const isForFunction = g.function_ids.includes(selectedFunctionId);
+    if (!isForFunction) return false;
+
+    // Assignment filter: By default only show unassigned guests, 
+    // but show matched assigned guests when searching
+    const isAssigned = tables.some(t => t.assigned_guests?.some(ag => ag.id === g.id));
+    const isSearching = searchQuery.trim().length > 0;
+    
+    if (!isSearching && isAssigned) return false;
+
+    // Search and Category filters
     const matchesSearch = g.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter = guestFilter === 'all' || g.side === guestFilter;
-    return matchesSearch && matchesFilter;
+    const matchesCategory = guestFilter === 'all' || g.side === guestFilter;
+    
+    return matchesSearch && matchesCategory;
   });
 
   async function handleAddTableSubmit(e: React.FormEvent) {
@@ -224,36 +234,64 @@ export default function SeatingPlanPage() {
                   <p className="text-slate-400 text-sm font-bold">No guests found</p>
                 </div>
               ) : (
-                filteredGuests.map((g) => (
-                  <div 
-                    key={g.id} 
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData("guestId", g.id);
-                      e.currentTarget.style.opacity = '0.5';
-                      e.currentTarget.style.transform = 'scale(0.98)';
-                    }}
-                    onDragEnd={(e) => {
-                      e.currentTarget.style.opacity = '1';
-                      e.currentTarget.style.transform = 'scale(1)';
-                    }}
-                    className="p-4 bg-white border border-slate-100 rounded-2xl flex items-center justify-between group cursor-grab active:cursor-grabbing hover:border-[#B45309]/30 hover:shadow-lg hover:shadow-[#B45309]/5 transition-all"
-                  >
-                    <div className="flex flex-col gap-1">
-                      <span className="font-bold text-slate-800 group-hover:text-[#B45309] transition-colors">{g.name}</span>
-                      <div className="flex items-center gap-1.5">
-                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest ${
-                          g.side === 'bride' ? 'bg-pink-50 text-pink-500' :
-                          g.side === 'groom' ? 'bg-blue-50 text-blue-500' :
-                          'bg-slate-50 text-slate-500'
-                        }`}>
-                          {g.side} side
-                        </span>
+                filteredGuests.map((g) => {
+                  const assignedTable = tables.find(t => t.assigned_guests?.some(ag => ag.id === g.id));
+                  
+                  return (
+                    <div 
+                      key={g.id} 
+                      draggable={!assignedTable}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData("guestId", g.id);
+                        e.currentTarget.style.opacity = '0.5';
+                        e.currentTarget.style.transform = 'scale(0.98)';
+                      }}
+                      onDragEnd={(e) => {
+                        e.currentTarget.style.opacity = '1';
+                        e.currentTarget.style.transform = 'scale(1)';
+                      }}
+                      onClick={() => {
+                        if (assignedTable) {
+                          const tableElement = document.getElementById(`table-${assignedTable.id}`);
+                          tableElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          tableElement?.classList.add('ring-4', 'ring-[#B45309]', 'ring-offset-4');
+                          setTimeout(() => {
+                            tableElement?.classList.remove('ring-4', 'ring-[#B45309]', 'ring-offset-4');
+                          }, 2000);
+                        }
+                      }}
+                      className={`p-4 bg-white border rounded-2xl flex items-center justify-between group transition-all ${
+                        assignedTable 
+                          ? 'border-slate-50 opacity-80 cursor-pointer hover:opacity-100 hover:border-[#B45309]/20 shadow-sm' 
+                          : 'border-slate-100 cursor-grab active:cursor-grabbing hover:border-[#B45309]/30 hover:shadow-lg hover:shadow-[#B45309]/5'
+                      }`}
+                    >
+                      <div className="flex flex-col gap-1">
+                        <span className="font-bold text-slate-800 group-hover:text-[#B45309] transition-colors">{g.name}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest ${
+                            g.side === 'bride' ? 'bg-pink-50 text-pink-500' :
+                            g.side === 'groom' ? 'bg-blue-50 text-blue-500' :
+                            'bg-slate-50 text-slate-500'
+                          }`}>
+                            {g.side} side
+                          </span>
+                          {assignedTable && (
+                            <span className="bg-[#FFF4ED] text-[#B45309] px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[10px]">table_bar</span>
+                              {assignedTable.name}
+                            </span>
+                          )}
+                        </div>
                       </div>
+                      <span className={`material-symbols-outlined transition-colors ${
+                        assignedTable ? 'text-[#B45309] opacity-40 group-hover:opacity-100' : 'text-slate-200 group-hover:text-[#B45309]/40'
+                      }`}>
+                        {assignedTable ? 'location_on' : 'drag_indicator'}
+                      </span>
                     </div>
-                    <span className="material-symbols-outlined text-slate-200 group-hover:text-[#B45309]/40 transition-colors">drag_indicator</span>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
@@ -293,6 +331,7 @@ export default function SeatingPlanPage() {
                   return (
                     <div
                       key={table.id}
+                      id={`table-${table.id}`}
                       onDragOver={(e) => {
                         e.preventDefault();
                         setDragOverTableId(table.id);
