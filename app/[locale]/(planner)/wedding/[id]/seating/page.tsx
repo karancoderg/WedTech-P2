@@ -24,6 +24,18 @@ export default function SeatingPlanPage() {
   const [newTableShape, setNewTableShape] = useState<'round' | 'rectangular'>('round');
   const [newTableCapacity, setNewTableCapacity] = useState(10);
   const [dragOverTableId, setDragOverTableId] = useState<string | null>(null);
+  const [isEventSelectorOpen, setIsEventSelectorOpen] = useState(false);
+
+  // Close custom dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isEventSelectorOpen) {
+        setIsEventSelectorOpen(false);
+      }
+    };
+    window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, [isEventSelectorOpen]);
 
   const fetchData = useCallback(async () => {
     const [weddingRes, guestRes, funcRes] = await Promise.all([
@@ -157,30 +169,62 @@ export default function SeatingPlanPage() {
   return (
     <div className="space-y-8 pb-32 bg-[#FDFCFB] min-h-screen -m-8 p-8">
       {/* Header */}
-      <div className="flex justify-between items-end">
+      <div className="flex justify-between items-end mb-4">
         <div>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight">Interactive Seating Plan Canvas</h2>
-          <p className="text-slate-500 font-medium">Assign confirmed guests to tables for each function</p>
+          <h2 className="text-4xl font-black text-slate-900 tracking-tight mb-1">Seating Plan</h2>
+          <p className="text-slate-500 font-medium text-lg">Assign confirmed guests to tables for each function</p>
         </div>
-        <div className="flex gap-6 items-center">
+        <div className="flex gap-4 items-center">
           <div className="flex flex-col">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Select Event</span>
-            <select
-              value={selectedFunctionId}
-              onChange={(e) => setSelectedFunctionId(e.target.value)}
-              className="bg-white border-2 border-slate-100 rounded-xl px-4 py-2 font-bold text-slate-700 outline-none focus:border-primary transition-all shadow-sm"
-            >
-              {functions.map(f => (
-                <option key={f.id} value={f.id}>{f.name}</option>
-              ))}
-            </select>
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 ml-1">Select Event</span>
+            <div className="relative" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={() => setIsEventSelectorOpen(!isEventSelectorOpen)}
+                className="bg-white border-2 border-slate-100 rounded-2xl pl-5 pr-12 py-3.5 font-bold text-slate-700 outline-none hover:border-[#B45309]/30 transition-all shadow-[0_4px_12px_rgba(0,0,0,0.03)] flex items-center justify-between w-[240px]"
+              >
+                <span>{functions.find(f => f.id === selectedFunctionId)?.name || "Select Event"}</span>
+                <span className={`material-symbols-outlined text-slate-400 transition-transform duration-300 ${isEventSelectorOpen ? 'rotate-180' : ''}`}>
+                  keyboard_arrow_down
+                </span>
+              </button>
+              
+              {/* Premium Custom Dropdown Menu */}
+              {isEventSelectorOpen && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white/90 backdrop-blur-xl border border-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden z-[100] animate-in fade-in zoom-in duration-200">
+                  <div className="p-1.5">
+                    {functions.map(f => (
+                      <button
+                        key={f.id}
+                        onClick={() => {
+                          setSelectedFunctionId(f.id);
+                          setIsEventSelectorOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 rounded-xl text-[13px] font-black transition-all flex items-center justify-between group ${
+                          selectedFunctionId === f.id 
+                            ? 'bg-[#B45309] text-white' 
+                            : 'text-slate-600 hover:bg-[#B45309]/5 hover:text-[#B45309]'
+                        }`}
+                      >
+                        {f.name}
+                        {selectedFunctionId === f.id && (
+                          <span className="material-symbols-outlined text-sm">check_circle</span>
+                        )}
+                        {selectedFunctionId !== f.id && (
+                           <span className="material-symbols-outlined text-sm opacity-0 group-hover:opacity-100 transition-opacity">arrow_forward</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           <button
             onClick={() => setIsAddingTable(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-[#B45309] text-white rounded-xl font-bold hover:shadow-lg hover:shadow-[#B45309]/20 transition-all active:scale-95"
+            className="flex items-center justify-center gap-3 w-[240px] py-4 bg-[#B45309] text-white rounded-2xl font-black hover:shadow-2xl hover:shadow-[#B45309]/30 transition-all active:scale-95 mt-5"
           >
-            <span className="material-symbols-outlined">add_circle</span>
-            Add Table
+            <span className="material-symbols-outlined text-2xl">add_circle</span>
+            <span className="tracking-tight uppercase">Add Table</span>
           </button>
         </div>
       </div>
@@ -260,35 +304,44 @@ export default function SeatingPlanPage() {
                           }, 2000);
                         }
                       }}
-                      className={`p-4 bg-white border rounded-2xl flex items-center justify-between group transition-all ${
+                      className={`p-3.5 bg-white border transition-all ${
                         assignedTable 
-                          ? 'border-slate-50 opacity-80 cursor-pointer hover:opacity-100 hover:border-[#B45309]/20 shadow-sm' 
-                          : 'border-slate-100 cursor-grab active:cursor-grabbing hover:border-[#B45309]/30 hover:shadow-lg hover:shadow-[#B45309]/5'
+                          ? 'border-[#F8F9FA] opacity-70 cursor-pointer hover:opacity-100 hover:border-[#B45309]/20 rounded-[1.5rem]' 
+                          : 'border-slate-100 rounded-[1.5rem] cursor-grab active:cursor-grabbing hover:border-[#B45309]/30 hover:shadow-[0_8px_30px_rgb(180,83,9,0.04)] shadow-sm shadow-slate-200/50'
                       }`}
                     >
-                      <div className="flex flex-col gap-1">
-                        <span className="font-bold text-slate-800 group-hover:text-[#B45309] transition-colors">{g.name}</span>
-                        <div className="flex items-center gap-1.5">
-                          <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest ${
-                            g.side === 'bride' ? 'bg-pink-50 text-pink-500' :
-                            g.side === 'groom' ? 'bg-blue-50 text-blue-500' :
-                            'bg-slate-50 text-slate-500'
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3.5">
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black ${
+                            assignedTable ? 'bg-slate-50 text-slate-400' : 'bg-[#FFF4ED] text-[#B45309]'
                           }`}>
-                            {g.side} side
-                          </span>
-                          {assignedTable && (
-                            <span className="bg-[#FFF4ED] text-[#B45309] px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest flex items-center gap-1">
-                              <span className="material-symbols-outlined text-[10px]">table_bar</span>
-                              {assignedTable.name}
-                            </span>
-                          )}
+                            {g.name[0]}
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[13px] font-black text-slate-700 tracking-tight group-hover:text-[#B45309] transition-colors">{g.name}</span>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${
+                                g.side === 'bride' ? 'bg-pink-50 text-pink-500' :
+                                g.side === 'groom' ? 'bg-blue-50 text-blue-500' :
+                                'bg-slate-50 text-slate-500'
+                              }`}>
+                                {g.side}
+                              </span>
+                              {assignedTable && (
+                                <span className="text-[#B45309]/60 text-[8px] font-black uppercase tracking-widest flex items-center gap-1">
+                                  <span className="material-symbols-outlined text-[10px]">table_bar</span>
+                                  {assignedTable.name}
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </div>
+                        <span className={`material-symbols-outlined transition-colors ${
+                          assignedTable ? 'text-[#B45309] opacity-40 group-hover:opacity-100' : 'text-slate-200 group-hover:text-[#B45309]/40'
+                        }`}>
+                          {assignedTable ? 'location_on' : 'drag_indicator'}
+                        </span>
                       </div>
-                      <span className={`material-symbols-outlined transition-colors ${
-                        assignedTable ? 'text-[#B45309] opacity-40 group-hover:opacity-100' : 'text-slate-200 group-hover:text-[#B45309]/40'
-                      }`}>
-                        {assignedTable ? 'location_on' : 'drag_indicator'}
-                      </span>
                     </div>
                   );
                 })
