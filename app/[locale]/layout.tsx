@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "@/components/ui/sonner";
-import "./globals.css";
+import { NextIntlClientProvider } from 'next-intl';
+import { getMessages } from 'next-intl/server';
+import "../globals.css";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -21,14 +23,19 @@ export const metadata: Metadata = {
   keywords: ["wedding", "RSVP", "guest management", "Indian wedding", "wedding planner"],
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
-}: Readonly<{
+  params
+}: {
   children: React.ReactNode;
-}>) {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  const messages = await getMessages();
+
   return (
     <ClerkProvider>
-      <html lang="en">
+      <html lang={locale}>
         <head>
           <link
             href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
@@ -38,8 +45,10 @@ export default function RootLayout({
         <body
           className={`${inter.variable} ${playfair.variable} font-sans antialiased`}
         >
-          {children}
-          <Toaster richColors position="bottom-right" />
+          <NextIntlClientProvider messages={messages}>
+            {children}
+            <Toaster richColors position="bottom-right" />
+          </NextIntlClientProvider>
         </body>
       </html>
     </ClerkProvider>

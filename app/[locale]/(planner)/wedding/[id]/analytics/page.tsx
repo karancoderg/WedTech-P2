@@ -4,6 +4,9 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Wedding, WeddingFunction, RSVP } from "@/lib/types";
+import { bulkSyncWithCRM } from "@/lib/services/crm-sync";
+import { sendRSVPReminders } from "@/lib/services/reminders";
+import { toast } from "sonner";
 
 export default function AnalyticsPage() {
   const params = useParams();
@@ -176,6 +179,38 @@ export default function AnalyticsPage() {
           <div className="py-4">
             <h2 className="text-5xl font-black text-slate-900 mb-2">{accommodationNeeded}</h2>
             <p className="text-xl font-semibold text-primary">Guests need accommodation</p>
+          </div>
+        </div>
+      </section>
+
+      {/* STRATEGIC ACTIONS */}
+      <section className="bg-slate-900 rounded-3xl p-8 text-white">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="text-center md:text-left">
+            <h3 className="text-2xl font-black mb-2">Strategic Operations</h3>
+            <p className="text-slate-400 font-medium">Sync data with your CRM and follow up with pending guests.</p>
+          </div>
+          <div className="flex flex-wrap gap-4">
+            <button
+              onClick={async () => {
+                const res = await bulkSyncWithCRM(weddingId);
+                toast.success(`📤 Synced ${res.synced}/${res.total} guests to CRM (Product 1)`);
+              }}
+              className="px-8 py-4 bg-white text-slate-900 rounded-2xl font-bold hover:bg-slate-100 transition-all flex items-center gap-2"
+            >
+              <span className="material-symbols-outlined">sync</span>
+              Sync with CRM
+            </button>
+            <button
+              onClick={async () => {
+                const res = await sendRSVPReminders(weddingId);
+                if (res.success) toast.success(res.message);
+              }}
+              className="px-8 py-4 bg-primary text-white rounded-2xl font-bold hover:bg-primary/90 transition-all flex items-center gap-2"
+            >
+              <span className="material-symbols-outlined">notifications_active</span>
+              Send Reminders
+            </button>
           </div>
         </div>
       </section>
