@@ -68,13 +68,12 @@ export default function PlannerLayout({ children }: { children: React.ReactNode 
               <Link
                 key={item.label}
                 href={disabled ? "#" : href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                  active
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${active
                     ? "bg-primary/10 text-primary"
                     : disabled
-                    ? "text-slate-300 cursor-not-allowed"
-                    : "text-slate-600 hover:bg-primary/5 hover:text-primary"
-                }`}
+                      ? "text-slate-300 cursor-not-allowed"
+                      : "text-slate-600 hover:bg-primary/5 hover:text-primary"
+                  }`}
               >
                 <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
                 <span className={`text-sm ${active ? "font-semibold" : "font-medium"}`}>
@@ -160,9 +159,8 @@ export default function PlannerLayout({ children }: { children: React.ReactNode 
             <Link
               key={item.label}
               href={href === "#" ? "#" : href}
-              className={`flex flex-col items-center gap-1 ${
-                active ? "text-primary" : "text-slate-400"
-              }`}
+              className={`flex flex-col items-center gap-1 ${active ? "text-primary" : "text-slate-400"
+                }`}
             >
               <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
               <span className={`text-[10px] ${active ? "font-bold" : "font-medium"}`}>

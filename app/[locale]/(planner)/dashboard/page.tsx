@@ -70,10 +70,10 @@ export default function DashboardPage() {
       groom_name: editGroom,
       wedding_date: editDate
     }).eq("id", editingWedding.id);
-    
+
     if (error) { toast.error("Failed to update wedding"); }
     else { toast.success("Wedding updated successfully"); }
-    
+
     setEditingWedding(null);
     fetchData();
   }
@@ -163,19 +163,19 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
             {weddings.map((wedding, index) => {
               const days = daysUntil(wedding.wedding_date);
-              
+
               // Dynamic stats from guests table
               const wGuests = guests.filter(g => g.wedding_id === wedding.id);
               const wTotal = wGuests.length || 1;
               const wConfirmed = wGuests.filter(g => g.overall_status === "confirmed").length;
               const wDeclined = wGuests.filter(g => g.overall_status === "declined").length;
               const progress = Math.round(((wConfirmed + wDeclined) / wTotal) * 100);
-              
+
               const daysColor = days <= 14 ? "bg-emerald-50 text-emerald-700" : days <= 45 ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-700";
 
               return (
                 <div key={wedding.id} className="bg-white rounded-xl overflow-hidden shadow-sm border border-slate-100 flex flex-col md:flex-row relative group">
-                  
+
                   {/* Action Menu (Hover) */}
                   <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 backdrop-blur-sm rounded-lg p-1 flex gap-1 shadow-sm border border-white">
                     <button onClick={() => openEditModal(wedding)} className="p-1.5 text-slate-500 hover:text-primary hover:bg-white rounded-md transition-all" title="Edit Wedding">
@@ -239,8 +239,8 @@ export default function DashboardPage() {
                 const iconClass = rsvp.status === "confirmed"
                   ? "bg-emerald-100 text-emerald-600"
                   : rsvp.status === "declined"
-                  ? "bg-red-100 text-red-600"
-                  : "bg-amber-100 text-amber-600";
+                    ? "bg-red-100 text-red-600"
+                    : "bg-amber-100 text-amber-600";
                 const icon = rsvp.status === "confirmed" ? "check_circle" : rsvp.status === "declined" ? "cancel" : "pending";
                 const timeAgo = getTimeAgo(rsvp.responded_at!);
 
