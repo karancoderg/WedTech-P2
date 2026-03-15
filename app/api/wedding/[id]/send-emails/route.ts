@@ -3,6 +3,29 @@ import { auth } from "@clerk/nextjs/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { EmailService } from "@/lib/email-service";
 import { Guest, Wedding, WeddingFunction } from "@/lib/types";
+import { z } from "zod";
+import dns from "dns";
+import { promisify } from "util";
+
+const resolveMx = promisify(dns.resolveMx);
+const emailSchema = z.string().email();
+
+const ALLOWED_DOMAINS = [
+  'gmail.com',
+  'outlook.com',
+  'yahoo.com',
+  'hotmail.com',
+  'yahoo.co.in',
+  'outlook.in',
+  'icloud.com'
+];
+
+const DOMAIN_TYPOS: Record<string, string[]> = {
+  'gmail.com': ['gmal.com', 'gamil.com', 'gmial.com', 'gnail.com'],
+  'yahoo.com': ['yaaho.com', 'yaho.com', 'yhaoo.com'],
+  'hotmail.com': ['hotmial.com', 'hotamail.com', 'htmail.com', 'hotlook.com'],
+  'outlook.com': ['outlok.com', 'outllok.com', 'autlook.com'],
+};
 
 export async function POST(
   request: NextRequest,
@@ -69,6 +92,36 @@ export async function POST(
         try {
           if (!guest.email) {
             throw new Error("Email address missing");
+          }
+
+          // Syntax validation
+          const validation = emailSchema.safeParse(guest.email);
+          if (!validation.success) {
+            throw new Error("Invalid email format");
+          }
+
+          // Domain/MX record validation
+          const domain = guest.email.toLowerCase().split("@")[1];
+
+          // Typo Detection
+          for (const [valid, typos] of Object.entries(DOMAIN_TYPOS)) {
+            if (typos.includes(domain)) {
+              throw new Error(`Likely typo detected: Did you mean ${valid}?`);
+            }
+          }
+
+          // Whitelist Enforcement
+          if (!ALLOWED_DOMAINS.includes(domain)) {
+            throw new Error(`Sending to ${domain} is not supported. Use Gmail, Outlook, Yahoo, or Hotmail.`);
+          }
+
+          try {
+            const mx = await resolveMx(domain);
+            if (!mx || mx.length === 0) {
+              throw new Error("No mail server found for this domain");
+            }
+          } catch (e) {
+            throw new Error(`Domain verification failed: ${domain}`);
           }
 
           await EmailService.sendInvitation(guest, wedding as unknown as Wedding, functions);
