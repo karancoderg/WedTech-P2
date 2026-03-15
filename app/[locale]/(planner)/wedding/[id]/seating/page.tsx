@@ -167,7 +167,7 @@ export default function SeatingPlanPage() {
   if (loading) return <div className="p-8 animate-pulse text-slate-400">Loading seating plan...</div>;
 
   return (
-    <div className="space-y-8 pb-32 bg-[#FDFCFB] min-h-screen -m-8 p-8">
+    <div className="space-y-8 pb-32 min-h-screen">
       {/* Header */}
       <div className="flex justify-between items-end mb-4">
         <div>
@@ -229,10 +229,10 @@ export default function SeatingPlanPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-8 relative z-10">
+      <div className="grid grid-cols-12 gap-8 relative z-10 items-stretch">
         {/* Guest Sidebar */}
-        <div className="col-span-12 lg:col-span-4 flex flex-col h-[calc(100vh-16rem)] sticky top-8">
-          <div className="bg-white/80 backdrop-blur-md rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 flex flex-col h-full overflow-hidden">
+        <div className="col-span-12 lg:col-span-4 flex flex-col">
+          <div className="sticky top-8 bg-white/80 backdrop-blur-xl rounded-[3rem] border border-white shadow-2xl flex flex-col h-[calc(100vh-12rem)] overflow-hidden">
             {/* Search and Filters Section */}
             <div className="p-6 border-b border-slate-50 space-y-4 bg-slate-50/30">
               <div className="flex justify-between items-center">
@@ -351,8 +351,8 @@ export default function SeatingPlanPage() {
         </div>
 
         {/* Tables Canvas Area */}
-        <div className="col-span-12 lg:col-span-8">
-          <div className="relative min-h-[calc(100vh-16rem)] bg-white/40 backdrop-blur-md rounded-[3rem] border border-white shadow-2xl p-10 overflow-hidden">
+        <div className="col-span-12 lg:col-span-8 flex flex-col">
+          <div className="relative flex-1 bg-white/60 backdrop-blur-xl rounded-[3rem] border border-white shadow-2xl p-10 overflow-y-auto h-[calc(100vh-12rem)] overflow-hidden">
             {/* Grid Background */}
             <div className="absolute inset-0 opacity-[0.05] pointer-events-none" style={{ 
               backgroundImage: `radial-gradient(#B45309 1.5px, transparent 1.5px)`,
