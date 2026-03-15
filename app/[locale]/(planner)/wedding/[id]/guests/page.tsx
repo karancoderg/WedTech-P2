@@ -23,6 +23,9 @@ export default function GuestListPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkEmailDialog, setShowBulkEmailDialog] = useState(false);
+  const [guestsWithEmail, setGuestsWithEmail] = useState<Guest[]>([]);
+  const [guestsWithoutEmail, setGuestsWithoutEmail] = useState<Guest[]>([]);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showGroupDialog, setShowGroupDialog] = useState(false);
   const [groupName, setGroupName] = useState("");
@@ -220,6 +223,56 @@ export default function GuestListPage() {
     else {
       toast.success("Guest removed from group");
       fetchData();
+    }
+  }
+
+  // Bulk Email Actions
+  const [sendingEmails, setSendingEmails] = useState(false);
+  async function handleBulkEmail() {
+    if (selectedIds.size === 0) return;
+    
+    const selectedGuests = guests.filter(g => selectedIds.has(g.id));
+    const withEmail = selectedGuests.filter(g => g.email);
+    const withoutEmail = selectedGuests.filter(g => !g.email);
+
+    if (withEmail.length === 0) {
+      toast.error("None of the selected guests have email addresses.");
+      return;
+    }
+
+    setGuestsWithEmail(withEmail);
+    setGuestsWithoutEmail(withoutEmail);
+    setShowBulkEmailDialog(true);
+  }
+
+  async function confirmSendEmails() {
+    setShowBulkEmailDialog(false);
+    setSendingEmails(true);
+    const toastId = toast.loading(`Sending emails to ${guestsWithEmail.length} guests...`);
+    
+    try {
+      const response = await fetch(`/api/wedding/${weddingId}/send-emails`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ guestIds: guestsWithEmail.map(g => g.id) }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) throw new Error(result.error || "Failed to send emails");
+
+      toast.success(`✉️ Sent ${result.successful} emails! ${result.failed > 0 ? `${result.failed} failed.` : ""}`, {
+        id: toastId,
+      });
+      
+      setSelectedIds(new Set());
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.message || "An error occurred while sending emails", {
+        id: toastId,
+      });
+    } finally {
+      setSendingEmails(false);
     }
   }
 
@@ -490,6 +543,20 @@ export default function GuestListPage() {
                         <span className={`size-1.5 rounded-full ${status.dot} mr-2`} />
                         {guest.overall_status.charAt(0).toUpperCase() + guest.overall_status.slice(1)}
                       </span>
+                      {guest.invite_status && guest.invite_status !== 'none' && (
+                        <div className="mt-1.5 flex items-center gap-1.5">
+                          <span className={`material-symbols-outlined text-[14px] ${
+                            guest.invite_status === 'sent' ? 'text-green-500' : 
+                            guest.invite_status === 'failed' ? 'text-red-500' : 'text-amber-500'
+                          }`}>
+                            {guest.invite_status === 'sent' ? 'mark_email_read' : 
+                             guest.invite_status === 'failed' ? 'error' : 'schedule_send'}
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase">
+                            {guest.invite_status}
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td className="py-3.5 px-6 text-right">
                       <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -638,6 +705,16 @@ export default function GuestListPage() {
               >
                 <span className="material-symbols-outlined text-xl">extension</span>
                 Export for Extension
+              </button>
+              <button
+                onClick={handleBulkEmail}
+                disabled={sendingEmails}
+                className="px-5 py-2 bg-blue-600 text-white rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-blue-700 transition-all hover:shadow-lg hover:shadow-blue-500/20 disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-xl">
+                  {sendingEmails ? "sync" : "mail"}
+                </span>
+                {sendingEmails ? "Sending..." : "Send Bulk Email"}
               </button>
             </div>
           </div>
@@ -814,6 +891,67 @@ export default function GuestListPage() {
               >
                 Create Group
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Email Confirmation Dialog */}
+      {showBulkEmailDialog && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowBulkEmailDialog(false)}>
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl border border-white animate-in zoom-in duration-200"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-black text-slate-900 tracking-tight">Send Invitations</h3>
+              <button onClick={() => setShowBulkEmailDialog(false)} className="text-slate-400 hover:text-slate-900 transition-colors">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                <div className="flex items-center gap-3 text-blue-700 mb-2">
+                  <span className="material-symbols-outlined">mark_as_unread</span>
+                  <span className="font-bold">Ready to Send</span>
+                </div>
+                <p className="text-sm text-blue-600 font-medium">
+                  We'll send personalized email invitations to <strong>{guestsWithEmail.length}</strong> guests.
+                </p>
+              </div>
+
+              {guestsWithoutEmail.length > 0 && (
+                <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                  <div className="flex items-center gap-3 text-amber-700 mb-2">
+                    <span className="material-symbols-outlined">warning</span>
+                    <span className="font-bold">Missing Info</span>
+                  </div>
+                  <p className="text-sm text-amber-600 font-medium">
+                    <strong>{guestsWithoutEmail.length}</strong> guests will be skipped because they don't have email addresses.
+                  </p>
+                </div>
+              )}
+
+              <p className="text-sm text-slate-500 font-medium px-2">
+                This will send each guest a personalized email with their unique RSVP link and function details.
+              </p>
+
+              <div className="flex gap-3 mt-8">
+                <button
+                  onClick={() => setShowBulkEmailDialog(false)}
+                  className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black hover:bg-slate-200 transition-all active:scale-95"
+                >
+                  CANCEL
+                </button>
+                <button 
+                  onClick={confirmSendEmails}
+                  className="flex-[2] py-4 bg-blue-600 text-white rounded-2xl font-black hover:shadow-xl hover:shadow-blue-600/20 transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <span className="material-symbols-outlined">send</span>
+                  {sendingEmails ? "SENDING..." : "SEND EMAILS"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -53,6 +53,8 @@ export interface Guest {
   function_ids: string[];
   invite_token: string;
   invite_sent_at: string | null;
+  invite_status: 'none' | 'pending' | 'sent' | 'failed';
+  invite_error: string | null;
   overall_status: 'pending' | 'confirmed' | 'declined' | 'partial';
   imported_via: 'csv' | 'excel' | 'manual';
   created_at: string;
@@ -150,5 +152,15 @@ export interface GuestSeating {
   id: string;
   table_id: string;
   guest_id: string;
+  created_at: string;
+}
+
+export interface CommunicationLog {
+  id: string;
+  wedding_id: string;
+  guest_id: string;
+  type: 'email';
+  status: string;
+  payload: any;
   created_at: string;
 }
