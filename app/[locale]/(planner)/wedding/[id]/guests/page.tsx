@@ -25,6 +25,7 @@ export default function GuestListPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkEmailDialog, setShowBulkEmailDialog] = useState(false);
   const [guestsWithEmail, setGuestsWithEmail] = useState<Guest[]>([]);
+  const [guestsWithInvalidEmail, setGuestsWithInvalidEmail] = useState<Guest[]>([]);
   const [guestsWithoutEmail, setGuestsWithoutEmail] = useState<Guest[]>([]);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showGroupDialog, setShowGroupDialog] = useState(false);
@@ -231,16 +232,35 @@ export default function GuestListPage() {
   async function handleBulkEmail() {
     if (selectedIds.size === 0) return;
     
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const allowedDomains = ['gmail.com', 'outlook.com', 'yahoo.com', 'hotmail.com', 'icloud.com', 'yahoo.co.in'];
+    const commonTypos = [
+      'yaaho.com', 'yaho.com', 'gmal.com', 'gamil.com', 'gmial.com', 
+      'hotmial.com', 'hotamail.com', 'outlok.com', 'outllok.com', 'hotlook.com'
+    ];
     const selectedGuests = guests.filter(g => selectedIds.has(g.id));
-    const withEmail = selectedGuests.filter(g => g.email);
+    
+    const withEmail = selectedGuests.filter(g => {
+      if (!g.email) return false;
+      const domain = g.email.toLowerCase().split('@')[1];
+      return emailRegex.test(g.email) && allowedDomains.includes(domain);
+    });
+
+    const withInvalidEmail = selectedGuests.filter(g => {
+      if (!g.email) return false;
+      const domain = g.email.toLowerCase().split('@')[1];
+      return !emailRegex.test(g.email) || !allowedDomains.includes(domain) || commonTypos.includes(domain);
+    });
+
     const withoutEmail = selectedGuests.filter(g => !g.email);
 
-    if (withEmail.length === 0) {
+    if (withEmail.length === 0 && withInvalidEmail.length === 0) {
       toast.error("None of the selected guests have email addresses.");
       return;
     }
 
     setGuestsWithEmail(withEmail);
+    setGuestsWithInvalidEmail(withInvalidEmail);
     setGuestsWithoutEmail(withoutEmail);
     setShowBulkEmailDialog(true);
   }
@@ -545,15 +565,21 @@ export default function GuestListPage() {
                       </span>
                       {guest.invite_status && guest.invite_status !== 'none' && (
                         <div className="mt-1.5 flex items-center gap-1.5">
-                          <span className={`material-symbols-outlined text-[14px] ${
-                            guest.invite_status === 'sent' ? 'text-green-500' : 
-                            guest.invite_status === 'failed' ? 'text-red-500' : 'text-amber-500'
-                          }`}>
+                          <span 
+                            className={`material-symbols-outlined text-[14px] ${
+                              guest.invite_status === 'sent' ? 'text-green-500' : 
+                              guest.invite_status === 'failed' ? 'text-red-500' : 'text-amber-500'
+                            }`}
+                            title={guest.invite_error || ''}
+                          >
                             {guest.invite_status === 'sent' ? 'mark_email_read' : 
                              guest.invite_status === 'failed' ? 'error' : 'schedule_send'}
                           </span>
                           <span className="text-[10px] font-bold text-slate-400 uppercase">
-                            {guest.invite_status}
+                            {guest.invite_status === 'failed' && guest.invite_error 
+                              ? guest.invite_error.split(':')[0] // Show brief error type
+                              : guest.invite_status
+                            }
                           </span>
                         </div>
                       )}
@@ -911,15 +937,29 @@ export default function GuestListPage() {
             </div>
             
             <div className="space-y-4">
-              <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
-                <div className="flex items-center gap-3 text-blue-700 mb-2">
-                  <span className="material-symbols-outlined">mark_as_unread</span>
-                  <span className="font-bold">Ready to Send</span>
+              {guestsWithEmail.length > 0 && (
+                <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                  <div className="flex items-center gap-3 text-blue-700 mb-2">
+                    <span className="material-symbols-outlined">mark_as_unread</span>
+                    <span className="font-bold">Ready to Send</span>
+                  </div>
+                  <p className="text-sm text-blue-600 font-medium">
+                    We'll send personalized email invitations to <strong>{guestsWithEmail.length}</strong> guests.
+                  </p>
                 </div>
-                <p className="text-sm text-blue-600 font-medium">
-                  We'll send personalized email invitations to <strong>{guestsWithEmail.length}</strong> guests.
-                </p>
-              </div>
+              )}
+
+              {guestsWithInvalidEmail.length > 0 && (
+                <div className="p-4 bg-red-50 rounded-2xl border border-red-100">
+                  <div className="flex items-center gap-3 text-red-700 mb-2">
+                    <span className="material-symbols-outlined">error</span>
+                    <span className="font-bold">Unsupported or Invalid Emails</span>
+                  </div>
+                  <p className="text-sm text-red-600 font-medium">
+                    <strong>{guestsWithInvalidEmail.length}</strong> guests will be skipped. We only support Gmail, Outlook, Yahoo, and Hotmail.
+                  </p>
+                </div>
+              )}
 
               {guestsWithoutEmail.length > 0 && (
                 <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
