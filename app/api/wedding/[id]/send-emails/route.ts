@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { EmailService } from "@/lib/email-service";
+import { EmailService, SmtpConfig } from "@/lib/email-service";
 import { Guest, Wedding, WeddingFunction } from "@/lib/types";
 import { z } from "zod";
 import dns from "dns";
 import { promisify } from "util";
+import { decrypt } from "@/lib/encryption";
 
 const resolveMx = promisify(dns.resolveMx);
 const emailSchema = z.string().email();
@@ -56,6 +57,23 @@ export async function POST(
 
     if (weddingError || !wedding) {
       return NextResponse.json({ error: "Wedding not found or unauthorized" }, { status: 404 });
+    }
+
+    // 1b. Fetch planner's SMTP settings (if configured)
+    let smtpConfig: SmtpConfig | undefined;
+    const { data: smtpSettings } = await supabase
+      .from("planner_smtp_settings")
+      .select("*")
+      .eq("planner_id", userId)
+      .single();
+
+    if (smtpSettings) {
+      smtpConfig = {
+        host: smtpSettings.smtp_host,
+        port: smtpSettings.smtp_port,
+        user: smtpSettings.smtp_email,
+        pass: decrypt(smtpSettings.smtp_password_encrypted),
+      };
     }
 
     // 2. Data Fetching
@@ -124,7 +142,7 @@ export async function POST(
             throw new Error(`Domain verification failed: ${domain}`);
           }
 
-          await EmailService.sendInvitation(guest, wedding as unknown as Wedding, functions);
+          await EmailService.sendInvitation(guest, wedding as unknown as Wedding, functions, smtpConfig);
           
           // Update status & log success
           await Promise.all([
