@@ -25,6 +25,8 @@ export default function SeatingPlanPage() {
   const [newTableCapacity, setNewTableCapacity] = useState(10);
   const [dragOverTableId, setDragOverTableId] = useState<string | null>(null);
   const [isEventSelectorOpen, setIsEventSelectorOpen] = useState(false);
+  const [targetSeatingPercent, setTargetSeatingPercent] = useState<number>(100);
+  const [isAiAssigning, setIsAiAssigning] = useState(false);
 
   // Close custom dropdown when clicking outside
   useEffect(() => {
@@ -164,6 +166,60 @@ export default function SeatingPlanPage() {
     }
   }
 
+  async function handleAutoSeat() {
+    if (!selectedFunctionId) return;
+    
+    // Calculate unassigned guests (exclude those already in Tables)
+    const unassignedGuests = guests.filter(g => {
+      // Must be invited to this function
+      if (!g.function_ids.includes(selectedFunctionId)) return false;
+      // Must NOT be assigned to a table
+      const isAssigned = tables.some(t => t.assigned_guests?.some(ag => ag.id === g.id));
+      return !isAssigned;
+    });
+
+    if (unassignedGuests.length === 0) {
+      toast.info("All confirmed guests are already seated.");
+      return;
+    }
+
+    const targetSeatingCount = Math.floor(unassignedGuests.length * (targetSeatingPercent / 100));
+    
+    if (targetSeatingCount === 0) {
+      toast.info("Target seating is set to 0. Move the slider to seat guests.");
+      return;
+    }
+
+    setIsAiAssigning(true);
+    const toastId = toast.loading("AI is analyzing relationships, creating tables, and assigning seats... This may take a moment.");
+
+    try {
+      const response = await fetch(`/api/wedding/${weddingId}/ai-seat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tables: tables.map(t => ({ id: t.id, name: t.name, capacity: t.capacity, assigned_guests: t.assigned_guests || [] })),
+          unassignedGuests: unassignedGuests.map(g => ({ id: g.id, name: g.name, side: g.side, group_id: g.group_id })),
+          targetSeatingCount,
+          functionId: selectedFunctionId
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) throw new Error(result.error || "Failed to run AI seating");
+
+      toast.success(`✨ Assigned ${result.seatedCount} guests! Created ${result.newTablesCreated} new tables.`, { id: toastId });
+      fetchTables();
+      
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || "Failed to complete AI seating.", { id: toastId });
+    } finally {
+      setIsAiAssigning(false);
+    }
+  }
+
   if (loading) return <div className="p-8 animate-pulse text-slate-400">Loading seating plan...</div>;
 
   return (
@@ -174,58 +230,96 @@ export default function SeatingPlanPage() {
           <h2 className="text-4xl font-black text-slate-900 tracking-tight mb-1">Seating Plan</h2>
           <p className="text-slate-500 font-medium text-lg">Assign confirmed guests to tables for each function</p>
         </div>
-        <div className="flex gap-4 items-center">
-          <div className="flex flex-col">
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 ml-1">Select Event</span>
-            <div className="relative" onClick={(e) => e.stopPropagation()}>
-              <button
-                onClick={() => setIsEventSelectorOpen(!isEventSelectorOpen)}
-                className="bg-white border-2 border-slate-100 rounded-2xl pl-5 pr-12 py-3.5 font-bold text-slate-700 outline-none hover:border-[#B45309]/30 transition-all shadow-[0_4px_12px_rgba(0,0,0,0.03)] flex items-center justify-between w-[240px]"
-              >
-                <span>{functions.find(f => f.id === selectedFunctionId)?.name || "Select Event"}</span>
-                <span className={`material-symbols-outlined text-slate-400 transition-transform duration-300 ${isEventSelectorOpen ? 'rotate-180' : ''}`}>
-                  keyboard_arrow_down
-                </span>
-              </button>
-              
-              {/* Premium Custom Dropdown Menu */}
-              {isEventSelectorOpen && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white/90 backdrop-blur-xl border border-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden z-[100] animate-in fade-in zoom-in duration-200">
-                  <div className="p-1.5">
-                    {functions.map(f => (
-                      <button
-                        key={f.id}
-                        onClick={() => {
-                          setSelectedFunctionId(f.id);
-                          setIsEventSelectorOpen(false);
-                        }}
-                        className={`w-full text-left px-4 py-3 rounded-xl text-[13px] font-black transition-all flex items-center justify-between group ${
-                          selectedFunctionId === f.id 
-                            ? 'bg-[#B45309] text-white' 
-                            : 'text-slate-600 hover:bg-[#B45309]/5 hover:text-[#B45309]'
-                        }`}
-                      >
-                        {f.name}
-                        {selectedFunctionId === f.id && (
-                          <span className="material-symbols-outlined text-sm">check_circle</span>
-                        )}
-                        {selectedFunctionId !== f.id && (
-                           <span className="material-symbols-outlined text-sm opacity-0 group-hover:opacity-100 transition-opacity">arrow_forward</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
+        
+        {/* Controls Toolbar - Premium Pill Design */}
+        <div className="flex bg-white rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-slate-100 p-1.5 flex-nowrap items-center shrink-0 ml-4 max-w-full overflow-x-auto no-scrollbar">
+          
+          {/* 1. Event Selector */}
+          <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setIsEventSelectorOpen(!isEventSelectorOpen)}
+              className="flex items-center justify-between gap-3 px-5 py-3 rounded-full hover:bg-slate-50 transition-all font-black text-[13px] text-slate-700 w-[170px] outline-none"
+            >
+              <span className="truncate">{functions.find(f => f.id === selectedFunctionId)?.name || "Select Event"}</span>
+              <span className={`material-symbols-outlined text-[18px] text-slate-400 shrink-0 transition-transform duration-300 ${isEventSelectorOpen ? 'rotate-180' : ''}`}>
+                keyboard_arrow_down
+              </span>
+            </button>
+            
+            {/* Custom Dropdown Menu */}
+            {isEventSelectorOpen && (
+              <div className="absolute top-full left-0 right-0 mt-3 bg-white/90 backdrop-blur-xl border border-slate-100 rounded-2xl shadow-xl overflow-hidden z-[100] animate-in fade-in zoom-in duration-200">
+                <div className="p-1.5 flex flex-col gap-0.5">
+                  {functions.map(f => (
+                    <button
+                      key={f.id}
+                      onClick={() => {
+                        setSelectedFunctionId(f.id);
+                        setIsEventSelectorOpen(false);
+                      }}
+                      className={`w-full text-left px-4 py-3 rounded-xl text-[13px] font-black transition-all flex items-center justify-between ${
+                        selectedFunctionId === f.id 
+                          ? 'bg-[#B45309] text-white' 
+                          : 'text-slate-600 hover:bg-[#B45309]/5 hover:text-[#B45309]'
+                      }`}
+                    >
+                      <span className="truncate pr-2">{f.name}</span>
+                      {selectedFunctionId === f.id && (
+                        <span className="material-symbols-outlined text-[16px] shrink-0">check_circle</span>
+                      )}
+                    </button>
+                  ))}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
-          <button
-            onClick={() => setIsAddingTable(true)}
-            className="flex items-center justify-center gap-3 w-[240px] py-4 bg-[#B45309] text-white rounded-2xl font-black hover:shadow-2xl hover:shadow-[#B45309]/30 transition-all active:scale-95 mt-5"
-          >
-            <span className="material-symbols-outlined text-2xl">add_circle</span>
-            <span className="tracking-tight uppercase">Add Table</span>
-          </button>
+
+          <div className="w-px h-8 bg-slate-200 mx-2 shrink-0"></div>
+
+          {/* 2. Seat Target Slider */}
+          <div className="flex items-center gap-3 px-3 w-[190px] shrink-0" title="Percentage of unassigned guests to auto-seat">
+            <span className="text-[11px] font-black text-slate-400 tracking-wider shrink-0">TARGET</span>
+            <input 
+              type="range" 
+              min="10" 
+              max="100" 
+              step="10" 
+              value={targetSeatingPercent} 
+              onChange={(e) => setTargetSeatingPercent(Number(e.target.value))}
+              disabled={isAiAssigning}
+              className="w-full h-1.5 bg-slate-200 rounded-full appearance-none cursor-pointer accent-[#B45309] hover:accent-[#92400e] transition-all disabled:opacity-50"
+            />
+            <span className="text-[12px] font-black text-[#B45309] w-8 text-right shrink-0">{targetSeatingPercent}%</span>
+          </div>
+
+          <div className="w-px h-8 bg-slate-200 mx-2 shrink-0"></div>
+
+          {/* 3. Action Buttons */}
+          <div className="flex items-center gap-2 pr-1 ml-1 shrink-0">
+            <button
+              onClick={handleAutoSeat}
+              disabled={isAiAssigning}
+              className={`flex items-center gap-2 px-5 py-3 rounded-full font-black text-[13px] uppercase tracking-wide whitespace-nowrap shrink-0 transition-all ${
+                isAiAssigning 
+                  ? "bg-slate-50 text-slate-400 cursor-not-allowed" 
+                  : "bg-[#FFF4ED] text-[#B45309] hover:bg-[#FFE8D6] active:scale-95"
+              }`}
+            >
+              <span className={`material-symbols-outlined text-[18px] shrink-0 ${isAiAssigning ? 'animate-spin' : ''}`}>
+                {isAiAssigning ? 'sync' : 'magic_button'}
+              </span>
+              <span>Auto-Seat (AI)</span>
+            </button>
+            <button
+              onClick={() => setIsAddingTable(true)}
+              disabled={isAiAssigning}
+              className="flex items-center gap-2 px-5 py-3 bg-[#B45309] text-white rounded-full font-black text-[13px] uppercase tracking-wide whitespace-nowrap shrink-0 hover:shadow-[0_8px_16px_rgb(180,83,9,0.3)] hover:-translate-y-0.5 transition-all active:scale-95 active:translate-y-0 disabled:opacity-50 border border-transparent"
+            >
+              <span className="material-symbols-outlined text-[18px] shrink-0">add_circle</span>
+              <span>Add Table</span>
+            </button>
+          </div>
+          
         </div>
       </div>
 
