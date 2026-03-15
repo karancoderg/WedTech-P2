@@ -2,25 +2,32 @@ import nodemailer from 'nodemailer';
 import { Guest, Wedding, WeddingFunction } from './types';
 import { formatDate } from './whatsapp';
 
+export interface SmtpConfig {
+  host: string;
+  port: number;
+  user: string;
+  pass: string;
+}
+
 /**
  * Service to handle email operations using Nodemailer
  */
 export class EmailService {
-  private static transporter: nodemailer.Transporter | null = null;
+  /**
+   * Creates a transporter from the given SMTP config or falls back to env vars
+   */
+  private static createTransporter(config?: SmtpConfig) {
+    const host = config?.host || process.env.SMTP_HOST;
+    const port = config?.port || parseInt(process.env.SMTP_PORT || '587');
+    const user = config?.user || process.env.SMTP_USER;
+    const pass = config?.pass || process.env.SMTP_PASS;
 
-  private static getTransporter() {
-    if (!this.transporter) {
-      this.transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: process.env.SMTP_PORT === '465', // true for 465, false for other ports
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        },
-      });
-    }
-    return this.transporter;
+    return nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465,
+      auth: { user, pass },
+    });
   }
 
   /**
@@ -83,17 +90,19 @@ ${wedding.wedding_name} Team`;
 
   /**
    * Sends a personalized email to a single guest
+   * Accepts optional SmtpConfig for per-user credentials
    */
-  public static async sendInvitation(guest: Guest, wedding: Wedding, functions: WeddingFunction[]) {
+  public static async sendInvitation(guest: Guest, wedding: Wedding, functions: WeddingFunction[], smtpConfig?: SmtpConfig) {
     if (!guest.email) {
       throw new Error(`Email address missing for guest: ${guest.name}`);
     }
 
     const { subject, text, html } = this.generateContent(guest, wedding, functions);
-    const transporter = this.getTransporter();
+    const transporter = this.createTransporter(smtpConfig);
+    const fromEmail = smtpConfig?.user || process.env.SMTP_FROM || process.env.SMTP_USER;
 
     return await transporter.sendMail({
-      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      from: fromEmail,
       to: guest.email,
       subject,
       text,
