@@ -29,6 +29,7 @@ export default function GuestListPage() {
   const [guestsWithoutEmail, setGuestsWithoutEmail] = useState<Guest[]>([]);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showGroupDialog, setShowGroupDialog] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [groupName, setGroupName] = useState("");
   const csvRef = useRef<HTMLInputElement>(null);
 
@@ -224,6 +225,27 @@ export default function GuestListPage() {
     else {
       toast.success("Guest removed from group");
       fetchData();
+    }
+  }
+
+  // Bulk Deletion
+  async function handleBulkDelete() {
+    setShowDeleteConfirm(false);
+    const toastId = toast.loading(`Removing ${selectedIds.size} guests...`);
+    
+    try {
+      const { error } = await supabase
+        .from("guests")
+        .delete()
+        .in("id", Array.from(selectedIds));
+
+      if (error) throw error;
+
+      toast.success(`✅ Successfully removed ${selectedIds.size} guests`, { id: toastId });
+      setSelectedIds(new Set());
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete guests", { id: toastId });
     }
   }
 
@@ -686,30 +708,36 @@ export default function GuestListPage() {
 
       {/* Floating Bulk Action Bar */}
       {selectedIds.size > 0 && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-20">
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-3xl px-4 z-20">
           <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-2xl shadow-slate-900/40 flex items-center justify-between border border-white/10">
-            <div className="flex items-center gap-4 pl-2">
+            <div className="flex items-center gap-3 pl-2 shrink-0">
               <div className="bg-primary size-8 rounded-full flex items-center justify-center font-black text-sm">
                 {selectedIds.size}
               </div>
               <div>
-                <p className="text-sm font-bold">{selectedIds.size} guests selected</p>
-                <p className="text-[10px] text-slate-400 font-medium">Ready for bulk actions</p>
+                <p className="text-sm font-bold">{selectedIds.size} selected</p>
+                <p className="text-[10px] text-slate-400 font-medium">Bulk actions</p>
               </div>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="px-3 py-2 hover:bg-red-500/10 text-red-400 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all"
+              >
+                <span className="material-symbols-outlined text-lg">delete</span>
+                Delete
+              </button>
               <button
                 onClick={handlePreCreateGroup}
-                className="px-5 py-2 hover:bg-white/10 text-white rounded-lg font-bold text-sm flex items-center gap-2 transition-all"
+                className="px-3 py-2 hover:bg-white/10 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all"
               >
-                <span className="material-symbols-outlined text-xl">group_add</span>
-                Group Together
+                <span className="material-symbols-outlined text-lg">group_add</span>
+                Group
               </button>
               <button
                 onClick={async () => {
                   if (!wedding) return;
                   const selectedGuests = guests.filter((g) => selectedIds.has(g.id));
-                  // Export for extension
                   const payload = selectedGuests.map(g => ({
                     phone: normalizePhone(g.phone).replace('+', ''),
                     message: generateWhatsAppMessage(g, wedding, functions)
@@ -717,7 +745,6 @@ export default function GuestListPage() {
                   
                   await navigator.clipboard.writeText(JSON.stringify(payload));
                   
-                  // Mark all as sent
                   await supabase
                     .from("guests")
                     .update({ invite_sent_at: new Date().toISOString() })
@@ -727,20 +754,20 @@ export default function GuestListPage() {
                   setSelectedIds(new Set());
                   fetchData();
                 }}
-                className="px-5 py-2 bg-primary text-white rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-primary/90 transition-all hover:shadow-lg hover:shadow-primary/20"
+                className="px-3 py-2 bg-primary text-white rounded-lg font-bold text-xs flex items-center gap-1.5 hover:bg-primary/90 transition-all"
               >
-                <span className="material-symbols-outlined text-xl">extension</span>
-                Export for Extension
+                <span className="material-symbols-outlined text-lg">extension</span>
+                Export
               </button>
               <button
                 onClick={handleBulkEmail}
                 disabled={sendingEmails}
-                className="px-5 py-2 bg-blue-600 text-white rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-blue-700 transition-all hover:shadow-lg hover:shadow-blue-500/20 disabled:opacity-50"
+                className="px-3 py-2 bg-blue-600 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 hover:bg-blue-700 transition-all disabled:opacity-50"
               >
-                <span className="material-symbols-outlined text-xl">
+                <span className="material-symbols-outlined text-lg">
                   {sendingEmails ? "sync" : "mail"}
                 </span>
-                {sendingEmails ? "Sending..." : "Send Bulk Email"}
+                {sendingEmails ? "Sending..." : "Email"}
               </button>
             </div>
           </div>
@@ -992,6 +1019,60 @@ export default function GuestListPage() {
                   {sendingEmails ? "SENDING..." : "SEND EMAILS"}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Selection Progress Modal */}
+      {sendingEmails && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-sm text-center shadow-2xl border border-slate-100">
+            <div className="size-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 animate-pulse">
+              <span className="material-symbols-outlined">sync</span>
+            </div>
+            <h3 className="text-xl font-black text-slate-900 mb-2">Sending Invitations</h3>
+            <p className="text-slate-500 font-medium mb-6">Please stay on this page while we process your request.</p>
+            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+              <div className="bg-blue-600 h-full animate-progress" style={{ width: '60%' }} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirmation Dialog */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="size-14 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-3xl text-red-500">delete_forever</span>
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-slate-900">Remove Guests?</h3>
+                <p className="text-slate-500 font-medium">This action cannot be undone.</p>
+              </div>
+            </div>
+            
+            <div className="p-4 bg-red-50 rounded-2xl border border-red-100 mb-8">
+              <p className="text-sm text-red-600 font-medium">
+                You are about to permanently remove <strong>{selectedIds.size}</strong> selected guests from the guest list.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 px-6 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors"
+              >
+                Keep them
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors shadow-lg shadow-red-600/20"
+              >
+                Yes, Delete
+              </button>
             </div>
           </div>
         </div>
