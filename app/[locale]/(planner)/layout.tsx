@@ -20,6 +20,14 @@ export default function PlannerLayout({ children }: { children: React.ReactNode 
   const pathname = usePathname();
   const { user } = useUser();
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<"profile" | "email">("profile");
+
+  // Email Settings State
+  const [smtpEmail, setSmtpEmail] = useState("");
+  const [smtpPassword, setSmtpPassword] = useState("");
+  const [smtpConfigured, setSmtpConfigured] = useState(false);
+  const [savingSmtp, setSavingSmtp] = useState(false);
+  const [loadingSmtp, setLoadingSmtp] = useState(false);
 
   // Extract weddingId from path like /wedding/[id]/...
   const weddingIdMatch = pathname.match(/\/wedding\/([^/]+)/);
@@ -36,6 +44,72 @@ export default function PlannerLayout({ children }: { children: React.ReactNode 
     const href = getHref(item);
     if (href === "#") return false;
     return pathname === href || pathname.startsWith(href + "/");
+  }
+
+  async function loadSmtpSettings() {
+    setLoadingSmtp(true);
+    try {
+      const res = await fetch("/api/smtp-settings");
+      const data = await res.json();
+      if (data.configured) {
+        setSmtpEmail(data.smtp_email);
+        setSmtpConfigured(true);
+      } else {
+        setSmtpEmail("");
+        setSmtpConfigured(false);
+      }
+    } catch {
+      toast.error("Failed to load email settings");
+    } finally {
+      setLoadingSmtp(false);
+    }
+  }
+
+  async function handleSaveSmtp() {
+    if (!smtpEmail || !smtpPassword) {
+      toast.error("Email and password are required");
+      return;
+    }
+    setSavingSmtp(true);
+    try {
+      const res = await fetch("/api/smtp-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ smtp_email: smtpEmail, smtp_password: smtpPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success("✅ Email settings saved successfully!");
+      setSmtpConfigured(true);
+      setSmtpPassword("");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to save settings");
+    } finally {
+      setSavingSmtp(false);
+    }
+  }
+
+  async function handleDeleteSmtp() {
+    try {
+      const res = await fetch("/api/smtp-settings", { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to remove settings");
+      toast.success("Email settings removed");
+      setSmtpEmail("");
+      setSmtpPassword("");
+      setSmtpConfigured(false);
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  }
+
+  function openSettings() {
+    setShowSettings(true);
+    setSettingsTab("profile");
+  }
+
+  function openEmailTab() {
+    setSettingsTab("email");
+    loadSmtpSettings();
   }
 
   const firstName = user?.firstName || "Planner";
@@ -121,7 +195,7 @@ export default function PlannerLayout({ children }: { children: React.ReactNode 
             <button onClick={() => toast.info("No new notifications")} className="p-2 text-slate-500 hover:text-primary transition-colors">
               <span className="material-symbols-outlined">notifications</span>
             </button>
-            <button onClick={() => setShowSettings(true)} className="p-2 text-slate-500 hover:text-primary transition-colors">
+            <button onClick={openSettings} className="p-2 text-slate-500 hover:text-primary transition-colors">
               <span className="material-symbols-outlined">settings</span>
             </button>
             <div className="lg:hidden">
@@ -135,16 +209,152 @@ export default function PlannerLayout({ children }: { children: React.ReactNode 
           {children}
         </div>
 
-        {/* Settings Modal */}
         {showSettings && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setShowSettings(false)}>
-            <div className="max-h-[85vh] overflow-y-auto rounded-xl" onClick={(e) => e.stopPropagation()}>
-              <div className="flex justify-end p-2 pb-0">
-                <button onClick={() => setShowSettings(false)} className="text-white hover:text-slate-200">
-                  <span className="material-symbols-outlined text-3xl drop-shadow-md">close</span>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto" onClick={() => setShowSettings(false)}>
+            <div className="bg-white rounded-2xl w-full max-w-5xl overflow-hidden shadow-2xl flex flex-col my-auto" onClick={(e) => e.stopPropagation()}>
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-6 border-b border-slate-200 shrink-0">
+                <h2 className="text-xl font-black text-slate-900">Settings</h2>
+                <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-900 transition-colors">
+                  <span className="material-symbols-outlined">close</span>
                 </button>
               </div>
-              <UserProfile routing="hash" />
+
+              {/* Tabs */}
+              <div className="flex border-b border-slate-200">
+                <button
+                  onClick={() => setSettingsTab("profile")}
+                  className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${
+                    settingsTab === "profile"
+                      ? "border-primary text-primary"
+                      : "border-transparent text-slate-500 hover:text-slate-900"
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-lg align-middle mr-1">person</span>
+                  Profile
+                </button>
+                <button
+                  onClick={openEmailTab}
+                  className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${
+                    settingsTab === "email"
+                      ? "border-primary text-primary"
+                      : "border-transparent text-slate-500 hover:text-slate-900"
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-lg align-middle mr-1">mail</span>
+                  Email Settings
+                </button>
+              </div>
+
+              {/* Tab Content */}
+              <div className="overflow-y-auto max-h-[60vh] flex justify-center w-full">
+                {settingsTab === "profile" && (
+                  <div className="p-6">
+                    <UserProfile routing="hash" />
+                  </div>
+                )}
+
+                {settingsTab === "email" && (
+                  <div className="p-6 space-y-6">
+                    {/* Status Badge */}
+                    <div className={`flex items-center gap-3 p-4 rounded-2xl ${smtpConfigured ? "bg-green-50 border border-green-100" : "bg-amber-50 border border-amber-100"}`}>
+                      <span className={`material-symbols-outlined ${smtpConfigured ? "text-green-600" : "text-amber-600"}`}>
+                        {smtpConfigured ? "check_circle" : "warning"}
+                      </span>
+                      <div>
+                        <p className={`text-sm font-bold ${smtpConfigured ? "text-green-700" : "text-amber-700"}`}>
+                          {smtpConfigured ? "Email configured" : "Not configured"}
+                        </p>
+                        <p className={`text-xs ${smtpConfigured ? "text-green-600" : "text-amber-600"}`}>
+                          {smtpConfigured
+                            ? `Emails will be sent from ${smtpEmail}`
+                            : "Configure your email to send invitations from your own account"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Instructions */}
+                    <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                      <div className="flex items-start gap-3">
+                        <span className="material-symbols-outlined text-blue-600 mt-0.5">info</span>
+                        <div>
+                          <p className="text-sm font-bold text-blue-700 mb-1">How to get your Gmail App Password</p>
+                          <ol className="text-xs text-blue-600 space-y-1 list-decimal list-inside">
+                            <li>Go to your Google Account → Security</li>
+                            <li>Enable 2-Factor Authentication (if not already)</li>
+                            <li>Search for "App Passwords" in settings</li>
+                            <li>Generate a new App Password for "Mail"</li>
+                            <li>Copy the 16-character password below</li>
+                          </ol>
+                          <p className="text-xs text-blue-500 mt-2 font-medium">
+                            💡 You can also use your regular Gmail password if you have "Less secure app access" enabled.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {loadingSmtp ? (
+                      <div className="flex items-center justify-center py-8">
+                        <span className="material-symbols-outlined animate-spin text-primary">sync</span>
+                        <span className="ml-2 text-sm text-slate-500">Loading settings...</span>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Gmail Address</label>
+                          <input
+                            type="email"
+                            className="w-full mt-1 px-4 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                            value={smtpEmail}
+                            onChange={(e) => setSmtpEmail(e.target.value)}
+                            placeholder="your-email@gmail.com"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                            {smtpConfigured ? "New Password (leave blank to keep current)" : "App Password"}
+                          </label>
+                          <input
+                            type="password"
+                            className="w-full mt-1 px-4 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                            value={smtpPassword}
+                            onChange={(e) => setSmtpPassword(e.target.value)}
+                            placeholder={smtpConfigured ? "••••••••••••••••" : "xxxx xxxx xxxx xxxx"}
+                          />
+                        </div>
+
+                        <div className="flex gap-3 pt-2">
+                          {smtpConfigured && (
+                            <button
+                              onClick={handleDeleteSmtp}
+                              className="px-5 py-3 border border-red-200 text-red-600 rounded-xl font-bold text-sm hover:bg-red-50 transition-all"
+                            >
+                              Remove
+                            </button>
+                          )}
+                          <button
+                            onClick={handleSaveSmtp}
+                            disabled={savingSmtp || !smtpEmail || (!smtpPassword && !smtpConfigured)}
+                            className="flex-1 px-5 py-3 bg-primary text-white rounded-xl font-bold text-sm hover:bg-primary/90 transition-all shadow-md shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                          >
+                            {savingSmtp ? (
+                              <>
+                                <span className="material-symbols-outlined animate-spin text-sm">sync</span>
+                                Saving...
+                              </>
+                            ) : (
+                              <>
+                                <span className="material-symbols-outlined text-sm">save</span>
+                                {smtpConfigured ? "Update Settings" : "Save Settings"}
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
