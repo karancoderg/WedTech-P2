@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import type { Wedding, WeddingFunction, RSVP } from "@/lib/types";
+import type { Wedding, WeddingFunction, RSVP, Guest } from "@/lib/types";
 import { bulkSyncWithCRM } from "@/lib/services/crm-sync";
 import { sendRSVPReminders } from "@/lib/services/reminders";
 import { toast } from "sonner";
@@ -15,27 +15,37 @@ export default function AnalyticsPage() {
   const [wedding, setWedding] = useState<Wedding | null>(null);
   const [functions, setFunctions] = useState<WeddingFunction[]>([]);
   const [rsvps, setRsvps] = useState<RSVP[]>([]);
+  const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
-    const [weddingRes, funcRes, rsvpRes] = await Promise.all([
+    const [weddingRes, funcRes, rsvpRes, guestRes] = await Promise.all([
       supabase.from("weddings").select("*").eq("id", weddingId).single(),
       supabase.from("wedding_functions").select("*").eq("wedding_id", weddingId).order("sort_order"),
       supabase.from("rsvps").select("*").eq("wedding_id", weddingId),
+      supabase.from("guests").select("*").eq("wedding_id", weddingId),
     ]);
     if (weddingRes.data) setWedding(weddingRes.data);
     if (funcRes.data) setFunctions(funcRes.data);
     if (rsvpRes.data) setRsvps(rsvpRes.data);
+    if (guestRes.data) setGuests(guestRes.data);
     setLoading(false);
   }, [weddingId]);
 
   useEffect(() => {
     fetchData();
-    const channel = supabase
+    const rsvpChannel = supabase
       .channel("rsvp-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "rsvps", filter: `wedding_id=eq.${weddingId}` }, () => fetchData())
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    const guestChannel = supabase
+      .channel("guest-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "guests", filter: `wedding_id=eq.${weddingId}` }, () => fetchData())
+      .subscribe();
+    return () => {
+      supabase.removeChannel(rsvpChannel);
+      supabase.removeChannel(guestChannel);
+    };
   }, [fetchData, weddingId]);
 
   if (loading) {
@@ -48,14 +58,24 @@ export default function AnalyticsPage() {
     );
   }
 
-  const confirmed = rsvps.filter((r) => r.status === "confirmed").length;
-  const declined = rsvps.filter((r) => r.status === "declined").length;
-  const pending = rsvps.filter((r) => r.status === "pending").length;
-  const totalPax = rsvps.filter((r) => r.status === "confirmed").reduce((s, r) => s + r.total_pax, 0);
+  // Use guests table for accurate per-guest counts
+  const totalGuestCount = guests.length;
+  const confirmed = guests.filter((g) => g.overall_status === "confirmed").length;
+  const declined = guests.filter((g) => g.overall_status === "declined").length;
+  const pending = guests.filter((g) => g.overall_status === "pending" || g.overall_status === "partial").length;
+  // totalPax = unique headcount: take the max total_pax per guest across their confirmed RSVPs
+  // (each guest may confirm for multiple functions, but it's the same party of people)
+  const paxByGuest = new Map<string, number>();
+  rsvps.filter((r) => r.status === "confirmed").forEach((r) => {
+    const current = paxByGuest.get(r.guest_id) || 0;
+    if (r.total_pax > current) paxByGuest.set(r.guest_id, r.total_pax);
+  });
+  const totalPax = Array.from(paxByGuest.values()).reduce((s, v) => s + v, 0);
   const dietaryBreakdown = {
     veg: rsvps.filter((r) => r.dietary_preference === "veg" && r.status === "confirmed").length,
     jain: rsvps.filter((r) => r.dietary_preference === "jain" && r.status === "confirmed").length,
     nonveg: rsvps.filter((r) => r.dietary_preference === "non-veg" && r.status === "confirmed").length,
+    notsure: rsvps.filter((r) => !r.dietary_preference && r.status === "confirmed").length,
   };
   const accommodationNeeded = rsvps.filter((r) => r.needs_accommodation && r.status === "confirmed").length;
 
@@ -85,7 +105,7 @@ export default function AnalyticsPage() {
       {/* TOP METRICS */}
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { label: "Total Guests", value: wedding?.total_guests || 0, color: "" },
+          { label: "Total Guests", value: totalGuestCount, color: "" },
           { label: "Confirmed", value: confirmed, color: "text-green-600" },
           { label: "Pending", value: pending, color: "text-amber-500" },
           { label: "Declined", value: declined, color: "text-red-500" },
@@ -158,6 +178,7 @@ export default function AnalyticsPage() {
               { label: "Vegetarian", count: dietaryBreakdown.veg, color: "bg-green-500" },
               { label: "Jain", count: dietaryBreakdown.jain, color: "bg-blue-500" },
               { label: "Non-Veg", count: dietaryBreakdown.nonveg, color: "bg-amber-500" },
+              { label: "Not Sure", count: dietaryBreakdown.notsure, color: "bg-slate-300" },
             ].map((d) => (
               <div key={d.label} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                 <div className="flex items-center gap-3">
