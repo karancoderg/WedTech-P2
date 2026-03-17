@@ -33,6 +33,7 @@ export default function RSVPFormPage() {
   const [showCompleted, setShowCompleted] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
   const [globalChildrenCount, setGlobalChildrenCount] = useState<number>(0);
+  const [globalDietaryPreference, setGlobalDietaryPreference] = useState<"veg" | "jain" | "non-veg" | null>(null);
   const [additionalGuests, setAdditionalGuests] = useState<{name: string, phone: string}[]>([]);
 
   useEffect(() => {
@@ -123,7 +124,7 @@ export default function RSVPFormPage() {
             plus_ones: 0,
             children: isPrimary && resp.status === "confirmed" ? globalChildrenCount : 0, 
             total_pax: totalPax, 
-            dietary_preference: resp.dietaryPreference,
+            dietary_preference: isPrimary && resp.status === "confirmed" ? globalDietaryPreference : null,
             needs_accommodation: resp.needsAccommodation, 
             responded_at: new Date().toISOString(),
           }, { onConflict: "guest_id,function_id" });
@@ -172,7 +173,7 @@ export default function RSVPFormPage() {
               plus_ones: 0,
               children: 0,
               total_pax: resp.status === "confirmed" ? 1 : 0,
-              dietary_preference: null,
+              dietary_preference: resp.status === "confirmed" ? globalDietaryPreference : null,
               needs_accommodation: resp.needsAccommodation,
               responded_at: new Date().toISOString(),
             }, { onConflict: "guest_id,function_id" });
@@ -298,8 +299,17 @@ export default function RSVPFormPage() {
               </p>
               <div className="flex flex-wrap justify-center gap-2">
                 {guests.map(g => (
-                  <div key={g.id} className={`${t.textPrimary} font-bold px-3 py-1 rounded-full bg-white/50 text-sm border ${t.borderTop}`}>
+                  <div key={g.id} className={`${t.textPrimary} flex items-center gap-2 font-bold px-3 py-1 rounded-full bg-white/50 text-sm border ${t.borderTop}`}>
                     {g.name}
+                    {g.side && (
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full border uppercase tracking-tighter ${
+                        g.side === 'bride' ? 'bg-pink-100 border-pink-200 text-pink-600' : 
+                        g.side === 'groom' ? 'bg-blue-100 border-blue-200 text-blue-600' : 
+                        'bg-purple-100 border-purple-200 text-purple-600'
+                      }`}>
+                        {g.side}
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -345,9 +355,20 @@ export default function RSVPFormPage() {
             {/* Guest Name Header */}
             {guests.length > 1 && (
               <div className="px-6 mb-4">
-                <div className={`${t.cardBg} border rounded-2xl p-4 flex items-center justify-center gap-3 shadow-sm`}>
-                  <span className={`material-symbols-outlined ${t.icon}`}>person</span>
-                  <span className={`${t.textPrimary} text-xl font-black`}>{g.name}</span>
+                <div className={`${t.cardBg} border rounded-2xl p-4 flex flex-col items-center justify-center gap-2 shadow-sm`}>
+                  <div className="flex items-center gap-3">
+                    <span className={`material-symbols-outlined ${t.icon}`}>person</span>
+                    <span className={`${t.textPrimary} text-xl font-black`}>{g.name}</span>
+                  </div>
+                  {g.side && (
+                    <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-0.5 rounded-full border ${
+                      g.side === 'bride' ? 'bg-pink-50 border-pink-200 text-pink-500' : 
+                      g.side === 'groom' ? 'bg-blue-50 border-blue-200 text-blue-500' : 
+                      'bg-purple-50 border-purple-200 text-purple-500'
+                    }`}>
+                      {g.side === 'both' ? 'Both Sides' : `${g.side}'s Side`}
+                    </span>
+                  )}
                 </div>
               </div>
             )}
@@ -413,33 +434,6 @@ export default function RSVPFormPage() {
                 {resp.status === "confirmed" && (
                   <div className="px-6 space-y-6 animate-in fade-in">
                     <div className={`${t.bgSub} rounded-xl p-5 shadow-sm space-y-6 border ${t.borderTop}`}>
-                      {/* Dietary Preference */}
-                      <div>
-                        <h4 className={`font-bold ${t.textPrimary} mb-4`}>{t_i18n("dietaryPreference")}</h4>
-                        <div className="flex gap-2">
-                          {[
-                            { value: "veg" as const, label: "Veg", emoji: "🥦" },
-                            { value: "jain" as const, label: "Jain", emoji: "🌿" },
-                            { value: "non-veg" as const, label: "Non-Veg", emoji: "🍗" },
-                          ].map((d) => (
-                            <button
-                              key={d.value}
-                              onClick={() => updateResponse(g.id, index, { dietaryPreference: d.value })}
-                              className={`flex-1 text-center py-3 rounded-xl border transition-all cursor-pointer ${
-                                resp.dietaryPreference === d.value
-                                  ? `${t.button} ${t.cardActive}`
-                                  : `${t.borderTop} ${t.cardBg} ${t.textSecondary}`
-                              }`}
-                            >
-                              <span className="text-lg block mb-1">{d.emoji}</span>
-                              <span className="text-xs font-bold uppercase">{t_i18n(d.value)}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <hr className={t.borderTop} />
-
                       {/* Accommodation */}
                       {g.tags?.includes("outstation") && (
                         <div className="flex items-center justify-between">
@@ -530,6 +524,37 @@ export default function RSVPFormPage() {
                 <span className="material-symbols-outlined">person_add</span>
                 Add Guest
               </button>
+            </div>
+
+            <hr className={t.borderTop} />
+
+            {/* Global Dietary Preference */}
+            <div>
+              <div className="mb-4">
+                <h3 className={`${t.textPrimary} text-xl font-bold leading-tight`}>
+                  {t_i18n("dietaryPreference") || "Dietary Preference"} <span className="text-sm font-normal text-slate-400 block mt-1">(Optional)</span>
+                </h3>
+              </div>
+              <div className="flex gap-2">
+                {[
+                  { value: "veg" as const, label: "Veg", emoji: "🥦" },
+                  { value: "jain" as const, label: "Jain", emoji: "🌿" },
+                  { value: "non-veg" as const, label: "Non-Veg", emoji: "🍗" },
+                ].map((d) => (
+                  <button
+                    key={d.value}
+                    onClick={() => setGlobalDietaryPreference(d.value)}
+                    className={`flex-1 text-center py-3 rounded-xl border transition-all cursor-pointer ${
+                      globalDietaryPreference === d.value
+                        ? `${t.button} ${t.cardActive}`
+                        : `${t.borderTop} ${t.cardBg} ${t.textSecondary}`
+                    }`}
+                  >
+                    <span className="text-lg block mb-1">{d.emoji}</span>
+                    <span className="text-xs font-bold uppercase">{t_i18n(d.value) || d.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             <hr className={t.borderTop} />

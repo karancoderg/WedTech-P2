@@ -9,6 +9,29 @@ import { generateWhatsAppLink, generateWhatsAppMessage, normalizePhone } from "@
 import { generateEmailLink } from "@/lib/email";
 import { toast } from "sonner";
 
+function deriveFunctionsForSide(side: 'bride' | 'groom' | 'both', allFunctions: WeddingFunction[]) {
+  if (side === 'both') return allFunctions.map(f => f.id);
+
+  return allFunctions.filter(f => {
+    const name = f.name.toLowerCase();
+
+    // Joint events always included for everyone
+    const isJoint = name.includes('joint') || name.includes('combined');
+    if (isJoint) return true;
+
+    if (side === 'bride') {
+      return !name.includes('groom') &&
+             !name.includes('baraat') &&
+             !name.includes('sehrabandi');
+    } else {
+      return !name.includes('bride') &&
+             !(name.includes('mehendi') && !name.includes('joint')) &&
+             !name.includes('chooda') &&
+             !name.includes('bhaat');
+    }
+  }).map(f => f.id);
+}
+
 export default function GuestListPage() {
   const params = useParams();
   const weddingId = params.id as string;
@@ -111,7 +134,7 @@ export default function GuestListPage() {
   async function handleAddGuest() {
     if (!newName || !newPhone) { toast.error("Name and phone required"); return; }
     const token = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
-    const funcIds = functions.map((f) => f.id);
+    const funcIds = deriveFunctionsForSide(newSide, functions);
     const { data: newGuest, error } = await supabase.from("guests").insert({
       wedding_id: weddingId, name: newName, phone: newPhone, email: newEmail, side: newSide,
       tags: newTags.split(",").map((t) => t.trim()).filter(Boolean),
@@ -249,6 +272,41 @@ export default function GuestListPage() {
     }
   }
 
+  // AI Calling
+  const [callingGuests, setCallingGuests] = useState(false);
+  async function handleAICall(targetGuestIds?: string[]) {
+    const idsToCall = targetGuestIds || Array.from(selectedIds);
+    if (idsToCall.length === 0) return;
+    
+    setCallingGuests(true);
+    const toastId = toast.loading(`Initiating AI call${idsToCall.length > 1 ? 's' : ''} to ${idsToCall.length} guest${idsToCall.length > 1 ? 's' : ''}...`);
+    
+    try {
+      const response = await fetch(`/api/wedding/${weddingId}/ai-call`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ guestIds: idsToCall }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        toast.success(`🤖 Initiated ${result.successful} AI calls! ${result.failed > 0 ? `${result.failed} failed.` : ""}`, {
+          id: toastId,
+        });
+        if (!targetGuestIds) setSelectedIds(new Set());
+        fetchData();
+      } else {
+        toast.error(`Failed to trigger calls: ${result.error}`, { id: toastId });
+      }
+    } catch (error: any) {
+      console.error("AI Call Error:", error);
+      toast.error(error.message || "An error occurred while initiating calls", { id: toastId });
+    } finally {
+      setCallingGuests(false);
+    }
+  }
+
   // Bulk Email Actions
   const [sendingEmails, setSendingEmails] = useState(false);
   async function handleBulkEmail() {
@@ -330,7 +388,6 @@ export default function GuestListPage() {
       const worksheet = workbook.Sheets[sheetName];
       const data = XLSX.utils.sheet_to_json(worksheet) as any[];
 
-      const funcIds = functions.map((f) => f.id);
       let count = 0;
 
       for (const row of data) {
@@ -346,6 +403,7 @@ export default function GuestListPage() {
         // DB constraints check
         const allowedSides = ["bride", "groom", "both"];
         const side = allowedSides.includes(sideStr) ? sideStr : "both";
+        const derivedFuncIds = deriveFunctionsForSide(side as 'bride' | 'groom' | 'both', functions);
 
         const token = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
         const { data: newGuest, error: guestError } = await supabase.from("guests").insert({
@@ -355,7 +413,7 @@ export default function GuestListPage() {
           email: email ? String(email).trim() : null,
           side: side as "bride" | "groom" | "both",
           tags: tagsStr ? String(tagsStr).split(/[;,]/).map((t: string) => t.trim()).filter(Boolean) : [],
-          function_ids: funcIds,
+          function_ids: derivedFuncIds,
           invite_token: token,
           overall_status: "pending",
           imported_via: file.name.endsWith(".csv") ? "csv" : "excel",
@@ -371,7 +429,7 @@ export default function GuestListPage() {
             token,
             wedding_id: weddingId,
             guest_id: newGuest.id,
-            function_ids: funcIds,
+            function_ids: derivedFuncIds,
             used: false,
           });
           if (tokenError) console.error("Token insert error:", tokenError);
@@ -398,6 +456,12 @@ export default function GuestListPage() {
     pending: { bg: "bg-amber-100", dot: "bg-amber-500", text: "text-amber-700" },
     declined: { bg: "bg-red-100", dot: "bg-red-500", text: "text-red-700" },
     partial: { bg: "bg-blue-100", dot: "bg-blue-500", text: "text-blue-700" },
+  };
+
+  const sideColors: Record<string, { bg: string; text: string }> = {
+    bride: { bg: "bg-pink-50 border-pink-200", text: "text-pink-600" },
+    groom: { bg: "bg-blue-50 border-blue-200", text: "text-blue-600" },
+    both: { bg: "bg-purple-50 border-purple-200", text: "text-purple-600" },
   };
 
   if (loading) {
@@ -512,6 +576,7 @@ export default function GuestListPage() {
                 />
               </th>
               <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Guest Name</th>
+              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Side</th>
               <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Functions</th>
               <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Tags</th>
               <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
@@ -556,6 +621,11 @@ export default function GuestListPage() {
                       </div>
                       <div className={`text-xs text-slate-500 ${indent ? "pl-4" : ""}`}>{guest.phone}</div>
                       {guest.email && <div className={`text-[10px] text-slate-400 ${indent ? "pl-4" : ""}`}>{guest.email}</div>}
+                    </td>
+                    <td className="py-3.5 px-6">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded border text-[10px] font-bold capitalize ${sideColors[guest.side]?.bg || "bg-slate-50 border-slate-200"} ${sideColors[guest.side]?.text || "text-slate-600"}`}>
+                        {guest.side}
+                      </span>
                     </td>
                     <td className="py-3.5 px-6">
                       <div className="flex gap-1.5">
@@ -611,6 +681,16 @@ export default function GuestListPage() {
                         {guest.group_id && (
                           <button onClick={() => handleRemoveFromGroup(guest.id)} className="p-1.5 text-slate-400 hover:text-red-500 transition-colors" title="Remove from Family">
                             <span className="material-symbols-outlined text-[18px]">group_remove</span>
+                          </button>
+                        )}
+                        {wedding && (
+                          <button 
+                            onClick={() => handleAICall([guest.id])} 
+                            disabled={callingGuests}
+                            className="p-1.5 text-slate-400 hover:text-primary transition-colors" 
+                            title="AI Voice Call"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">call</span>
                           </button>
                         )}
                         {wedding && (
@@ -758,6 +838,16 @@ export default function GuestListPage() {
               >
                 <span className="material-symbols-outlined text-lg">extension</span>
                 Export
+              </button>
+              <button
+                onClick={() => handleAICall()}
+                disabled={callingGuests}
+                className="px-3 py-2 bg-purple-600 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 hover:bg-purple-700 transition-all disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-lg">
+                  {callingGuests ? "sync" : "smart_toy"}
+                </span>
+                {callingGuests ? "Calling..." : "AI Call"}
               </button>
               <button
                 onClick={handleBulkEmail}

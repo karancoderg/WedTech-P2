@@ -32,14 +32,11 @@ export default function CheckInPage() {
       supabase.from("rsvps").select("*").eq("wedding_id", weddingId),
     ]);
     if (weddingRes.data) setWedding(weddingRes.data);
-    if (funcRes.data) {
-      setFunctions(funcRes.data);
-      if (!selectedFunction && funcRes.data.length > 0) setSelectedFunction(funcRes.data[0].id);
-    }
+    if (funcRes.data) setFunctions(funcRes.data);
     if (guestRes.data) setGuests(guestRes.data);
     if (rsvpRes.data) setRsvps(rsvpRes.data);
     setLoading(false);
-  }, [weddingId, selectedFunction]);
+  }, [weddingId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -59,10 +56,11 @@ export default function CheckInPage() {
           if (guest.group_id) {
             const family = guests.filter((g) => g.group_id === guest.group_id);
             setGroupGuests(family);
-            // Auto-select those who are confirmed but not checked-in
+            // Auto-select those who are confirmed but not fully checked-in to all their invited functions
             const toCheckIn = family.filter(f => {
-              const r = rsvps.find(r => r.guest_id === f.id && r.function_id === selectedFunction);
-              return r?.status === "confirmed" && !r?.checked_in;
+              const guestRsvps = rsvps.filter(r => r.guest_id === f.id && r.status === "confirmed");
+              const isCheckedIn = guestRsvps.length > 0 && guestRsvps.every(r => r.checked_in);
+              return guestRsvps.length > 0 && !isCheckedIn;
             }).map(f => f.id);
             setSelectedGroupIds(new Set(toCheckIn));
             setShowGroupDialog(true);
@@ -71,22 +69,35 @@ export default function CheckInPage() {
             return;
           }
 
-          const rsvp = rsvps.find((r) => r.guest_id === guest.id && r.function_id === selectedFunction);
-          if (rsvp?.checked_in) {
+          const guestRsvps = rsvps.filter((r) => r.guest_id === guest.id && r.status === "confirmed");
+          const isCheckedIn = guestRsvps.length > 0 && guestRsvps.every(r => r.checked_in);
+
+          if (isCheckedIn) {
             toast.info(`${guest.name} is already checked in.`);
             scanner.resume();
             return;
           }
-          await supabase.from("rsvps").upsert({
-            id: rsvp?.id,
-            wedding_id: weddingId,
-            guest_id: guest.id,
-            function_id: selectedFunction,
-            status: "confirmed",
-            total_pax: rsvp?.total_pax || 1,
-            checked_in: true,
-            checked_in_at: new Date().toISOString(),
-          });
+
+          // Check in to all confirmed functions
+          if (guestRsvps.length > 0) {
+            for (const rsvp of guestRsvps) {
+              await supabase.from("rsvps").upsert({
+                id: rsvp.id,
+                wedding_id: weddingId,
+                guest_id: guest.id,
+                function_id: rsvp.function_id,
+                status: "confirmed",
+                total_pax: rsvp.total_pax || 1,
+                checked_in: true,
+                checked_in_at: new Date().toISOString(),
+              });
+            }
+          } else {
+             toast.error(`Guest has no confirmed RSVPs.`);
+             scanner.resume();
+             return;
+          }
+
           setLastCheckedIn(guest.id);
           toast.success(`📷 Scanned: ${guest.name} checked in!`);
           scanner.clear();
@@ -104,17 +115,14 @@ export default function CheckInPage() {
     return () => {
       scanner.clear().catch(console.error);
     };
-  }, [showScanner, guests, rsvps, selectedFunction, weddingId, fetchData]);
+  }, [showScanner, guests, rsvps, weddingId, fetchData]);
 
   async function handleCheckIn(guestId: string) {
-    const rsvp = rsvps.find((r) => r.guest_id === guestId && r.function_id === selectedFunction);
-    if (rsvp) {
-      await supabase.from("rsvps").update({ checked_in: true, checked_in_at: new Date().toISOString() }).eq("id", rsvp.id);
-    } else {
-      await supabase.from("rsvps").insert({
-        wedding_id: weddingId, guest_id: guestId, function_id: selectedFunction,
-        status: "confirmed", total_pax: 1, checked_in: true, checked_in_at: new Date().toISOString(),
-      });
+    const guestRsvps = rsvps.filter((r) => r.guest_id === guestId && r.status === "confirmed");
+    if (guestRsvps.length > 0) {
+      for (const rsvp of guestRsvps) {
+        await supabase.from("rsvps").update({ checked_in: true, checked_in_at: new Date().toISOString() }).eq("id", rsvp.id);
+      }
     }
     setLastCheckedIn(guestId);
     toast.success("✅ Guest checked in!");
@@ -127,17 +135,19 @@ export default function CheckInPage() {
     if (ids.length === 0) return;
 
     for (const guestId of ids) {
-      const rsvp = rsvps.find((r) => r.guest_id === guestId && r.function_id === selectedFunction);
-      await supabase.from("rsvps").upsert({
-        id: rsvp?.id,
-        wedding_id: weddingId,
-        guest_id: guestId,
-        function_id: selectedFunction,
-        status: "confirmed",
-        total_pax: rsvp?.total_pax || 1,
-        checked_in: true,
-        checked_in_at: new Date().toISOString(),
-      });
+      const guestRsvps = rsvps.filter((r) => r.guest_id === guestId && r.status === "confirmed");
+      for (const rsvp of guestRsvps) {
+        await supabase.from("rsvps").upsert({
+          id: rsvp.id,
+          wedding_id: weddingId,
+          guest_id: guestId,
+          function_id: rsvp.function_id,
+          status: "confirmed",
+          total_pax: rsvp.total_pax || 1,
+          checked_in: true,
+          checked_in_at: new Date().toISOString(),
+        });
+      }
     }
 
     toast.success(`✅ ${ids.length} entries checked in!`);
@@ -152,17 +162,21 @@ export default function CheckInPage() {
     setSelectedGroupIds(next);
   }
 
-  const functionGuests = guests.filter((g) => {
-    const rsvp = rsvps.find((r) => r.guest_id === g.id && r.function_id === selectedFunction);
-    return g.function_ids.includes(selectedFunction) || rsvp;
-  });
-
-  const filteredGuests = functionGuests.filter((g) =>
+  const filteredGuests = guests.filter((g) =>
     searchQuery ? g.name.toLowerCase().includes(searchQuery.toLowerCase()) || g.phone.includes(searchQuery) : true
   );
 
-  const checkedInCount = rsvps.filter((r) => r.function_id === selectedFunction && r.checked_in).length;
-  const confirmedCount = rsvps.filter((r) => r.function_id === selectedFunction && r.status === "confirmed").length;
+  const confirmedGuestsWithRsvps = guests.filter(g => {
+      const gRsvps = rsvps.filter(r => r.guest_id === g.id && r.status === "confirmed");
+      return gRsvps.length > 0;
+  });
+
+  const checkedInCount = confirmedGuestsWithRsvps.filter((g) => {
+      const gRsvps = rsvps.filter(r => r.guest_id === g.id && r.status === "confirmed");
+      return gRsvps.every(r => r.checked_in);
+  }).length;
+  
+  const confirmedCount = confirmedGuestsWithRsvps.length;
 
   if (loading) {
     return (
@@ -182,7 +196,7 @@ export default function CheckInPage() {
     <div className="space-y-8">
       {/* HEADER */}
       <header className="flex items-center justify-between">
-        <h2 className="text-2xl font-black text-slate-900 tracking-tight">Check-In</h2>
+        <h2 className="text-2xl font-black text-slate-900 tracking-tight">Master Check-In</h2>
         <button
           onClick={() => setShowScanner(true)}
           className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm hover:bg-primary/90 transition-all"
@@ -191,22 +205,6 @@ export default function CheckInPage() {
           Scan QR
         </button>
       </header>
-
-      {/* FUNCTION TABS */}
-      <div className="flex border-b border-slate-200 overflow-x-auto">
-        {functions.map((f) => (
-          <button
-            key={f.id}
-            onClick={() => setSelectedFunction(f.id)}
-            className={`px-8 py-3 border-b-2 font-bold text-sm whitespace-nowrap transition-colors ${selectedFunction === f.id
-                ? "border-primary text-primary"
-                : "border-transparent text-slate-500 hover:text-primary"
-              }`}
-          >
-            {f.name}
-          </button>
-        ))}
-      </div>
 
       {/* STATS CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -247,9 +245,11 @@ export default function CheckInPage() {
           <p className="text-center text-slate-400 py-8">No guests found</p>
         ) : (
           filteredGuests.map((guest) => {
-            const rsvp = rsvps.find((r) => r.guest_id === guest.id && r.function_id === selectedFunction);
-            const isCheckedIn = rsvp?.checked_in;
+            const guestRsvps = rsvps.filter((r) => r.guest_id === guest.id && r.status === "confirmed");
+            const isCheckedIn = guestRsvps.length > 0 && guestRsvps.every(r => r.checked_in);
             const isJustCheckedIn = lastCheckedIn === guest.id;
+            const hasConfirmed = guestRsvps.length > 0;
+            const primaryRsvp = guestRsvps[0];
 
             return (
               <div
@@ -272,26 +272,26 @@ export default function CheckInPage() {
                     </div>
                     <div className="col-span-1 flex flex-col gap-1">
                       <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full w-fit uppercase tracking-tight ${rsvp?.status === "confirmed"
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full w-fit uppercase tracking-tight ${hasConfirmed
                             ? "bg-emerald-100 text-emerald-700"
-                            : rsvp?.status === "declined"
+                            : guest.overall_status === "declined"
                               ? "bg-red-100 text-red-700"
                               : "bg-amber-100 text-amber-700"
                           }`}
                       >
-                        {rsvp?.status || "Pending"}
+                        {hasConfirmed ? "Confirmed" : guest.overall_status}
                       </span>
-                      {rsvp && (
+                      {hasConfirmed && (
                         <p className="text-xs text-slate-600 font-semibold flex items-center gap-1">
                           <span className="material-symbols-outlined text-[14px]">group</span>
-                          {rsvp.total_pax} {rsvp.total_pax === 1 ? "Guest" : "Guests"}
+                          {primaryRsvp?.total_pax || 1} {primaryRsvp?.total_pax === 1 ? "Guest" : "Guests"}
                         </p>
                       )}
                     </div>
                     <div className="col-span-1 hidden md:flex flex-col gap-0.5">
                       <p className="text-[11px] text-slate-400 font-bold uppercase">Dietary</p>
                       <p className="text-xs text-slate-700 font-medium capitalize">
-                        {rsvp?.dietary_preference || "—"}
+                        {primaryRsvp?.dietary_preference || "—"}
                       </p>
                     </div>
                     {isCheckedIn && (
@@ -313,9 +313,12 @@ export default function CheckInPage() {
                   ) : (
                     <button
                       onClick={() => handleCheckIn(guest.id)}
-                      className="bg-emerald-600 text-white px-8 py-2.5 rounded-xl font-bold text-sm hover:bg-emerald-700 transition-all whitespace-nowrap"
+                      disabled={!hasConfirmed}
+                      className={`px-8 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${
+                        hasConfirmed ? "bg-emerald-600 text-white hover:bg-emerald-700" : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                      }`}
                     >
-                      Check In
+                      {hasConfirmed ? "Check In" : "No RSVP"}
                     </button>
                   )}
                 </div>
@@ -341,9 +344,10 @@ export default function CheckInPage() {
 
             <div className="p-6 max-h-[60vh] overflow-y-auto space-y-3">
               {groupGuests.map((g) => {
-                const r = rsvps.find(rsvp => rsvp.guest_id === g.id && rsvp.function_id === selectedFunction);
+                const guestRsvps = rsvps.filter(rsvp => rsvp.guest_id === g.id && rsvp.status === "confirmed");
                 const isSelected = selectedGroupIds.has(g.id);
-                const alreadyIn = r?.checked_in;
+                const alreadyIn = guestRsvps.length > 0 && guestRsvps.every(r => r.checked_in);
+                const hasConfirmed = guestRsvps.length > 0;
 
                 return (
                   <label key={g.id} className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all cursor-pointer ${alreadyIn ? "bg-slate-50 border-transparent opacity-50" :
@@ -353,15 +357,15 @@ export default function CheckInPage() {
                       type="checkbox"
                       className="size-5 rounded-lg text-primary border-slate-300 focus:ring-primary disabled:opacity-50"
                       checked={isSelected || alreadyIn}
-                      disabled={alreadyIn}
+                      disabled={alreadyIn || !hasConfirmed}
                       onChange={() => toggleGuestSelection(g.id)}
                     />
                     <div className="flex-1">
                       <p className={`font-bold ${alreadyIn ? "text-slate-400" : "text-slate-900"}`}>{g.name}</p>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${r?.status === "confirmed" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
+                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${hasConfirmed ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
                           }`}>
-                          {r?.status || "No RSVP"}
+                          {hasConfirmed ? "Confirmed" : "No RSVP"}
                         </span>
                         {alreadyIn && <span className="text-[10px] font-black text-emerald-600 uppercase">Already Admitted</span>}
                       </div>

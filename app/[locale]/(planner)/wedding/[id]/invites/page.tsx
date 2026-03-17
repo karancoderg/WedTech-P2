@@ -20,6 +20,12 @@ export default function InvitesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 50;
 
+  const sideColors: Record<string, { bg: string; text: string }> = {
+    bride: { bg: "bg-pink-50 border-pink-200", text: "text-pink-600" },
+    groom: { bg: "bg-blue-50 border-blue-200", text: "text-blue-600" },
+    both: { bg: "bg-purple-50 border-purple-200", text: "text-purple-600" },
+  };
+
   // Collapsed family groups state
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   function toggleGroupCollapse(groupId: string) {
@@ -194,6 +200,7 @@ export default function InvitesPage() {
             <thead>
               <tr className="bg-slate-50">
                 <th className="px-6 py-3 text-[11px] font-black text-slate-500 uppercase tracking-wider">Guest Name</th>
+                <th className="px-6 py-3 text-[11px] font-black text-slate-500 uppercase tracking-wider">Side</th>
                 <th className="px-6 py-3 text-[11px] font-black text-slate-500 uppercase tracking-wider">Contact</th>
                 <th className="px-6 py-3 text-[11px] font-black text-slate-500 uppercase tracking-wider">Invitation</th>
                 <th className="px-6 py-3 text-[11px] font-black text-slate-500 uppercase tracking-wider">RSVP Status</th>
@@ -229,6 +236,11 @@ export default function InvitesPage() {
                           </div>
                           <p className="font-semibold text-sm">{guest.name}</p>
                         </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded border text-[10px] font-bold capitalize ${sideColors[guest.side]?.bg || "bg-slate-50 border-slate-200"} ${sideColors[guest.side]?.text || "text-slate-600"}`}>
+                          {guest.side}
+                        </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-500">{guest.phone}</td>
                       <td className="px-6 py-4">
@@ -284,7 +296,7 @@ export default function InvitesPage() {
                   const noneSent = members.every((m) => !m.invite_sent_at);
                   rows.push(
                     <tr key={`group-header-${groupId}`} className="bg-primary/5 border-b border-primary/10">
-                      <td className="px-6 py-3" colSpan={5}>
+                      <td className="px-6 py-3" colSpan={6}>
                         <div className="flex items-center gap-3">
                           <button onClick={() => toggleGroupCollapse(groupId)} className="flex items-center gap-2 flex-1 text-left">
                             <span className="material-symbols-outlined text-primary text-[18px]">
