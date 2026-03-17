@@ -33,8 +33,8 @@ export default function RSVPFormPage() {
   const [showCompleted, setShowCompleted] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
   const [globalChildrenCount, setGlobalChildrenCount] = useState<number>(0);
-  const [globalDietaryPreference, setGlobalDietaryPreference] = useState<"veg" | "jain" | "non-veg" | null>(null);
-  const [additionalGuests, setAdditionalGuests] = useState<{name: string, phone: string}[]>([]);
+  const [guestDietaryPreferences, setGuestDietaryPreferences] = useState<Record<string, "veg" | "jain" | "non-veg" | null>>({});
+  const [additionalGuests, setAdditionalGuests] = useState<{name: string, phone: string, dietaryPreference: "veg" | "jain" | "non-veg" | null}[]>([]);
 
   useEffect(() => {
     async function fetchData() {
@@ -94,6 +94,14 @@ export default function RSVPFormPage() {
     }
   }, [showCompleted, guests, token]);
 
+  useEffect(() => {
+    const validAdditionalGuestsCount = additionalGuests.filter(ag => ag.name.trim()).length;
+    const maxChildrenAllowed = guests.length + validAdditionalGuestsCount;
+    if (globalChildrenCount > maxChildrenAllowed) {
+      setGlobalChildrenCount(maxChildrenAllowed);
+    }
+  }, [additionalGuests, guests.length, globalChildrenCount]);
+
   function updateResponse(guestId: string, index: number, updates: Partial<FunctionResponse>) {
     setResponses(prev => {
       const guestResponses = [...prev[guestId]];
@@ -124,7 +132,7 @@ export default function RSVPFormPage() {
             plus_ones: 0,
             children: isPrimary && resp.status === "confirmed" ? globalChildrenCount : 0, 
             total_pax: totalPax, 
-            dietary_preference: isPrimary && resp.status === "confirmed" ? globalDietaryPreference : null,
+            dietary_preference: resp.status === "confirmed" ? guestDietaryPreferences[guestId] || null : null,
             needs_accommodation: resp.needsAccommodation, 
             responded_at: new Date().toISOString(),
           }, { onConflict: "guest_id,function_id" });
@@ -173,7 +181,7 @@ export default function RSVPFormPage() {
               plus_ones: 0,
               children: 0,
               total_pax: resp.status === "confirmed" ? 1 : 0,
-              dietary_preference: resp.status === "confirmed" ? globalDietaryPreference : null,
+              dietary_preference: resp.status === "confirmed" ? ag.dietaryPreference || null : null,
               needs_accommodation: resp.needsAccommodation,
               responded_at: new Date().toISOString(),
             }, { onConflict: "guest_id,function_id" });
@@ -431,27 +439,25 @@ export default function RSVPFormPage() {
                 </div>
 
                 {/* Conditional Detail Form */}
-                {resp.status === "confirmed" && (
-                  <div className="px-6 space-y-6 animate-in fade-in">
+                {resp.status === "confirmed" && g.tags?.includes("outstation") && (
+                  <div className="px-6 space-y-6 animate-in fade-in cursor-pointer">
                     <div className={`${t.bgSub} rounded-xl p-5 shadow-sm space-y-6 border ${t.borderTop}`}>
                       {/* Accommodation */}
-                      {g.tags?.includes("outstation") && (
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h4 className={`font-bold ${t.textPrimary}`}>{t_i18n("accommodationNeeded")}</h4>
-                            <p className={`text-xs ${t.textSecondary}`}>{t_i18n("blockedRooms")}</p>
-                          </div>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              className="sr-only peer"
-                              checked={resp.needsAccommodation}
-                              onChange={(e) => updateResponse(g.id, index, { needsAccommodation: e.target.checked })}
-                            />
-                            <div className={`w-12 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${t.checkbox}`} />
-                          </label>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className={`font-bold ${t.textPrimary}`}>{t_i18n("accommodationNeeded")}</h4>
+                          <p className={`text-xs ${t.textSecondary}`}>{t_i18n("blockedRooms")}</p>
                         </div>
-                      )}
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={resp.needsAccommodation}
+                            onChange={(e) => updateResponse(g.id, index, { needsAccommodation: e.target.checked })}
+                          />
+                          <div className={`w-12 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${t.checkbox}`} />
+                        </label>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -459,6 +465,37 @@ export default function RSVPFormPage() {
                 {index < (responses[g.id]?.length || 0) - 1 && <div className={`border-t ${t.borderTop} mx-6 my-6`} />}
               </div>
             ))}
+
+            {/* Guest Dietary Preference */}
+            {responses[g.id]?.some(r => r.status === "confirmed") && (
+              <div className="px-6 mt-6 pb-6 animate-in fade-in">
+                <div className="mb-3">
+                  <h4 className={`${t.textPrimary} font-bold text-sm uppercase tracking-widest`}>
+                    {t_i18n("dietaryPreference") || "Dietary Preference"} <span className="text-xs font-normal text-slate-400 normal-case">(Optional)</span>
+                  </h4>
+                </div>
+                <div className="flex gap-2">
+                  {[
+                    { value: "veg" as const, label: "Veg", emoji: "🥦" },
+                    { value: "jain" as const, label: "Jain", emoji: "🌿" },
+                    { value: "non-veg" as const, label: "Non-Veg", emoji: "🍗", transKey: "nonVeg" as const },
+                  ].map((d) => (
+                    <button
+                      key={d.value}
+                      onClick={() => setGuestDietaryPreferences(prev => ({ ...prev, [g.id]: d.value === prev[g.id] ? null : d.value }))}
+                      className={`flex-1 text-center py-2 rounded-xl border transition-all cursor-pointer ${
+                        guestDietaryPreferences[g.id] === d.value
+                          ? `${t.button} ${t.cardActive}`
+                          : `${t.borderTop} ${t.cardBg} ${t.textSecondary}`
+                      }`}
+                    >
+                      <span className="text-sm block mb-1">{d.emoji}</span>
+                      <span className="text-[10px] font-bold uppercase">{t_i18n((d as any).transKey || d.value) || d.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ))}
 
@@ -513,48 +550,44 @@ export default function RSVPFormPage() {
                         className={`w-full p-3 rounded-lg border ${t.borderTop} focus:outline-none focus:border-[${t.icon}] bg-white`}
                       />
                     </div>
+                    <div>
+                      <label className={`text-xs font-bold uppercase tracking-widest ${t.textSecondary} mb-1 block`}>Dietary Preference (Optional)</label>
+                      <div className="flex gap-2">
+                        {[
+                          { value: "veg" as const, label: "Veg", emoji: "🥦" },
+                          { value: "jain" as const, label: "Jain", emoji: "🌿" },
+                          { value: "non-veg" as const, label: "Non-Veg", emoji: "🍗", transKey: "nonVeg" as const },
+                        ].map((d) => (
+                          <button
+                            key={d.value}
+                            onClick={() => {
+                              const newGuests = [...additionalGuests];
+                              newGuests[index].dietaryPreference = newGuests[index].dietaryPreference === d.value ? null : d.value;
+                              setAdditionalGuests(newGuests);
+                            }}
+                            className={`flex-1 text-center py-2 rounded-xl border transition-all cursor-pointer ${
+                              ag.dietaryPreference === d.value
+                                ? `${t.button} ${t.cardActive}`
+                                : `${t.borderTop} ${t.cardBg} ${t.textSecondary}`
+                            }`}
+                          >
+                            <span className="text-lg block mb-1">{d.emoji}</span>
+                            <span className="text-xs font-bold uppercase">{t_i18n((d as any).transKey || d.value) || d.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
 
               <button 
-                onClick={() => setAdditionalGuests(prev => [...prev, { name: "", phone: "" }])}
+                onClick={() => setAdditionalGuests(prev => [...prev, { name: "", phone: "", dietaryPreference: null }])}
                 className={`w-full mt-4 py-3 rounded-xl border-2 border-dashed ${t.borderTop} ${t.textAccent} font-semibold flex items-center justify-center gap-2 hover:bg-black/5 transition-all`}
               >
                 <span className="material-symbols-outlined">person_add</span>
                 Add Guest
               </button>
-            </div>
-
-            <hr className={t.borderTop} />
-
-            {/* Global Dietary Preference */}
-            <div>
-              <div className="mb-4">
-                <h3 className={`${t.textPrimary} text-xl font-bold leading-tight`}>
-                  {t_i18n("dietaryPreference") || "Dietary Preference"} <span className="text-sm font-normal text-slate-400 block mt-1">(Optional)</span>
-                </h3>
-              </div>
-              <div className="flex gap-2">
-                {[
-                  { value: "veg" as const, label: "Veg", emoji: "🥦" },
-                  { value: "jain" as const, label: "Jain", emoji: "🌿" },
-                  { value: "non-veg" as const, label: "Non-Veg", emoji: "🍗" },
-                ].map((d) => (
-                  <button
-                    key={d.value}
-                    onClick={() => setGlobalDietaryPreference(d.value)}
-                    className={`flex-1 text-center py-3 rounded-xl border transition-all cursor-pointer ${
-                      globalDietaryPreference === d.value
-                        ? `${t.button} ${t.cardActive}`
-                        : `${t.borderTop} ${t.cardBg} ${t.textSecondary}`
-                    }`}
-                  >
-                    <span className="text-lg block mb-1">{d.emoji}</span>
-                    <span className="text-xs font-bold uppercase">{t_i18n(d.value) || d.label}</span>
-                  </button>
-                ))}
-              </div>
             </div>
 
             <hr className={t.borderTop} />
@@ -571,7 +604,15 @@ export default function RSVPFormPage() {
                 <div className="flex items-center gap-5">
                   <button onClick={() => setGlobalChildrenCount(prev => Math.max(0, prev - 1))} className={`size-10 rounded-full ${t.bgSub} shadow flex items-center justify-center ${t.textAccent} font-bold border ${t.borderTop} text-xl`}>−</button>
                   <span className={`font-black text-xl ${t.textPrimary} w-6 text-center`}>{globalChildrenCount}</span>
-                  <button onClick={() => setGlobalChildrenCount(prev => prev + 1)} className={`size-10 rounded-full ${t.bgSub} shadow flex items-center justify-center ${t.textAccent} font-bold border ${t.borderTop} text-xl`}>+</button>
+                  <button onClick={() => {
+                    const validAdditionalGuestsCount = additionalGuests.filter(ag => ag.name.trim()).length;
+                    const maxChildrenAllowed = guests.length + validAdditionalGuestsCount;
+                    if (globalChildrenCount >= maxChildrenAllowed) {
+                      toast.error(`Maximum ${maxChildrenAllowed} children allowed based on RSVP members. Please add more members first.`);
+                    } else {
+                      setGlobalChildrenCount(prev => prev + 1);
+                    }
+                  }} className={`size-10 rounded-full ${t.bgSub} shadow flex items-center justify-center ${t.textAccent} font-bold border ${t.borderTop} text-xl`}>+</button>
                 </div>
               </div>
             </div>

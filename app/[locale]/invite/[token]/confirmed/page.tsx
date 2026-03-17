@@ -36,7 +36,7 @@ export default function ConfirmedPage() {
         supabase.from("weddings").select("*").eq("id", tokenData.wedding_id).single(),
         supabase.from("guests").select("*").eq("id", tokenData.guest_id).single(),
         supabase.from("wedding_functions").select("*").eq("wedding_id", tokenData.wedding_id).order("sort_order"),
-        supabase.from("rsvps").select("*").eq("guest_id", tokenData.guest_id),
+        supabase.from("rsvps").select("*").eq("invite_token", token),
       ]);
       if (weddingRes.data) setWedding(weddingRes.data);
       if (guestRes.data) setGuest(guestRes.data);
@@ -57,14 +57,25 @@ export default function ConfirmedPage() {
 
   if (!wedding || !guest) return null;
 
-  const confirmedFunctions = rsvps
-    .filter((r) => r.status === "confirmed")
-    .map((r) => functions.find((f) => f.id === r.function_id))
+  const confirmedFunctionIds = Array.from(new Set(
+    rsvps.filter((r) => r.status === "confirmed").map((r) => r.function_id)
+  ));
+  const confirmedFunctions = confirmedFunctionIds
+    .map((id) => functions.find((f) => f.id === id))
     .filter(Boolean) as WeddingFunction[];
 
-  const totalPax = rsvps.filter((r) => r.status === "confirmed").reduce((sum, r) => sum + r.total_pax, 0);
-  const dietary = rsvps.find((r) => r.dietary_preference)?.dietary_preference;
-  const needsAcc = rsvps.some((r) => r.needs_accommodation);
+  const paxByGuest = new Map<string, number>();
+  rsvps.filter((r) => r.status === "confirmed").forEach((r) => {
+    const current = paxByGuest.get(r.guest_id) || 0;
+    if (r.total_pax > current) paxByGuest.set(r.guest_id, r.total_pax);
+  });
+  const totalPax = Array.from(paxByGuest.values()).reduce((s, v) => s + v, 0);
+
+  const dietaryPreferences = Array.from(new Set(
+    rsvps.map((r) => r.dietary_preference).filter(Boolean)
+  ));
+  const dietary = dietaryPreferences.length > 0 ? dietaryPreferences.join(", ") : null;
+  const needsAcc = rsvps.some((r) => r.needs_accommodation && r.status === "confirmed");
 
   const shareUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/invite/${token}`;
   const waShareLink = `https://wa.me/?text=${encodeURIComponent(
@@ -161,16 +172,24 @@ export default function ConfirmedPage() {
 
           {/* Event Status List */}
           <div className="space-y-3 mb-6">
-            {rsvps.map((rsvp) => {
-              const func = functions.find((f) => f.id === rsvp.function_id);
+            {functions.filter(f => rsvps.some(r => r.function_id === f.id)).map((func) => {
+              const funcRsvps = rsvps.filter(r => r.function_id === func.id);
+              const isConfirmed = funcRsvps.some(r => r.status === "confirmed");
+              const isDeclined = funcRsvps.every(r => r.status === "declined");
+              
+              if (!isConfirmed && !isDeclined) return null;
+              
+              const status = isConfirmed ? "confirmed" : "declined";
+              const confirmingCount = funcRsvps.filter(r => r.status === "confirmed").reduce((sum, r) => sum + r.total_pax, 0);
+
               return (
-                <div key={rsvp.id} className={`flex items-center justify-between p-3 rounded-lg ${t.cardSubBg} ${rsvp.status === "declined" ? "opacity-60" : ""}`}>
-                  <span className={`font-medium ${t.textPrimary}`}>{func?.name || "Event"}</span>
-                  <div className={`flex items-center gap-1 font-semibold ${rsvp.status === "confirmed" ? t.iconText : t.textSecondary}`}>
+                <div key={func.id} className={`flex items-center justify-between p-3 rounded-lg ${t.cardSubBg} ${status === "declined" ? "opacity-60" : ""}`}>
+                  <span className={`font-medium ${t.textPrimary}`}>{func.name}</span>
+                  <div className={`flex items-center gap-1 font-semibold ${status === "confirmed" ? t.iconText : t.textSecondary}`}>
                     <span className="material-symbols-outlined text-sm">
-                      {rsvp.status === "confirmed" ? "check_circle" : "cancel"}
+                      {status === "confirmed" ? "check_circle" : "cancel"}
                     </span>
-                    <span>{rsvp.status === "confirmed" ? "Yes" : "No"}</span>
+                    <span>{status === "confirmed" ? `Yes (${confirmingCount})` : "No"}</span>
                   </div>
                 </div>
               );
