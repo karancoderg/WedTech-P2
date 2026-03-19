@@ -8,6 +8,10 @@ import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { syncGuestWithCRM } from "@/lib/services/crm-sync";
 import QRCode from "qrcode";
+import { Great_Vibes } from "next/font/google";
+
+const greatVibes = Great_Vibes({ weight: "400", subsets: ["latin"] });
+
 
 interface FunctionResponse {
   functionId: string;
@@ -34,7 +38,7 @@ export default function RSVPFormPage() {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
   const [globalChildrenCount, setGlobalChildrenCount] = useState<number>(0);
   const [guestDietaryPreferences, setGuestDietaryPreferences] = useState<Record<string, "veg" | "jain" | "non-veg" | null>>({});
-  const [additionalGuests, setAdditionalGuests] = useState<{name: string, phone: string, dietaryPreference: "veg" | "jain" | "non-veg" | null}[]>([]);
+  const [additionalGuests, setAdditionalGuests] = useState<{ name: string, phone: string, dietaryPreference: "veg" | "jain" | "non-veg" | null }[]>([]);
 
   useEffect(() => {
     async function fetchData() {
@@ -46,10 +50,10 @@ export default function RSVPFormPage() {
         supabase.from("guests").select("*").eq("id", tokenData.guest_id).single(),
         supabase.from("wedding_functions").select("*").eq("wedding_id", tokenData.wedding_id).in("id", tokenData.function_ids).order("sort_order"),
       ]);
- 
+
       if (weddingRes.data) setWedding(weddingRes.data);
       if (funcRes.data) setFunctions(funcRes.data);
-      
+
       let allGuests: Guest[] = [];
       if (guestRes.data) {
         const primaryGuest = guestRes.data;
@@ -76,7 +80,7 @@ export default function RSVPFormPage() {
         }));
       });
       setResponses(initialResponses);
-      
+
       if (tokenData.used) {
         setShowCompleted(true);
       }
@@ -84,7 +88,7 @@ export default function RSVPFormPage() {
     }
     fetchData();
   }, [token]);
-  
+
   useEffect(() => {
     if (showCompleted && guests.length > 0) {
       // Primary guest's token is used for QR
@@ -113,7 +117,7 @@ export default function RSVPFormPage() {
   async function handleSubmit() {
     const allAnswered = Object.values(responses).every(resps => resps.every(r => r.status));
     if (!allAnswered) { toast.error(t_i18n("respondAll")); return; }
-    
+
     setSubmitting(true);
     try {
       const primaryGuest = guests[0];
@@ -124,20 +128,20 @@ export default function RSVPFormPage() {
         for (const resp of guestResponses) {
           const totalPax = resp.status === "confirmed" ? 1 + (isPrimary ? globalChildrenCount : 0) : 0;
           await supabase.from("rsvps").upsert({
-            wedding_id: wedding!.id, 
-            guest_id: guestId, 
+            wedding_id: wedding!.id,
+            guest_id: guestId,
             function_id: resp.functionId,
-            invite_token: token, 
-            status: resp.status, 
+            invite_token: token,
+            status: resp.status,
             plus_ones: 0,
-            children: isPrimary && resp.status === "confirmed" ? globalChildrenCount : 0, 
-            total_pax: totalPax, 
+            children: isPrimary && resp.status === "confirmed" ? globalChildrenCount : 0,
+            total_pax: totalPax,
             dietary_preference: resp.status === "confirmed" ? guestDietaryPreferences[guestId] || null : null,
-            needs_accommodation: resp.needsAccommodation, 
+            needs_accommodation: resp.needsAccommodation,
             responded_at: new Date().toISOString(),
           }, { onConflict: "guest_id,function_id" });
         }
-        
+
         const allConfirmed = guestResponses.every((r) => r.status === "confirmed");
         const allDeclined = guestResponses.every((r) => r.status === "declined");
         await supabase.from("guests")
@@ -189,7 +193,7 @@ export default function RSVPFormPage() {
           syncGuestWithCRM(newGuest.id);
         }
       }
-      
+
       await supabase.from("invite_tokens").update({ used: true }).eq("token", token);
       router.push(`/invite/${token}/confirmed`);
     } catch (error) {
@@ -216,20 +220,20 @@ export default function RSVPFormPage() {
 
   const themeStyles = {
     floral: {
-      bg: "bg-[#fdfbf7]",
-      borderTop: "border-rose-200",
-      textAccent: "text-rose-700",
-      textPrimary: "text-rose-950",
-      textSecondary: "text-rose-700/80",
-      fontHeading: "font-serif",
-      button: "bg-rose-700 hover:bg-rose-800 text-white shadow-rose-200",
-      cardBg: "bg-rose-50/50 border-rose-100",
-      icon: "text-rose-600",
-      iconBg: "bg-rose-600",
-      checkbox: "peer-checked:bg-rose-700",
-      cardActive: "border-rose-700",
-      cardInactive: "border-transparent hover:border-rose-700/20",
-      bgSub: "bg-white",
+      bg: "bg-transparent",
+      borderTop: "border-emerald-200/50",
+      textAccent: "text-emerald-900",
+      textPrimary: "text-slate-800",
+      textSecondary: "text-slate-500",
+      fontHeading: greatVibes.className,
+      button: "bg-emerald-800 hover:bg-emerald-900 text-white shadow-emerald-200",
+      cardBg: "bg-white/70 backdrop-blur-[2px] border-emerald-100",
+      icon: "text-emerald-700",
+      iconBg: "bg-emerald-700",
+      checkbox: "peer-checked:bg-emerald-800",
+      cardActive: "border-emerald-800 bg-emerald-50/50",
+      cardInactive: "border-emerald-100 hover:border-emerald-300",
+      bgSub: "bg-white/80 backdrop-blur-[2px]",
     },
     royal: {
       bg: "bg-slate-950",
@@ -265,16 +269,19 @@ export default function RSVPFormPage() {
     }
   };
 
-  const t = themeStyles[wedding.template_id || 'floral'];
+  const t = themeStyles['floral']; // Forcing the new watercolor design
 
   if (showCompleted) {
     return (
       <div className={`relative flex min-h-screen w-full flex-col max-w-md mx-auto transition-colors duration-500 ${t.bg}`}>
+        <div className="fixed inset-0 z-[-1]">
+          <img src="/images/watercolor_bg.png" alt="background" className="w-full h-full object-cover opacity-40" />
+        </div>
         <header className={`sticky top-0 z-50 flex items-center ${t.bgSub} backdrop-blur-md px-4 py-4 justify-between border-b ${t.borderTop}`}>
           <div className={`${t.textPrimary} flex size-10 shrink-0 items-center justify-center`}>
             {/* Logo or placeholder */}
           </div>
-          <h2 className={`${t.fontHeading} ${t.textAccent} text-xl font-bold leading-tight flex-1 text-center`}>
+          <h2 className={`${t.fontHeading} ${t.textAccent} text-3xl font-normal leading-tight flex-1 text-center py-1`}>
             {wedding.bride_name} &amp; {wedding.groom_name}
           </h2>
           <div className="size-10 shrink-0" />
@@ -284,7 +291,7 @@ export default function RSVPFormPage() {
           <div className={`${t.cardBg} border rounded-[2rem] p-8 shadow-xl relative overflow-hidden`}>
             {/* Background pattern/accent */}
             <div className={`absolute top-0 left-0 w-full h-2 ${t.iconBg} opacity-20`} />
-            
+
             <span className="material-symbols-outlined text-green-600 text-6xl mb-6">verified</span>
             <h1 className={`${t.fontHeading} ${t.textPrimary} text-3xl font-black mb-4`}>
               {t_i18n("thankYou")}
@@ -310,11 +317,10 @@ export default function RSVPFormPage() {
                   <div key={g.id} className={`${t.textPrimary} flex items-center gap-2 font-bold px-3 py-1 rounded-full bg-white/50 text-sm border ${t.borderTop}`}>
                     {g.name}
                     {g.side && (
-                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full border uppercase tracking-tighter ${
-                        g.side === 'bride' ? 'bg-pink-100 border-pink-200 text-pink-600' : 
-                        g.side === 'groom' ? 'bg-blue-100 border-blue-200 text-blue-600' : 
-                        'bg-purple-100 border-purple-200 text-purple-600'
-                      }`}>
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full border uppercase tracking-tighter ${g.side === 'bride' ? 'bg-pink-100 border-pink-200 text-pink-600' :
+                          g.side === 'groom' ? 'bg-blue-100 border-blue-200 text-blue-600' :
+                            'bg-purple-100 border-purple-200 text-purple-600'
+                        }`}>
                         {g.side}
                       </span>
                     )}
@@ -346,12 +352,15 @@ export default function RSVPFormPage() {
 
   return (
     <div className={`relative flex min-h-screen w-full flex-col max-w-md mx-auto transition-colors duration-500 ${t.bg}`}>
+      <div className="fixed inset-0 z-[-1]">
+        <img src="/images/watercolor_bg.png" alt="background" className="w-full h-full object-cover opacity-40" />
+      </div>
       {/* Sticky Header */}
       <header className={`sticky top-0 z-50 flex items-center ${t.bgSub} backdrop-blur-md px-4 py-4 justify-between border-b ${t.borderTop}`}>
         <div className={`${t.textPrimary} flex size-10 shrink-0 items-center justify-center cursor-pointer`} onClick={() => router.back()}>
           <span className="material-symbols-outlined">close</span>
         </div>
-        <h2 className={`${t.fontHeading} ${t.textAccent} text-xl font-bold leading-tight flex-1 text-center`}>
+        <h2 className={`${t.fontHeading} ${t.textAccent} text-3xl font-normal leading-tight flex-1 text-center py-1`}>
           {wedding.bride_name} &amp; {wedding.groom_name}
         </h2>
         <div className="size-10 shrink-0" />
@@ -369,11 +378,10 @@ export default function RSVPFormPage() {
                     <span className={`${t.textPrimary} text-xl font-black`}>{g.name}</span>
                   </div>
                   {g.side && (
-                    <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-0.5 rounded-full border ${
-                      g.side === 'bride' ? 'bg-pink-50 border-pink-200 text-pink-500' : 
-                      g.side === 'groom' ? 'bg-blue-50 border-blue-200 text-blue-500' : 
-                      'bg-purple-50 border-purple-200 text-purple-500'
-                    }`}>
+                    <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-0.5 rounded-full border ${g.side === 'bride' ? 'bg-pink-50 border-pink-200 text-pink-500' :
+                        g.side === 'groom' ? 'bg-blue-50 border-blue-200 text-blue-500' :
+                          'bg-purple-50 border-purple-200 text-purple-500'
+                      }`}>
                       {g.side === 'both' ? 'Both Sides' : `${g.side}'s Side`}
                     </span>
                   )}
@@ -394,9 +402,8 @@ export default function RSVPFormPage() {
                 {/* Attendance Selection */}
                 <div className="px-6 space-y-3 mb-8">
                   <label
-                    className={`relative flex items-center p-4 rounded-xl border-2 ${t.bgSub} shadow-sm cursor-pointer transition-all ${
-                      resp.status === "confirmed" ? t.cardActive : t.cardInactive
-                    }`}
+                    className={`relative flex items-center p-4 rounded-xl border-2 ${t.bgSub} shadow-sm cursor-pointer transition-all ${resp.status === "confirmed" ? t.cardActive : t.cardInactive
+                      }`}
                     onClick={() => updateResponse(g.id, index, { status: "confirmed" })}
                   >
                     <div className="flex items-center justify-between w-full">
@@ -408,18 +415,16 @@ export default function RSVPFormPage() {
                           {t_i18n("yes")}
                         </span>
                       </div>
-                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                        resp.status === "confirmed" ? t.cardActive : t.borderTop
-                      }`}>
+                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${resp.status === "confirmed" ? t.cardActive : t.borderTop
+                        }`}>
                         {resp.status === "confirmed" && <div className={`w-3 h-3 ${t.iconBg} rounded-full`} />}
                       </div>
                     </div>
                   </label>
 
                   <label
-                    className={`relative flex items-center p-4 rounded-xl border-2 ${t.bgSub} shadow-sm cursor-pointer transition-all ${
-                      resp.status === "declined" ? "border-red-400" : t.cardInactive
-                    }`}
+                    className={`relative flex items-center p-4 rounded-xl border-2 ${t.bgSub} shadow-sm cursor-pointer transition-all ${resp.status === "declined" ? "border-red-400" : t.cardInactive
+                      }`}
                     onClick={() => updateResponse(g.id, index, { status: "declined", dietaryPreference: null, needsAccommodation: false })}
                   >
                     <div className="flex items-center justify-between w-full">
@@ -483,11 +488,10 @@ export default function RSVPFormPage() {
                     <button
                       key={d.value}
                       onClick={() => setGuestDietaryPreferences(prev => ({ ...prev, [g.id]: d.value === prev[g.id] ? null : d.value }))}
-                      className={`flex-1 text-center py-2 rounded-xl border transition-all cursor-pointer ${
-                        guestDietaryPreferences[g.id] === d.value
+                      className={`flex-1 text-center py-2 rounded-xl border transition-all cursor-pointer ${guestDietaryPreferences[g.id] === d.value
                           ? `${t.button} ${t.cardActive}`
                           : `${t.borderTop} ${t.cardBg} ${t.textSecondary}`
-                      }`}
+                        }`}
                     >
                       <span className="text-sm block mb-1">{d.emoji}</span>
                       <span className="text-[10px] font-bold uppercase">{t_i18n((d as any).transKey || d.value) || d.label}</span>
@@ -512,11 +516,11 @@ export default function RSVPFormPage() {
               <p className={`${t.textSecondary} text-sm mb-4`}>
                 Please provide their details so we can properly check them in at the venue.
               </p>
-              
+
               <div className="space-y-4">
                 {additionalGuests.map((ag, index) => (
                   <div key={index} className={`p-4 rounded-xl border ${t.borderTop} ${t.cardBg} space-y-3 relative`}>
-                    <button 
+                    <button
                       onClick={() => setAdditionalGuests(prev => prev.filter((_, i) => i !== index))}
                       className="absolute -top-3 -right-3 size-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center border border-red-200 shadow-sm hover:bg-red-200"
                     >
@@ -524,8 +528,8 @@ export default function RSVPFormPage() {
                     </button>
                     <div>
                       <label className={`text-xs font-bold uppercase tracking-widest ${t.textSecondary} mb-1 block`}>Guest Name</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         placeholder="E.g. John Doe"
                         value={ag.name}
                         onChange={(e) => {
@@ -538,8 +542,8 @@ export default function RSVPFormPage() {
                     </div>
                     <div>
                       <label className={`text-xs font-bold uppercase tracking-widest ${t.textSecondary} mb-1 block`}>Mobile Number (Optional)</label>
-                      <input 
-                        type="tel" 
+                      <input
+                        type="tel"
                         placeholder="E.g. +91 98765 43210"
                         value={ag.phone}
                         onChange={(e) => {
@@ -565,11 +569,10 @@ export default function RSVPFormPage() {
                               newGuests[index].dietaryPreference = newGuests[index].dietaryPreference === d.value ? null : d.value;
                               setAdditionalGuests(newGuests);
                             }}
-                            className={`flex-1 text-center py-2 rounded-xl border transition-all cursor-pointer ${
-                              ag.dietaryPreference === d.value
+                            className={`flex-1 text-center py-2 rounded-xl border transition-all cursor-pointer ${ag.dietaryPreference === d.value
                                 ? `${t.button} ${t.cardActive}`
                                 : `${t.borderTop} ${t.cardBg} ${t.textSecondary}`
-                            }`}
+                              }`}
                           >
                             <span className="text-lg block mb-1">{d.emoji}</span>
                             <span className="text-xs font-bold uppercase">{t_i18n((d as any).transKey || d.value) || d.label}</span>
@@ -581,7 +584,7 @@ export default function RSVPFormPage() {
                 ))}
               </div>
 
-              <button 
+              <button
                 onClick={() => setAdditionalGuests(prev => [...prev, { name: "", phone: "", dietaryPreference: null }])}
                 className={`w-full mt-4 py-3 rounded-xl border-2 border-dashed ${t.borderTop} ${t.textAccent} font-semibold flex items-center justify-center gap-2 hover:bg-black/5 transition-all`}
               >

@@ -5,6 +5,10 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { UserButton, UserProfile, useUser } from "@clerk/nextjs";
 import { toast } from "sonner";
+import { Playfair_Display, Inter } from "next/font/google";
+
+const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair" });
+const inter = Inter({ subsets: ["latin"] });
 
 const NAV_ITEMS = [
   { label: "Dashboard", icon: "dashboard", href: "/dashboard" },
@@ -115,7 +119,7 @@ export default function PlannerLayout({ children }: { children: React.ReactNode 
   const firstName = user?.firstName || "Planner";
 
   return (
-    <div className="flex min-h-screen bg-[#f8f7f5]">
+    <div className={`flex min-h-screen bg-[#f8f7f5] ${inter.className} ${playfair.variable}`}>
       {/* ===== DESKTOP SIDEBAR ===== */}
       <aside className="hidden lg:flex w-64 bg-white border-r border-primary/10 flex-col fixed h-full z-10">
         {/* Logo */}
@@ -125,8 +129,8 @@ export default function PlannerLayout({ children }: { children: React.ReactNode 
               <span className="material-symbols-outlined">favorite</span>
             </div>
             <div className="flex flex-col">
-              <h1 className="text-slate-900 text-base font-bold leading-tight">WedSync</h1>
-              <p className="text-primary text-xs font-medium uppercase tracking-wider">Wedding Planner</p>
+              <h1 className={`text-slate-900 text-2xl font-bold leading-tight ${playfair.className}`}>WedSync</h1>
+              <p className="text-primary text-[10px] font-bold uppercase tracking-widest mt-0.5">Wedding Planner</p>
             </div>
           </div>
         </div>
@@ -143,10 +147,10 @@ export default function PlannerLayout({ children }: { children: React.ReactNode 
                 key={item.label}
                 href={disabled ? "#" : href}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${active
-                    ? "bg-primary/10 text-primary"
-                    : disabled
-                      ? "text-slate-300 cursor-not-allowed"
-                      : "text-slate-600 hover:bg-primary/5 hover:text-primary"
+                  ? "bg-primary/10 text-primary"
+                  : disabled
+                    ? "text-slate-300 cursor-not-allowed"
+                    : "text-slate-600 hover:bg-primary/5 hover:text-primary"
                   }`}
               >
                 <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
@@ -185,10 +189,10 @@ export default function PlannerLayout({ children }: { children: React.ReactNode 
       </aside>
 
       {/* ===== MAIN CONTENT ===== */}
-      <main className="flex-1 lg:ml-64 flex flex-col min-w-0 relative">
+      <main className="flex-1 lg:ml-64 flex flex-col min-w-0 relative planner-dash">
         {/* Top Header */}
         <header className="h-16 flex items-center justify-between px-8 bg-white border-b border-slate-200 lg:border-primary/10">
-          <h1 className="text-xl font-bold text-slate-800">
+          <h1 className={`text-3xl font-bold text-slate-800 ${playfair.className}`}>
             Welcome back, {firstName} 👋
           </h1>
           <div className="flex items-center gap-4">
@@ -224,22 +228,20 @@ export default function PlannerLayout({ children }: { children: React.ReactNode 
               <div className="flex border-b border-slate-200">
                 <button
                   onClick={() => setSettingsTab("profile")}
-                  className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${
-                    settingsTab === "profile"
+                  className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${settingsTab === "profile"
                       ? "border-primary text-primary"
                       : "border-transparent text-slate-500 hover:text-slate-900"
-                  }`}
+                    }`}
                 >
                   <span className="material-symbols-outlined text-lg align-middle mr-1">person</span>
                   Profile
                 </button>
                 <button
                   onClick={openEmailTab}
-                  className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${
-                    settingsTab === "email"
+                  className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${settingsTab === "email"
                       ? "border-primary text-primary"
                       : "border-transparent text-slate-500 hover:text-slate-900"
-                  }`}
+                    }`}
                 >
                   <span className="material-symbols-outlined text-lg align-middle mr-1">mail</span>
                   Email Settings
