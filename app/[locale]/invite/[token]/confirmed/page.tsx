@@ -6,6 +6,9 @@ import QRCode from "qrcode";
 import { supabase } from "@/lib/supabase";
 import type { Wedding, Guest, WeddingFunction, RSVP } from "@/lib/types";
 import { generateGoogleCalendarLink } from "@/lib/whatsapp";
+import { Great_Vibes } from "next/font/google";
+
+const greatVibes = Great_Vibes({ weight: "400", subsets: ["latin"] });
 
 export default function ConfirmedPage() {
   const params = useParams();
@@ -84,16 +87,16 @@ export default function ConfirmedPage() {
 
   const themeStyles = {
     floral: {
-      bg: "bg-[#fdfbf7]",
-      textAccent: "text-rose-700",
-      textPrimary: "text-rose-950",
-      textSecondary: "text-rose-700/80",
-      iconBg: "bg-rose-100",
-      iconText: "text-rose-600",
-      cardBg: "bg-white border-rose-100",
-      cardSubBg: "bg-rose-50/50",
-      borderTop: "border-rose-100",
-      buttonLink: "text-rose-700 hover:text-rose-800",
+      bg: "bg-transparent",
+      textAccent: "text-emerald-700",
+      textPrimary: "text-slate-800",
+      textSecondary: "text-slate-500",
+      iconBg: "bg-emerald-100",
+      iconText: "text-emerald-600",
+      cardBg: "bg-white/70 backdrop-blur-sm border-emerald-100",
+      cardSubBg: "bg-emerald-50/50",
+      borderTop: "border-emerald-100",
+      buttonLink: "text-emerald-700 hover:text-emerald-800",
       whatsappBtn: "border-green-500 text-green-700 bg-green-50/50 hover:bg-green-100",
     },
     royal: {
@@ -124,10 +127,13 @@ export default function ConfirmedPage() {
     }
   };
 
-  const t = themeStyles[wedding.template_id || 'floral'];
+  const t = themeStyles['floral'];
 
   return (
     <div className={`relative w-full max-w-[430px] min-h-screen ${t.bg} shadow-2xl flex flex-col overflow-x-hidden mx-auto transition-colors duration-500`}>
+      <div className="fixed inset-0 z-[-1]">
+        <img src="/images/watercolor_bg.png" alt="background" className="w-full h-full object-cover opacity-40" />
+      </div>
       {/* Header */}
       <div className="flex items-center bg-transparent p-4 pb-2 justify-between">
         <div className="size-12" />
@@ -145,8 +151,9 @@ export default function ConfirmedPage() {
         <h1 className={`${t.textPrimary} text-3xl font-bold leading-tight mb-2`}>
           You&apos;re all set! 🎉
         </h1>
-        <p className={`${t.textSecondary} text-base font-medium`}>
-          {wedding.bride_name} &amp; {wedding.groom_name} can&apos;t wait to see you!
+        <p className={`${t.textAccent} ${greatVibes.className} text-3xl font-medium mt-2`}>
+          {wedding.bride_name} &amp; {wedding.groom_name} 
+          <span className="block text-base font-sans text-slate-500 mt-2">can&apos;t wait to see you!</span>
         </p>
       </div>
 

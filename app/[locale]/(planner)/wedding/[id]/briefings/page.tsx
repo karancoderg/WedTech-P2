@@ -4,6 +4,9 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import * as XLSX from "xlsx";
 import { supabase } from "@/lib/supabase";
+import { Playfair_Display } from "next/font/google";
+
+const playfair = Playfair_Display({ subsets: ["latin"] });
 import type { Wedding, WeddingFunction, RSVP } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -134,57 +137,57 @@ export default function VendorBriefingPage() {
   if (loading) return <div className="p-8 animate-pulse text-slate-400">Loading briefings...</div>;
 
   return (
-    <div className="space-y-8 pb-32">
-      <div>
-        <h2 className="text-3xl font-black text-slate-900 tracking-tight">Vendor Briefing Generator</h2>
-        <p className="text-slate-500 font-medium">Export operational reports for your catering, logistics, and decor teams.</p>
+    <div className="space-y-16 pb-32">
+      <div className="text-center">
+        <h2 className={`text-3xl md:text-4xl uppercase tracking-widest text-[#5C4033] mb-4 ${playfair.className}`}>Vendor Briefing Generator</h2>
+        <p className="text-[11px] font-medium tracking-widest uppercase text-[#8C7A6B]">Export operational reports for your catering, logistics, and decor teams.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-end max-w-5xl mx-auto pt-8">
         {/* Catering Card */}
-        <div className="bg-white rounded-3xl border border-slate-200 p-8 hover:shadow-xl transition-all group">
-          <div className="size-16 rounded-2xl bg-orange-100 text-orange-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+        <div className="bg-white rounded-t-[150px] rounded-b-md border border-[#EBE3D5] p-10 pt-16 hover:shadow-xl transition-all flex flex-col items-center text-center group h-full shadow-lg">
+          <div className="text-[#8C7A6B] flex items-center justify-center mb-8 opacity-60">
             <span className="material-symbols-outlined text-4xl">restaurant</span>
           </div>
-          <h3 className="text-xl font-black text-slate-900 mb-2">Catering Briefing</h3>
-          <p className="text-slate-500 text-sm mb-8 font-medium">Headcounts for Veg, Jain, and Non-Veg per function based on real confirmed RSVPs.</p>
+          <h3 className={`text-xl uppercase tracking-widest text-[#5C4033] mb-6 ${playfair.className}`}>Catering Briefing</h3>
+          <p className="text-[#8C7A6B] text-[10px] tracking-wider leading-relaxed mb-auto pb-12">Headcounts for Veg, Jain, and Non-Veg per function based on real confirmed RSVPs.</p>
           <button
             onClick={downloadCateringBriefing}
-            className="w-full py-4 bg-orange-600 text-white rounded-2xl font-bold hover:bg-orange-700 transition-all flex items-center justify-center gap-2"
+            className="w-full py-4 bg-[#5C4033] text-white font-bold hover:bg-[#4A3228] transition-all flex items-center justify-center gap-2 tracking-[0.2em] uppercase text-[9px]"
           >
-            <span className="material-symbols-outlined">download</span>
+            <span className="material-symbols-outlined text-sm">download</span>
             Download Excel
           </button>
         </div>
 
         {/* Guest Logistics Card */}
-        <div className="bg-white rounded-3xl border border-slate-200 p-8 hover:shadow-xl transition-all group">
-          <div className="size-16 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+        <div className="bg-[#5C4033] shadow-2xl transform md:scale-110 z-10 rounded-t-[150px] rounded-b-md border border-[#5C4033] p-10 pt-20 hover:shadow-2xl transition-all flex flex-col items-center text-center group h-full">
+          <div className="text-white flex items-center justify-center mb-8 opacity-80">
             <span className="material-symbols-outlined text-4xl">hotel</span>
           </div>
-          <h3 className="text-xl font-black text-slate-900 mb-2">Logistics & Accommodation</h3>
-          <p className="text-slate-500 text-sm mb-8 font-medium">Detailed list of guests requiring accommodation and travel assistance.</p>
+          <h3 className={`text-xl uppercase tracking-widest !text-white mb-6 ${playfair.className}`}>Logistics &<br/>Accommodation</h3>
+          <p className="!text-white/80 text-[10px] tracking-wider leading-relaxed mb-auto pb-12">Detailed list of guests requiring accommodation and travel assistance.</p>
           <button
             onClick={downloadGuestBriefing}
-            className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+            className="w-full py-4 bg-white text-[#5C4033] font-bold hover:bg-[#F2ECE4] transition-all flex items-center justify-center gap-2 tracking-[0.2em] uppercase text-[9px]"
           >
-            <span className="material-symbols-outlined">download</span>
+            <span className="material-symbols-outlined text-sm">download</span>
             Download Excel
           </button>
         </div>
 
         {/* Decor/Seating Card */}
-        <div className="bg-white rounded-3xl border border-slate-200 p-8 hover:shadow-xl transition-all group">
-          <div className="size-16 rounded-2xl bg-purple-100 text-purple-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+        <div className="bg-white rounded-t-[150px] rounded-b-md border border-[#EBE3D5] p-10 pt-16 hover:shadow-xl transition-all flex flex-col items-center text-center group h-full shadow-lg">
+          <div className="text-[#8C7A6B] flex items-center justify-center mb-8 opacity-60">
             <span className="material-symbols-outlined text-4xl">table_chart</span>
           </div>
-          <h3 className="text-xl font-black text-slate-900 mb-2">Seating Briefing</h3>
-          <p className="text-slate-500 text-sm mb-8 font-medium">Complete table assignments per function for the decor team and coordinators.</p>
+          <h3 className={`text-xl uppercase tracking-widest text-[#5C4033] mb-6 ${playfair.className}`}>Seating Briefing</h3>
+          <p className="text-[#8C7A6B] text-[10px] tracking-wider leading-relaxed mb-auto pb-12">Complete table assignments per function for the decor team and coordinators.</p>
           <button
             onClick={downloadSeatingBriefing}
-            className="w-full py-4 bg-purple-600 text-white rounded-2xl font-bold hover:bg-purple-700 transition-all flex items-center justify-center gap-2"
+            className="w-full py-4 bg-[#5C4033] text-white font-bold hover:bg-[#4A3228] transition-all flex items-center justify-center gap-2 tracking-[0.2em] uppercase text-[9px]"
           >
-            <span className="material-symbols-outlined">download</span>
+            <span className="material-symbols-outlined text-sm">download</span>
             Download Report
           </button>
         </div>

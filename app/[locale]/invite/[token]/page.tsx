@@ -6,6 +6,9 @@ import { useTranslations, useLocale } from "next-intl";
 import { supabase } from "@/lib/supabase";
 import type { Wedding, Guest, WeddingFunction } from "@/lib/types";
 import { formatDate } from "@/lib/whatsapp";
+import { Great_Vibes } from "next/font/google";
+
+const greatVibes = Great_Vibes({ weight: "400", subsets: ["latin"] });
 
 export default function InviteLandingPage() {
   const params = useParams();
@@ -65,17 +68,17 @@ export default function InviteLandingPage() {
 
   const themeStyles = {
     floral: {
-      bg: "bg-[#fdfbf7]", 
-      borderTop: "from-rose-200 via-rose-400 to-rose-200",
-      textAccent: "text-rose-700",
-      textPrimary: "text-rose-950",
-      textSecondary: "text-rose-700/80",
+      bg: "bg-transparent", 
+      borderTop: "from-emerald-200 via-emerald-400 to-emerald-200",
+      textAccent: "text-emerald-700",
+      textPrimary: "text-slate-800",
+      textSecondary: "text-slate-500",
       fontDisplay: "font-serif italic",
-      fontHeading: "font-serif",
-      divider: "border-rose-200",
-      button: "bg-rose-700 hover:bg-rose-800 text-white shadow-rose-200",
-      cardBg: "bg-rose-50/50 border-rose-100",
-      icon: "text-rose-600",
+      fontHeading: greatVibes.className,
+      divider: "border-emerald-200",
+      button: "bg-emerald-700 hover:bg-emerald-800 text-white shadow-emerald-200",
+      cardBg: "bg-white/70 backdrop-blur-sm border-emerald-100",
+      icon: "text-emerald-600",
     },
     royal: {
       bg: "bg-slate-950",
@@ -105,10 +108,13 @@ export default function InviteLandingPage() {
     }
   };
 
-  const t = themeStyles[wedding?.template_id || 'floral'];
+  const t = themeStyles['floral'];
 
   return (
     <div className={`relative flex min-h-screen w-full flex-col ${t.bg} overflow-x-hidden max-w-[430px] mx-auto shadow-2xl transition-colors duration-500`}>
+      <div className="fixed inset-0 z-[-1]">
+        <img src="/images/watercolor_bg.png" alt="background" className="w-full h-full object-cover" />
+      </div>
       {/* Top Decorative Border */}
       <div className={`absolute inset-x-0 top-0 h-2 bg-gradient-to-r ${t.borderTop}`} />
 
