@@ -2,15 +2,18 @@
 
 import Link from 'next/link';
 import { Playfair_Display, Inter } from 'next/font/google';
+import { useAuth } from "@clerk/nextjs";
 
 const playfair = Playfair_Display({ subsets: ['latin'] });
 const inter = Inter({ subsets: ['latin'] });
 
 export default function HomePage() {
+  const { isSignedIn } = useAuth();
+
   return (
     <div className={`min-h-screen bg-[#FAF8F5] text-[#5C4033] ${inter.className} overflow-x-hidden`}>
       {/* Navigation */}
-      <nav className="absolute top-0 w-full z-10 flex flex-col md:flex-row justify-between items-center px-8 md:px-16 py-8 text-white mix-blend-difference font-semibold text-[10px] tracking-[0.2em] uppercase gap-4">
+      <nav className="absolute top-0 w-full z-10 flex flex-col md:flex-row justify-between items-center px-8 md:px-16 py-8 text-white font-bold text-[10px] tracking-[0.2em] uppercase gap-4 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
         <div className="flex gap-12">
           <a href="#about" className="hover:opacity-70 transition-opacity">About</a>
           <a href="#services" className="hover:opacity-70 transition-opacity">Features</a>
@@ -19,7 +22,11 @@ export default function HomePage() {
           WedSync
         </div>
         <div className="flex gap-12">
-          <Link href="/sign-in" className="hover:opacity-70 transition-opacity">Login</Link>
+          {isSignedIn ? (
+            <Link href="/dashboard" className="hover:opacity-70 transition-opacity">Dashboard</Link>
+          ) : (
+            <Link href="/sign-in" className="hover:opacity-70 transition-opacity">Login</Link>
+          )}
         </div>
       </nav>
 
@@ -31,20 +38,27 @@ export default function HomePage() {
             alt="Wedding Venue"
             className="w-full h-full object-cover object-center"
           />
-          <div className="absolute inset-0 bg-black/30" />
+          <div className="absolute inset-0 bg-[#5C4033]/20 mix-blend-color-burn" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/30 to-transparent" />
           <div className="absolute bottom-[-100px] left-[-10%] w-[120%] h-[200px] bg-[#FAF8F5] rounded-t-[50%] blur-[2px]" />
         </div>
 
-        <div className="relative z-10 text-center text-white px-4 max-w-5xl mx-auto flex flex-col items-center mix-blend-overlay">
-          <h1 className={`text-4xl md:text-5xl lg:text-6xl uppercase tracking-widest leading-[1.3] mb-6 drop-shadow-md ${playfair.className}`}>
+        <div className="relative z-10 text-center px-4 max-w-5xl mx-auto flex flex-col items-center">
+          <h1 className={`text-4xl md:text-5xl lg:text-7xl text-white uppercase tracking-widest leading-[1.3] mb-6 drop-shadow-[0_4px_4px_rgba(0,0,0,0.6)] ${playfair.className}`}>
             Plan Every Detail.<br />Execute Flawlessly.
           </h1>
-          <p className="text-[10px] md:text-xs font-medium tracking-[0.3em] uppercase mb-12 drop-shadow-md">
+          <p className="text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-12 text-white/90 bg-black/40 px-6 py-2 rounded-full backdrop-blur-md shadow-2xl border border-white/20">
             The all-in-one digital platform built for professional wedding planners.
           </p>
-          <Link href="/sign-in" className="bg-white text-[#5C4033] px-12 py-4 text-[10px] font-bold tracking-[0.2em] uppercase hover:bg-[#F2ECE4] transition-all duration-300">
-            Start Planning
-          </Link>
+          {isSignedIn ? (
+            <Link href="/dashboard" className="bg-white text-[#5C4033] px-12 py-4 text-[10px] font-bold tracking-[0.2em] uppercase hover:bg-[#F2ECE4] hover:scale-105 transition-all duration-300 shadow-2xl">
+              Go to Dashboard
+            </Link>
+          ) : (
+            <Link href="/sign-in" className="bg-white text-[#5C4033] px-12 py-4 text-[10px] font-bold tracking-[0.2em] uppercase hover:bg-[#F2ECE4] hover:scale-105 transition-all duration-300 shadow-2xl">
+              Start Planning
+            </Link>
+          )}
         </div>
       </section>
 
@@ -106,9 +120,15 @@ export default function HomePage() {
               <p className="text-[11px] leading-relaxed tracking-wider mb-8 opacity-80">
                 Send beautifully crafted digital invitations and track every RSVP response in real-time from your dashboard.
               </p>
-              <Link href="/sign-in" className="border border-white/40 px-8 py-3 text-[10px] tracking-[0.2em] uppercase font-bold hover:bg-white hover:text-[#5C4033] transition-colors">
-                Get Started
-              </Link>
+              {isSignedIn ? (
+                <Link href="/dashboard" className="border border-white/40 px-8 py-3 text-[10px] tracking-[0.2em] uppercase font-bold hover:bg-white hover:text-[#5C4033] transition-colors">
+                  Go to Dashboard
+                </Link>
+              ) : (
+                <Link href="/sign-in" className="border border-white/40 px-8 py-3 text-[10px] tracking-[0.2em] uppercase font-bold hover:bg-white hover:text-[#5C4033] transition-colors">
+                  Get Started
+                </Link>
+              )}
             </div>
 
             <div className="group relative overflow-hidden rounded-t-full h-[450px] shadow-lg border-4 border-white/50">
@@ -157,7 +177,7 @@ export default function HomePage() {
       <section className="py-32 relative">
         <div className="absolute left-0 top-0 w-1/3 h-full bg-[#EBE3D5]" />
         <div className="relative max-w-6xl mx-auto px-6 h-[500px]">
-          <div className="absolute top-0 right-[20%] w-[300px] h-[400px] shadow-2xl z-20">
+          <div className="absolute top-0 right-[20%] w-[300px] h-[400px] shadow-2xl z-20 border-[12px] border-white">
             <img src="https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=2070&auto=format&fit=crop" className="w-full h-full object-cover" alt="Wedding Details" />
           </div>
           <div className="absolute top-16 left-[10%] text-[#5C4033] z-30 max-w-[280px]">
@@ -171,16 +191,16 @@ export default function HomePage() {
       </section>
 
       {/* Testimonial */}
-      <section className="py-24 px-6 bg-[#FAF8F5]">
-        <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center gap-16">
-          <div className="flex-1 text-center md:text-right">
+      <section className="py-24 px-6 bg-[#FAF8F5] relative z-20">
+        <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center gap-16 relative">
+          <div className="flex-1 text-center md:text-right relative z-10">
             <p className="text-[9px] uppercase tracking-widest text-[#8C7A6B] mb-2 font-bold">Priya Sharma — Senior Wedding Planner</p>
             <p className="text-[9px] uppercase tracking-widest text-[#5C4033] font-bold mb-8">300+ Guests Managed</p>
-            <h3 className={`text-2xl leading-relaxed text-[#5C4033] ${playfair.className}`}>
+            <h3 className={`text-2xl leading-relaxed text-[#5C4033] relative ${playfair.className}`}>
               "WedSync transformed the way I run my events. The RSVP tracking alone saved me hours, and the vendor briefing generator is a game-changer. I won't plan a wedding without it."
             </h3>
           </div>
-          <div className="flex-1 h-[500px] w-full border-[12px] border-white shadow-xl">
+          <div className="flex-1 h-[500px] w-full border-[12px] border-white shadow-xl relative z-20">
             <img src="https://images.unsplash.com/photo-1606800052052-a08af7148866?q=80" alt="Happy Planner" className="w-full h-full object-cover" />
           </div>
         </div>
@@ -205,7 +225,11 @@ export default function HomePage() {
                 <span className="text-[#8C7A6B] mb-2">Platform</span>
                 <a href="#about" className="hover:text-[#8C7A6B]">About</a>
                 <a href="#services" className="hover:text-[#8C7A6B]">Features</a>
-                <Link href="/sign-in" className="hover:text-[#8C7A6B]">Sign In</Link>
+                {isSignedIn ? (
+                  <Link href="/dashboard" className="hover:text-[#8C7A6B]">Dashboard</Link>
+                ) : (
+                  <Link href="/sign-in" className="hover:text-[#8C7A6B]">Sign In</Link>
+                )}
               </div>
               <div className="flex flex-col gap-4">
                 <span className="text-[#8C7A6B] mb-2">Features</span>
