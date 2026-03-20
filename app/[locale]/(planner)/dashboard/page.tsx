@@ -103,18 +103,7 @@ export default function DashboardPage() {
   const totalConfirmed = guests.filter((g) => g.overall_status === "confirmed").length;
   const totalPending = guests.filter((g) => g.overall_status === "pending").length;
 
-  const iconMap: Record<number, string> = {
-    0: "celebration",
-    1: "temple_hindu",
-    2: "auto_awesome",
-    3: "diamond",
-  };
-  const gradientMap: Record<number, string> = {
-    0: "from-primary/20 to-primary/40",
-    1: "from-primary/10 to-primary/30",
-    2: "from-primary/30 to-primary/50",
-    3: "from-primary/5 to-primary/20",
-  };
+  const panelColors = ["#EDE8E1", "#E8EDF2", "#EDE8ED", "#E5EDEA"];
 
   return (
     <div className="space-y-8">
@@ -186,9 +175,63 @@ export default function DashboardPage() {
                     </button>
                   </div>
 
-                  <div className={`w-full md:w-48 h-48 md:h-auto bg-gradient-to-br ${gradientMap[index % 4]} flex items-center justify-center`}>
-                    <span className="material-symbols-outlined text-primary/40 text-6xl">{iconMap[index % 4]}</span>
-                  </div>
+                  {/* SVG Illustration Panel */}
+                  {(() => {
+                    const color = "rgba(100,85,70,0.25)";
+                    const illustrations = [
+                      // 0: Interlocking wedding rings
+                      <svg key="rings" width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="28" cy="36" r="16" stroke={color} strokeWidth="2"/>
+                        <circle cx="44" cy="36" r="16" stroke={color} strokeWidth="2"/>
+                        <path d="M24 28 Q28 24 32 28" stroke={color} strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+                        <path d="M40 28 Q44 24 48 28" stroke={color} strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+                      </svg>,
+                      // 1: Simple floral bloom
+                      <svg key="floral" width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="36" cy="36" r="5" stroke={color} strokeWidth="1.5"/>
+                        <ellipse cx="36" cy="20" rx="5" ry="9" stroke={color} strokeWidth="1.5"/>
+                        <ellipse cx="36" cy="52" rx="5" ry="9" stroke={color} strokeWidth="1.5"/>
+                        <ellipse cx="20" cy="36" rx="9" ry="5" stroke={color} strokeWidth="1.5"/>
+                        <ellipse cx="52" cy="36" rx="9" ry="5" stroke={color} strokeWidth="1.5"/>
+                        <ellipse cx="24" cy="24" rx="5" ry="9" transform="rotate(45 24 24)" stroke={color} strokeWidth="1.5"/>
+                        <ellipse cx="48" cy="48" rx="5" ry="9" transform="rotate(45 48 48)" stroke={color} strokeWidth="1.5"/>
+                        <ellipse cx="48" cy="24" rx="5" ry="9" transform="rotate(-45 48 24)" stroke={color} strokeWidth="1.5"/>
+                        <ellipse cx="24" cy="48" rx="5" ry="9" transform="rotate(-45 24 48)" stroke={color} strokeWidth="1.5"/>
+                      </svg>,
+                      // 2: Tiered wedding cake
+                      <svg key="cake" width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="18" y="44" width="36" height="14" rx="1" stroke={color} strokeWidth="1.5"/>
+                        <rect x="24" y="32" width="24" height="14" rx="1" stroke={color} strokeWidth="1.5"/>
+                        <rect x="29" y="22" width="14" height="12" rx="1" stroke={color} strokeWidth="1.5"/>
+                        <line x1="36" y1="22" x2="36" y2="16" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+                        <circle cx="36" cy="14" r="2.5" stroke={color} strokeWidth="1.5"/>
+                        <path d="M22 44 Q25 40 28 44" stroke={color} strokeWidth="1" strokeLinecap="round" fill="none"/>
+                        <path d="M34 32 Q36 28 38 32" stroke={color} strokeWidth="1" strokeLinecap="round" fill="none"/>
+                      </svg>,
+                      // 3: Laurel wreath
+                      <svg key="laurel" width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M36 52 C36 52 16 44 16 28 C16 20 22 14 28 16 C30 16 32 18 32 20" stroke={color} strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+                        <path d="M36 52 C36 52 56 44 56 28 C56 20 50 14 44 16 C42 16 40 18 40 20" stroke={color} strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+                        <ellipse cx="22" cy="22" rx="5" ry="3" transform="rotate(-30 22 22)" stroke={color} strokeWidth="1.2" fill="none"/>
+                        <ellipse cx="18" cy="32" rx="5" ry="3" transform="rotate(-10 18 32)" stroke={color} strokeWidth="1.2" fill="none"/>
+                        <ellipse cx="20" cy="42" rx="5" ry="3" transform="rotate(15 20 42)" stroke={color} strokeWidth="1.2" fill="none"/>
+                        <ellipse cx="50" cy="22" rx="5" ry="3" transform="rotate(30 50 22)" stroke={color} strokeWidth="1.2" fill="none"/>
+                        <ellipse cx="54" cy="32" rx="5" ry="3" transform="rotate(10 54 32)" stroke={color} strokeWidth="1.2" fill="none"/>
+                        <ellipse cx="52" cy="42" rx="5" ry="3" transform="rotate(-15 52 42)" stroke={color} strokeWidth="1.2" fill="none"/>
+                        <path d="M30 54 Q36 58 42 54" stroke={color} strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+                      </svg>,
+                    ];
+                    return (
+                      <div
+                        className="relative w-full md:w-44 h-44 md:h-auto flex-shrink-0 flex items-center justify-center"
+                        style={{ background: panelColors[index % panelColors.length] }}
+                      >
+                        {illustrations[index % illustrations.length]}
+                      </div>
+                    );
+                  })()}
+
+
                   <div className="flex-1 p-6 flex flex-col">
                     <div className="flex justify-between items-start mb-2 pr-16">
                       <div>
