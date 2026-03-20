@@ -5,8 +5,7 @@ import { useParams } from "next/navigation";
 import * as XLSX from "xlsx";
 import { supabase } from "@/lib/supabase";
 import type { Wedding, Guest, WeddingFunction, RSVP } from "@/lib/types";
-import { generateWhatsAppLink, generateWhatsAppMessage, normalizePhone } from "@/lib/whatsapp";
-import { generateEmailLink } from "@/lib/email";
+
 import { toast } from "sonner";
 
 function deriveFunctionsForSide(side: 'bride' | 'groom' | 'both', allFunctions: WeddingFunction[]) {
@@ -683,26 +682,7 @@ export default function GuestListPage() {
                             <span className="material-symbols-outlined text-[18px]">group_remove</span>
                           </button>
                         )}
-                        {wedding && (
-                          <button 
-                            onClick={() => handleAICall([guest.id])} 
-                            disabled={callingGuests}
-                            className="p-1.5 text-slate-400 hover:text-primary transition-colors" 
-                            title="AI Voice Call"
-                          >
-                            <span className="material-symbols-outlined text-[18px]">call</span>
-                          </button>
-                        )}
-                        {wedding && (
-                          <a href={generateWhatsAppLink(guest, wedding, functions)} target="_blank" rel="noopener" className="p-1.5 text-slate-400 hover:text-[#25D366] transition-colors" title="WhatsApp">
-                            <span className="material-symbols-outlined text-[18px]">chat</span>
-                          </a>
-                        )}
-                        {wedding && guest.email && (
-                          <a href={generateEmailLink(guest, wedding, functions)} className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors" title="Email">
-                            <span className="material-symbols-outlined text-[18px]">mail</span>
-                          </a>
-                        )}
+
                         <button onClick={() => openEditDialog(guest)} className="p-1.5 text-slate-400 hover:text-primary transition-colors" title="Edit">
                           <span className="material-symbols-outlined text-[18px]">edit</span>
                         </button>
@@ -814,51 +794,7 @@ export default function GuestListPage() {
                 <span className="material-symbols-outlined text-lg">group_add</span>
                 Group
               </button>
-              <button
-                onClick={async () => {
-                  if (!wedding) return;
-                  const selectedGuests = guests.filter((g) => selectedIds.has(g.id));
-                  const payload = selectedGuests.map(g => ({
-                    phone: normalizePhone(g.phone).replace('+', ''),
-                    message: generateWhatsAppMessage(g, wedding, functions)
-                  }));
-                  
-                  await navigator.clipboard.writeText(JSON.stringify(payload));
-                  
-                  await supabase
-                    .from("guests")
-                    .update({ invite_sent_at: new Date().toISOString() })
-                    .in("id", Array.from(selectedIds));
-                    
-                  toast.success(`📋 Copied ${selectedGuests.length} invites to clipboard! Open the WedSync Extension on WhatsApp Web.`);
-                  setSelectedIds(new Set());
-                  fetchData();
-                }}
-                className="px-3 py-2 bg-primary text-white rounded-lg font-bold text-xs flex items-center gap-1.5 hover:bg-primary/90 transition-all"
-              >
-                <span className="material-symbols-outlined text-lg">extension</span>
-                Export
-              </button>
-              <button
-                onClick={() => handleAICall()}
-                disabled={callingGuests}
-                className="px-3 py-2 bg-purple-600 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 hover:bg-purple-700 transition-all disabled:opacity-50"
-              >
-                <span className="material-symbols-outlined text-lg">
-                  {callingGuests ? "sync" : "smart_toy"}
-                </span>
-                {callingGuests ? "Calling..." : "AI Call"}
-              </button>
-              <button
-                onClick={handleBulkEmail}
-                disabled={sendingEmails}
-                className="px-3 py-2 bg-blue-600 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 hover:bg-blue-700 transition-all disabled:opacity-50"
-              >
-                <span className="material-symbols-outlined text-lg">
-                  {sendingEmails ? "sync" : "mail"}
-                </span>
-                {sendingEmails ? "Sending..." : "Email"}
-              </button>
+
             </div>
           </div>
         </div>

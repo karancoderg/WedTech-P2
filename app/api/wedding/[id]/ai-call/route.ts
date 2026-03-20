@@ -75,9 +75,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
       const customInstruction = `You are a warm, polite Indian wedding invitation assistant calling on behalf of ${wedding.bride_name} and ${wedding.groom_name}.
 You are speaking to ${guest.name}. 
-Your goal is to cordially invite them to the upcoming wedding functions, specifically ${functionNames}, which will take place starting around ${new Date(wedding.wedding_date).toDateString()}.
-Briefly congratulate them, ask if they will be able to make it, and let them know they will receive a WhatsApp link with detailed RSVP forms and directions. 
-Keep the conversation short, friendly, and respectful. Wait for their responses carefully. Do not sound like a robot.`;
+
+Phase 1: Cordially invite them to the upcoming wedding functions (${functionNames}) starting around ${new Date(wedding.wedding_date).toDateString()}. Briefly congratulate them.
+
+Phase 2: After they acknowledge the invitation, politely ask for their RSVP details:
+1. Ask if they will be able to attend.
+2. If attending, ask how many people (total pax) will be joining.
+3. Ask if they have any dietary preferences (Veg, Non-Veg, or Jain).
+
+Phase 3: Wrap up by letting them know they will also receive a WhatsApp link with detailed RSVP forms and directions. 
+
+Keep the conversation natural, short, and respectful. Wait for their responses carefully. Do not sound like a robot.`;
 
       // Make the actual call via Tabbly.io
       try {
