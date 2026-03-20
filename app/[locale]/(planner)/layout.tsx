@@ -193,7 +193,7 @@ export default function PlannerLayout({ children }: { children: React.ReactNode 
         {/* Top Header */}
         <header className="h-16 flex items-center justify-between px-8 bg-white border-b border-slate-200 lg:border-primary/10">
           <h1 className={`text-3xl font-bold text-slate-800 ${playfair.className}`}>
-            Welcome back, {firstName} 👋
+            Welcome back, {firstName}
           </h1>
           <div className="flex items-center gap-4">
             <button onClick={() => toast.info("No new notifications")} className="p-2 text-slate-500 hover:text-primary transition-colors">
