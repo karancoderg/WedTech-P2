@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Wedding, Guest, WeddingFunction } from "@/lib/types";
 import { generateWhatsAppLink, generateReminderLink } from "@/lib/whatsapp";
+import { generateEmailLink } from "@/lib/email";
 import { toast } from "sonner";
 
 export default function InvitesPage() {
@@ -16,7 +17,16 @@ export default function InvitesPage() {
   const [guestGroups, setGuestGroups] = useState<{ id: string; name: string }[]>([]);
   const [functions, setFunctions] = useState<WeddingFunction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [callingGuests, setCallingGuests] = useState(false);
+  const [sendingEmails, setSendingEmails] = useState(false);
+  const [showBulkEmailDialog, setShowBulkEmailDialog] = useState(false);
+  const [guestsWithEmail, setGuestsWithEmail] = useState<Guest[]>([]);
+  const [guestsWithInvalidEmail, setGuestsWithInvalidEmail] = useState<Guest[]>([]);
+  const [guestsWithoutEmail, setGuestsWithoutEmail] = useState<Guest[]>([]);
   const [filter, setFilter] = useState<"all" | "pending" | "sent">("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 50;
 
@@ -55,11 +65,28 @@ export default function InvitesPage() {
   const sentGuests = guests.filter((g) => g.invite_sent_at);
   const pendingRsvpGuests = guests.filter((g) => g.invite_sent_at && g.overall_status === "pending");
 
-  const filteredGuests = filter === "all" ? guests : filter === "pending" ? pendingGuests : sentGuests;
+  const filteredGuests = (filter === "all" ? guests : filter === "pending" ? pendingGuests : sentGuests)
+    .filter((g) => searchQuery
+      ? g.name.toLowerCase().includes(searchQuery.toLowerCase()) || g.phone.includes(searchQuery)
+      : true
+    );
   const totalPages = Math.ceil(filteredGuests.length / pageSize);
   const paginatedGuests = filteredGuests.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  useEffect(() => { setCurrentPage(1); }, [filter]);
+  useEffect(() => { setCurrentPage(1); setSelectedIds(new Set()); }, [filter, searchQuery]);
+
+  function toggleSelect(id: string) {
+    const next = new Set(selectedIds);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setSelectedIds(next);
+  }
+  function toggleSelectAll() {
+    if (selectedIds.size === filteredGuests.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredGuests.map((g) => g.id)));
+    }
+  }
 
   async function markAsSent(guestId: string) {
     await supabase.from("guests").update({ invite_sent_at: new Date().toISOString() }).eq("id", guestId);
@@ -75,6 +102,98 @@ export default function InvitesPage() {
   function copyInviteLink(token: string) {
     navigator.clipboard.writeText(`${baseUrl}/invite/${token}`);
     toast.success("🔗 Invite link copied!");
+  }
+
+  async function handleSyncRSVPs() {
+    setSyncing(true);
+    try {
+      const res = await fetch(`/api/wedding/${weddingId}/sync-call-rsvps`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(data.message || "RSVPs synced successfully!");
+        fetchData();
+      } else {
+        toast.error(data.error || "Failed to sync RSVPs");
+      }
+    } catch (error) {
+      toast.error("Error syncing RSVPs");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  async function handleAICall(targetGuestIds?: string[]) {
+    const idsToCall = targetGuestIds || pendingGuests.map((g) => g.id);
+    if (idsToCall.length === 0) return;
+    setCallingGuests(true);
+    const toastId = toast.loading(`Initiating AI call${idsToCall.length > 1 ? "s" : ""} to ${idsToCall.length} guest${idsToCall.length > 1 ? "s" : ""}...`);
+    try {
+      const response = await fetch(`/api/wedding/${weddingId}/ai-call`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ guestIds: idsToCall }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        toast.success(`🤖 Initiated ${result.successful} AI calls! ${result.failed > 0 ? `${result.failed} failed.` : ""}`, { id: toastId });
+        fetchData();
+      } else {
+        toast.error(`Failed to trigger calls: ${result.error}`, { id: toastId });
+      }
+    } catch (error: any) {
+      toast.error(error.message || "An error occurred while initiating calls", { id: toastId });
+    } finally {
+      setCallingGuests(false);
+    }
+  }
+
+  async function handleBulkEmail(targetGuests?: Guest[]) {
+    const selectedGuests = targetGuests || pendingGuests;
+    if (selectedGuests.length === 0) { toast.error("No guests to email."); return; }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const allowedDomains = ["gmail.com", "outlook.com", "yahoo.com", "hotmail.com", "icloud.com", "yahoo.co.in"];
+    const withEmail = selectedGuests.filter((g) => {
+      if (!g.email) return false;
+      const domain = g.email.toLowerCase().split("@")[1];
+      return emailRegex.test(g.email) && allowedDomains.includes(domain);
+    });
+    const withInvalidEmail = selectedGuests.filter((g) => {
+      if (!g.email) return false;
+      const domain = g.email.toLowerCase().split("@")[1];
+      return !emailRegex.test(g.email) || !allowedDomains.includes(domain);
+    });
+    const withoutEmail = selectedGuests.filter((g) => !g.email);
+    if (withEmail.length === 0 && withInvalidEmail.length === 0) {
+      toast.error("None of the selected guests have email addresses.");
+      return;
+    }
+    setGuestsWithEmail(withEmail);
+    setGuestsWithInvalidEmail(withInvalidEmail);
+    setGuestsWithoutEmail(withoutEmail);
+    setShowBulkEmailDialog(true);
+  }
+
+  async function confirmSendEmails() {
+    setShowBulkEmailDialog(false);
+    setSendingEmails(true);
+    const toastId = toast.loading(`Sending emails to ${guestsWithEmail.length} guests...`);
+    try {
+      const response = await fetch(`/api/wedding/${weddingId}/send-emails`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ guestIds: guestsWithEmail.map((g) => g.id) }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Failed to send emails");
+      toast.success(`✉️ Sent ${result.successful} emails! ${result.failed > 0 ? `${result.failed} failed.` : ""}`, { id: toastId });
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.message || "An error occurred while sending emails", { id: toastId });
+    } finally {
+      setSendingEmails(false);
+    }
   }
 
   function getInitials(name: string) {
@@ -99,6 +218,16 @@ export default function InvitesPage() {
           <h2 className="text-3xl font-black text-slate-900 tracking-tight">Invitations</h2>
           <p className="text-slate-500 font-medium">{wedding?.wedding_name}</p>
         </div>
+        <button
+          onClick={handleSyncRSVPs}
+          disabled={syncing}
+          className="flex items-center gap-2 bg-white border border-slate-200 px-4 py-2 rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
+        >
+          <span className={`material-symbols-outlined text-lg ${syncing ? "animate-spin" : ""}`}>
+            {syncing ? "sync" : "refresh"}
+          </span>
+          {syncing ? "Syncing..." : "Sync RSVPs from AI Calls"}
+        </button>
       </header>
 
       {/* STAT CARDS */}
@@ -173,24 +302,85 @@ export default function InvitesPage() {
             </button>
           </div>
         )}
+
+        {/* AI Call Card */}
+        <div className="bg-purple-50 border border-purple-200 p-5 rounded-xl flex items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <span className="material-symbols-outlined text-purple-600 mt-1">smart_toy</span>
+            <div>
+              <h4 className="font-bold text-slate-900 text-sm">AI Voice Calls</h4>
+              <p className="text-slate-600 text-sm">Auto-call pending guests to collect RSVPs.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => handleAICall(pendingRsvpGuests.map((g) => g.id))}
+            disabled={callingGuests || pendingRsvpGuests.length === 0}
+            className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-bold shrink-0 hover:bg-purple-700 transition-colors disabled:opacity-50"
+          >
+            {callingGuests ? "Calling..." : `Call ${pendingRsvpGuests.length} Guests`}
+          </button>
+        </div>
+
+        {/* Email Invitations Card */}
+        <div className="bg-blue-50 border border-blue-200 p-5 rounded-xl flex items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <span className="material-symbols-outlined text-blue-600 mt-1">mail</span>
+            <div>
+              <h4 className="font-bold text-slate-900 text-sm">Email Invitations</h4>
+              <p className="text-slate-600 text-sm">Send invite emails to guests with email addresses.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => handleBulkEmail(pendingGuests.filter((g) => !!g.email))}
+            disabled={sendingEmails}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold shrink-0 hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            {sendingEmails ? "Sending..." : "Email Pending"}
+          </button>
+        </div>
       </div>
 
       {/* TABLE */}
       <div className="bg-white rounded-xl border border-primary/10 shadow-sm overflow-hidden">
-        {/* Filter Tabs */}
-        <div className="px-6 py-4 border-b border-primary/10 flex items-center justify-between">
-          <div className="flex gap-1 p-1 bg-[#f8f7f5] rounded-lg">
-            {(["all", "pending", "sent"] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-4 py-1.5 text-sm font-bold rounded-md capitalize ${
-                  filter === f ? "bg-white shadow-sm text-primary" : "text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                {f} ({f === "all" ? guests.length : f === "pending" ? pendingGuests.length : sentGuests.length})
+        {/* Filter Tabs + Search */}
+        <div className="px-6 py-4 border-b border-primary/10 flex flex-wrap items-center gap-3 justify-between">
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={selectedIds.size === filteredGuests.length && filteredGuests.length > 0}
+              onChange={toggleSelectAll}
+              className="rounded border-slate-300 text-primary focus:ring-primary"
+              title="Select all"
+            />
+            <div className="flex gap-1 p-1 bg-[#f8f7f5] rounded-lg">
+              {(["all", "pending", "sent"] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`px-4 py-1.5 text-sm font-bold rounded-md capitalize ${
+                    filter === f ? "bg-white shadow-sm text-primary" : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  {f} ({f === "all" ? guests.length : f === "pending" ? pendingGuests.length : sentGuests.length})
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Search bar */}
+          <div className="relative min-w-[220px]">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by name or phone..."
+              className="w-full pl-9 pr-4 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                <span className="material-symbols-outlined text-[16px]">close</span>
               </button>
-            ))}
+            )}
           </div>
         </div>
 
@@ -199,6 +389,7 @@ export default function InvitesPage() {
           <table className="w-full text-left">
             <thead>
               <tr className="bg-slate-50">
+                <th className="px-6 py-3 w-10"></th>
                 <th className="px-6 py-3 text-[11px] font-black text-slate-500 uppercase tracking-wider">Guest Name</th>
                 <th className="px-6 py-3 text-[11px] font-black text-slate-500 uppercase tracking-wider">Side</th>
                 <th className="px-6 py-3 text-[11px] font-black text-slate-500 uppercase tracking-wider">Contact</th>
@@ -227,7 +418,15 @@ export default function InvitesPage() {
                 // Helper: render one invite row
                 function InviteRow({ guest, indent }: { guest: Guest; indent?: boolean }) {
                   return (
-                    <tr key={guest.id} className={`hover:bg-slate-50/50 transition-colors ${indent ? "bg-slate-50/30" : ""}`}>
+                    <tr key={guest.id} className={`hover:bg-slate-50/50 transition-colors ${selectedIds.has(guest.id) ? "bg-primary/5" : indent ? "bg-slate-50/30" : ""}`}>
+                      <td className="px-6 py-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(guest.id)}
+                          onChange={() => toggleSelect(guest.id)}
+                          className="rounded border-slate-300 text-primary focus:ring-primary"
+                        />
+                      </td>
                       <td className={`${indent ? "pl-10 pr-6" : "px-6"} py-4`}>
                         <div className="flex items-center gap-3">
                           {indent && <span className="text-slate-300 text-sm">└</span>}
@@ -282,6 +481,24 @@ export default function InvitesPage() {
                               <span className="material-symbols-outlined text-lg">chat</span>
                             </a>
                           )}
+                          <button
+                            onClick={() => handleAICall([guest.id])}
+                            disabled={callingGuests}
+                            className="p-2 hover:bg-purple-50 rounded-lg text-slate-400 hover:text-purple-600 transition-colors"
+                            title="AI Voice Call"
+                          >
+                            <span className="material-symbols-outlined text-lg">call</span>
+                          </button>
+                          {wedding && guest.email && (
+                            <a
+                              href={generateEmailLink(guest, wedding, functions)}
+                              className="p-2 hover:bg-blue-50 rounded-lg text-slate-400 hover:text-blue-600 transition-colors"
+                              title="Send Email"
+                              onClick={() => markAsSent(guest.id)}
+                            >
+                              <span className="material-symbols-outlined text-lg">mail</span>
+                            </a>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -296,7 +513,20 @@ export default function InvitesPage() {
                   const noneSent = members.every((m) => !m.invite_sent_at);
                   rows.push(
                     <tr key={`group-header-${groupId}`} className="bg-primary/5 border-b border-primary/10">
-                      <td className="px-6 py-3" colSpan={6}>
+                      <td className="px-6 py-3">
+                        <input
+                          type="checkbox"
+                          checked={members.every((m) => selectedIds.has(m.id))}
+                          onChange={() => {
+                            const next = new Set(selectedIds);
+                            const allSelected = members.every((m) => selectedIds.has(m.id));
+                            members.forEach((m) => allSelected ? next.delete(m.id) : next.add(m.id));
+                            setSelectedIds(next);
+                          }}
+                          className="rounded border-slate-300 text-primary focus:ring-primary"
+                        />
+                      </td>
+                      <td className="px-6 py-3" colSpan={5}>
                         <div className="flex items-center gap-3">
                           <button onClick={() => toggleGroupCollapse(groupId)} className="flex items-center gap-2 flex-1 text-left">
                             <span className="material-symbols-outlined text-primary text-[18px]">
@@ -365,6 +595,113 @@ export default function InvitesPage() {
           </div>
         </div>
       </div>
+
+      {/* Floating Bulk Action Bar */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-20">
+          <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-2xl shadow-slate-900/40 flex items-center justify-between border border-white/10">
+            <div className="flex items-center gap-3 pl-2 shrink-0">
+              <div className="bg-primary size-8 rounded-full flex items-center justify-center font-black text-sm">
+                {selectedIds.size}
+              </div>
+              <div>
+                <p className="text-sm font-bold">{selectedIds.size} selected</p>
+                <p className="text-[10px] text-slate-400 font-medium">Bulk actions</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="px-3 py-2 hover:bg-white/10 text-slate-300 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+                Clear
+              </button>
+              <button
+                onClick={() => handleAICall(Array.from(selectedIds))}
+                disabled={callingGuests}
+                className="px-3 py-2 bg-purple-600 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 hover:bg-purple-700 transition-all disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-lg">
+                  {callingGuests ? "sync" : "call"}
+                </span>
+                {callingGuests ? "Calling..." : `AI Call ${selectedIds.size}`}
+              </button>
+              <button
+                onClick={() => handleBulkEmail(guests.filter((g) => selectedIds.has(g.id)))}
+                disabled={sendingEmails}
+                className="px-3 py-2 bg-blue-600 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 hover:bg-blue-700 transition-all disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-lg">
+                  {sendingEmails ? "sync" : "mail"}
+                </span>
+                {sendingEmails ? "Sending..." : `Email ${selectedIds.size}`}
+              </button>
+              <button
+                onClick={() => markAllAsSent(Array.from(selectedIds))}
+                className="px-3 py-2 bg-primary text-white rounded-lg font-bold text-xs flex items-center gap-1.5 hover:bg-primary/90 transition-all"
+              >
+                <span className="material-symbols-outlined text-lg">mark_email_read</span>
+                Mark Sent
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Email Confirmation Dialog */}
+      {showBulkEmailDialog && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowBulkEmailDialog(false)}>
+          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-black text-slate-900 mb-2">Send Email Invitations</h3>
+            <p className="text-slate-500 text-sm mb-6">Review before sending</p>
+            <div className="space-y-3 mb-6">
+              {guestsWithEmail.length > 0 && (
+                <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                  <span className="material-symbols-outlined text-green-600">check_circle</span>
+                  <div>
+                    <p className="font-bold text-sm text-slate-900">{guestsWithEmail.length} guests will receive emails</p>
+                    <p className="text-xs text-slate-500">Valid email addresses</p>
+                  </div>
+                </div>
+              )}
+              {guestsWithInvalidEmail.length > 0 && (
+                <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                  <span className="material-symbols-outlined text-amber-600">warning</span>
+                  <div>
+                    <p className="font-bold text-sm text-slate-900">{guestsWithInvalidEmail.length} guests skipped</p>
+                    <p className="text-xs text-slate-500">Invalid or unrecognised email domains</p>
+                  </div>
+                </div>
+              )}
+              {guestsWithoutEmail.length > 0 && (
+                <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                  <span className="material-symbols-outlined text-slate-400">mail_off</span>
+                  <div>
+                    <p className="font-bold text-sm text-slate-900">{guestsWithoutEmail.length} guests have no email</p>
+                    <p className="text-xs text-slate-500">Will not be contacted</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowBulkEmailDialog(false)}
+                className="flex-1 px-4 py-2 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmSendEmails}
+                disabled={guestsWithEmail.length === 0}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors disabled:opacity-50"
+              >
+                Send {guestsWithEmail.length} Emails
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
