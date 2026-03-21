@@ -17,8 +17,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
 
     if (!TABBLY_API_KEY || !TABBLY_ORGANIZATION_ID || !TABBLY_AGENT_ID || !TABBLY_CALL_FROM_NUMBER) {
-        console.warn("Tabbly API credentials missing in .env.local.");
-        return NextResponse.json({ error: "AI Calling Provider Credentials Missing" }, { status: 500 });
+      console.warn("Tabbly API credentials missing in .env.local.");
+      return NextResponse.json({ error: "AI Calling Provider Credentials Missing" }, { status: 500 });
     }
 
     // Fetch wedding details
@@ -60,11 +60,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       // Format phone numbers carefully to E.164 required by Tabbly
       let formattedPhone = String(guest.phone).trim().replace(/[^0-9+]/g, '');
       if (!formattedPhone.startsWith('+')) {
-         if (formattedPhone.length === 10) {
-            formattedPhone = "+91" + formattedPhone; 
-         } else {
-            formattedPhone = "+" + formattedPhone;
-         }
+        if (formattedPhone.length === 10) {
+          formattedPhone = "+91" + formattedPhone;
+        } else {
+          formattedPhone = "+" + formattedPhone;
+        }
       }
 
       // Compute wedding functions this guest is invited to
@@ -90,43 +90,43 @@ Keep the conversation natural, short, and respectful. Wait for their responses c
       // Make the actual call via Tabbly.io
       try {
         const tabblyReq = await fetch('https://www.tabbly.io/dashboard/agents/endpoints/trigger-call', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                api_key: TABBLY_API_KEY,
-                organization_id: TABBLY_ORGANIZATION_ID,
-                use_agent_id: TABBLY_AGENT_ID,
-                call_from: TABBLY_CALL_FROM_NUMBER,
-                called_to: formattedPhone,
-                custom_first_line: `Hello, am I speaking with ${guest.name}?`,
-                custom_identifiers: guest.id,
-                custom_instruction: customInstruction,
-                called_by_account: "API"
-            })
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            api_key: TABBLY_API_KEY,
+            organization_id: TABBLY_ORGANIZATION_ID,
+            use_agent_id: TABBLY_AGENT_ID,
+            call_from: TABBLY_CALL_FROM_NUMBER,
+            called_to: formattedPhone,
+            custom_first_line: `Hello, am I speaking with ${guest.name}?`,
+            custom_identifiers: guest.id,
+            custom_instruction: customInstruction,
+            called_by_account: "API"
+          })
         });
 
         if (!tabblyReq.ok) {
-           console.error("Tabbly AI Error:", await tabblyReq.text());
-           failed++;
-           continue;
+          console.error("Tabbly AI Error:", await tabblyReq.text());
+          failed++;
+          continue;
         }
 
         successful++;
-        
-         // Update communication log
-         await supabase.from("communication_logs").insert({
-            wedding_id: weddingId,
-            guest_id: guest.id,
-            type: "call",
-            status: "initiated",
-            payload: { provider: "tabbly", phone: formattedPhone }
-         });
+
+        // Update communication log
+        await supabase.from("communication_logs").insert({
+          wedding_id: weddingId,
+          guest_id: guest.id,
+          type: "call",
+          status: "initiated",
+          payload: { provider: "tabbly", phone: formattedPhone }
+        });
 
       } catch (e) {
-         console.error("Calling error for guest " + guest.id, e);
-         failed++;
+        console.error("Calling error for guest " + guest.id, e);
+        failed++;
       }
     }
 

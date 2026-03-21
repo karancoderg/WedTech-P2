@@ -27,6 +27,8 @@ export default function SeatingPlanPage() {
   const [isEventSelectorOpen, setIsEventSelectorOpen] = useState(false);
   const [targetSeatingPercent, setTargetSeatingPercent] = useState<number>(100);
   const [isAiAssigning, setIsAiAssigning] = useState(false);
+  const [isDeletingTable, setIsDeletingTable] = useState(false);
+  const [tableToDelete, setTableToDelete] = useState<SeatingTable | null>(null);
 
   // Close custom dropdown when clicking outside
   useEffect(() => {
@@ -155,15 +157,22 @@ export default function SeatingPlanPage() {
     }
   }
 
-  async function handleDeleteTable(tableId: string) {
-    if (!confirm("Are you sure you want to delete this table? All assignments will be lost.")) return;
+  async function handleDeleteTable(table: SeatingTable) {
+    setTableToDelete(table);
+    setIsDeletingTable(true);
+  }
+
+  async function confirmDeleteTable() {
+    if (!tableToDelete) return;
     
-    const { error } = await supabase.from("seating_tables").delete().eq("id", tableId);
+    const { error } = await supabase.from("seating_tables").delete().eq("id", tableToDelete.id);
     if (error) toast.error("Failed to delete table");
     else {
       toast.success("Table deleted");
       fetchTables();
     }
+    setIsDeletingTable(false);
+    setTableToDelete(null);
   }
 
   async function handleAutoSeat() {
@@ -232,7 +241,7 @@ export default function SeatingPlanPage() {
         </div>
         
         {/* Controls Toolbar - Premium Pill Design */}
-        <div className="flex bg-white rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-slate-100 p-1.5 flex-nowrap items-center shrink-0 ml-4 max-w-full overflow-x-auto no-scrollbar">
+        <div className="flex bg-white rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-slate-100 p-1.5 flex-nowrap items-center shrink-0 ml-4 max-w-full relative z-[50]">
           
           {/* 1. Event Selector */}
           <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -248,25 +257,18 @@ export default function SeatingPlanPage() {
             
             {/* Custom Dropdown Menu */}
             {isEventSelectorOpen && (
-              <div className="absolute top-full left-0 right-0 mt-3 bg-white/90 backdrop-blur-xl border border-slate-100 rounded-2xl shadow-xl overflow-hidden z-[100] animate-in fade-in zoom-in duration-200">
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-100 rounded-2xl shadow-[0_15px_40px_rgba(0,0,0,0.1)] overflow-hidden z-[100] animate-in fade-in slide-in-from-top-1 duration-200">
                 <div className="p-1.5 flex flex-col gap-0.5">
-                  {functions.map(f => (
+                  {functions.filter(f => f.id !== selectedFunctionId).map(f => (
                     <button
                       key={f.id}
                       onClick={() => {
                         setSelectedFunctionId(f.id);
                         setIsEventSelectorOpen(false);
                       }}
-                      className={`w-full text-left px-4 py-3 rounded-xl text-[13px] font-black transition-all flex items-center justify-between ${
-                        selectedFunctionId === f.id 
-                          ? 'bg-[#B45309] text-white' 
-                          : 'text-slate-600 hover:bg-[#B45309]/5 hover:text-[#B45309]'
-                      }`}
+                      className="w-full text-left px-4 py-3 rounded-xl text-[13px] font-black transition-all flex items-center justify-between text-slate-600 hover:bg-[#B45309]/5 hover:text-[#B45309]"
                     >
                       <span className="truncate pr-2">{f.name}</span>
-                      {selectedFunctionId === f.id && (
-                        <span className="material-symbols-outlined text-[16px] shrink-0">check_circle</span>
-                      )}
                     </button>
                   ))}
                 </div>
@@ -506,7 +508,7 @@ export default function SeatingPlanPage() {
                           </span>
                         </div>
                         <button 
-                          onClick={(e) => { e.stopPropagation(); handleDeleteTable(table.id); }}
+                          onClick={(e) => { e.stopPropagation(); handleDeleteTable(table); }}
                           className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-all p-2 hover:bg-red-50 rounded-xl"
                         >
                           <span className="material-symbols-outlined text-lg">delete</span>
@@ -746,6 +748,41 @@ export default function SeatingPlanPage() {
           </form>
         </div>
       )}
+      {/* Delete Table Modal */}
+      {isDeletingTable && tableToDelete && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300" onClick={() => setIsDeletingTable(false)}>
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-[2.5rem] p-10 w-full max-w-md shadow-2xl border border-white flex flex-col items-center text-center animate-in zoom-in-95 duration-300"
+          >
+            <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center mb-8 text-red-500 rotate-3">
+              <span className="material-symbols-outlined text-4xl">delete_forever</span>
+            </div>
+            
+            <h3 className="text-3xl font-black text-slate-900 tracking-tight mb-3">Delete Table?</h3>
+            <p className="text-slate-500 font-medium text-base mb-8 px-2 leading-relaxed">
+              Are you sure you want to delete <span className="text-slate-900 font-black">"{tableToDelete.name}"</span>? 
+              This action cannot be undone and all guest assignments will be lost.
+            </p>
+            
+            <div className="flex flex-col w-full gap-3">
+              <button 
+                onClick={confirmDeleteTable}
+                className="w-full py-4 bg-red-500 text-white rounded-2xl font-black hover:bg-red-600 hover:shadow-xl hover:shadow-red-500/20 transition-all active:scale-[0.98]"
+              >
+                Delete Table
+              </button>
+              <button 
+                onClick={() => setIsDeletingTable(false)}
+                className="w-full py-4 bg-slate-50 text-slate-400 rounded-2xl font-black hover:bg-slate-100 hover:text-slate-600 transition-all active:scale-[0.98]"
+              >
+                Go Back
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
