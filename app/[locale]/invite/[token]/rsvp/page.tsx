@@ -39,6 +39,8 @@ export default function RSVPFormPage() {
   const [globalChildrenCount, setGlobalChildrenCount] = useState<number>(0);
   const [guestDietaryPreferences, setGuestDietaryPreferences] = useState<Record<string, "veg" | "jain" | "non-veg" | null>>({});
   const [additionalGuests, setAdditionalGuests] = useState<{ name: string, phone: string, dietaryPreference: "veg" | "jain" | "non-veg" | null }[]>([]);
+  const [needsAccommodation, setNeedsAccommodation] = useState<boolean | null>(null);
+  const [accommodationCount, setAccommodationCount] = useState<number>(1);
 
   useEffect(() => {
     async function fetchData() {
@@ -137,7 +139,7 @@ export default function RSVPFormPage() {
             children: isPrimary && resp.status === "confirmed" ? globalChildrenCount : 0,
             total_pax: totalPax,
             dietary_preference: resp.status === "confirmed" ? guestDietaryPreferences[guestId] || null : null,
-            needs_accommodation: resp.needsAccommodation,
+            needs_accommodation: resp.status === "confirmed" && needsAccommodation === true,
             responded_at: new Date().toISOString(),
           }, { onConflict: "guest_id,function_id" });
         }
@@ -186,7 +188,7 @@ export default function RSVPFormPage() {
               children: 0,
               total_pax: resp.status === "confirmed" ? 1 : 0,
               dietary_preference: resp.status === "confirmed" ? ag.dietaryPreference || null : null,
-              needs_accommodation: resp.needsAccommodation,
+              needs_accommodation: resp.status === "confirmed" && needsAccommodation === true,
               responded_at: new Date().toISOString(),
             }, { onConflict: "guest_id,function_id" });
           }
@@ -619,6 +621,69 @@ export default function RSVPFormPage() {
                 </div>
               </div>
             </div>
+
+            <hr className={t.borderTop} />
+
+            {/* Accommodation */}
+            <div>
+              <div className="mb-1">
+                <h3 className={`${t.textPrimary} text-xl font-bold leading-tight`}>🏨 Accommodation</h3>
+                <p className={`${t.textSecondary} text-sm mt-1`}>Do you require accommodation arrangements?</p>
+              </div>
+
+              {/* Yes / No */}
+              <div className="flex gap-3 mt-4">
+                {([true, false] as const).map((val) => (
+                  <button
+                    key={String(val)}
+                    onClick={() => {
+                      setNeedsAccommodation(val);
+                      if (val) {
+                        const totalConfirmedMembers = guests.filter(g => Object.values(responses).some(resps => resps.some(r => r.status === 'confirmed')));
+                        setAccommodationCount(totalConfirmedMembers.length || 1);
+                      }
+                    }}
+                    className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all ${
+                      needsAccommodation === val
+                        ? `${t.button} border-transparent`
+                        : `${t.cardBg} ${t.borderTop} ${t.textSecondary}`
+                    }`}
+                  >
+                    {val ? 'Yes, I need it' : 'No, thanks'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Count picker — only show if Yes */}
+              {needsAccommodation === true && (
+                <div className={`mt-4 ${t.cardBg} border rounded-xl p-4 shadow-sm space-y-3`}>
+                  <p className={`${t.textSecondary} text-sm font-medium`}>How many members need accommodation?</p>
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={() => setAccommodationCount(prev => Math.max(1, prev - 1))}
+                      className={`size-10 rounded-full ${t.bgSub} shadow flex items-center justify-center ${t.textAccent} font-bold border ${t.borderTop} text-xl`}
+                    >−</button>
+                    <span className={`font-black text-2xl ${t.textPrimary} w-8 text-center`}>{accommodationCount}</span>
+                    <button
+                      onClick={() => setAccommodationCount(prev => prev + 1)}
+                      className={`size-10 rounded-full ${t.bgSub} shadow flex items-center justify-center ${t.textAccent} font-bold border ${t.borderTop} text-xl`}
+                    >+</button>
+                    {/* All button */}
+                    <button
+                      onClick={() => {
+                        const validAdditional = additionalGuests.filter(ag => ag.name.trim()).length;
+                        const totalMembers = guests.length + validAdditional + globalChildrenCount;
+                        setAccommodationCount(totalMembers);
+                      }}
+                      className={`ml-auto px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border-2 ${t.borderTop} ${t.textAccent} ${t.cardBg} hover:opacity-80 transition-all`}
+                    >
+                      All ({guests.length + additionalGuests.filter(ag => ag.name.trim()).length + globalChildrenCount})
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
           </div>
         )}
       </main>
