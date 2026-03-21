@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import type { Wedding, Guest, WeddingFunction, RSVP } from "@/lib/types";
 
 import { toast } from "sonner";
+import { encrypt, decrypt } from "@/lib/encryption";
 
 function deriveFunctionsForSide(side: 'bride' | 'groom' | 'both', allFunctions: WeddingFunction[]) {
   if (side === 'both') return allFunctions.map(f => f.id);
@@ -83,7 +84,15 @@ export default function GuestListPage() {
       supabase.from("rsvps").select("*").eq("wedding_id", weddingId),
     ]);
     if (weddingRes.data) setWedding(weddingRes.data);
-    if (guestRes.data) setGuests(guestRes.data);
+    
+    // Decrypt guest data
+    const decryptedGuests = (guestRes.data || []).map(guest => ({
+      ...guest,
+      phone: guest.phone?.includes(':') ? decrypt(guest.phone) : guest.phone,
+      email: guest.email?.includes(':') ? decrypt(guest.email) : guest.email,
+    }));
+    
+    if (guestRes.data) setGuests(decryptedGuests);
     if (groupRes.data) setGuestGroups(groupRes.data);
     if (funcRes.data) setFunctions(funcRes.data);
     if (rsvpRes.data) setRsvps(rsvpRes.data);
@@ -135,10 +144,16 @@ export default function GuestListPage() {
     const token = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
     const funcIds = deriveFunctionsForSide(newSide, functions);
     const { data: newGuest, error } = await supabase.from("guests").insert({
-      wedding_id: weddingId, name: newName, phone: newPhone, email: newEmail, side: newSide,
+      wedding_id: weddingId, 
+      name: newName, 
+      phone: encrypt(newPhone), 
+      email: newEmail ? encrypt(newEmail) : null, 
+      side: newSide,
       tags: newTags.split(",").map((t) => t.trim()).filter(Boolean),
-      function_ids: funcIds, invite_token: token,
-      overall_status: "pending", imported_via: "manual",
+      function_ids: funcIds, 
+      invite_token: token,
+      overall_status: "pending", 
+      imported_via: "manual",
     }).select().single();
     if (error || !newGuest) { toast.error("Failed to add guest"); return; }
     // Create invite_token with actual guest ID
@@ -169,8 +184,8 @@ export default function GuestListPage() {
     }
     const { error } = await supabase.from("guests").update({
       name: editName,
-      phone: editPhone,
-      email: editEmail,
+      phone: encrypt(editPhone),
+      email: editEmail ? encrypt(editEmail) : null,
       side: editSide,
       tags: editTags.split(",").map((t) => t.trim()).filter(Boolean),
     }).eq("id", editingGuest.id);
@@ -408,8 +423,8 @@ export default function GuestListPage() {
         const { data: newGuest, error: guestError } = await supabase.from("guests").insert({
           wedding_id: weddingId,
           name: String(name).trim(),
-          phone: String(phone).trim(),
-          email: email ? String(email).trim() : null,
+          phone: encrypt(String(phone).trim()),
+          email: email ? encrypt(String(email).trim()) : null,
           side: side as "bride" | "groom" | "both",
           tags: tagsStr ? String(tagsStr).split(/[;,]/).map((t: string) => t.trim()).filter(Boolean) : [],
           function_ids: derivedFuncIds,

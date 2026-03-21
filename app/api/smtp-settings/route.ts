@@ -22,7 +22,7 @@ export async function GET() {
 
   return NextResponse.json({
     configured: true,
-    smtp_email: data.smtp_email,
+    smtp_email: data.smtp_email?.includes(':') ? decrypt(data.smtp_email) : data.smtp_email,
     smtp_host: data.smtp_host,
     smtp_port: data.smtp_port,
     updated_at: data.updated_at,
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     .upsert(
       {
         planner_id: userId,
-        smtp_email,
+        smtp_email: encrypt(smtp_email),
         smtp_password_encrypted: encryptedPassword,
         smtp_host: smtp_host || "smtp.gmail.com",
         smtp_port: smtp_port || 587,

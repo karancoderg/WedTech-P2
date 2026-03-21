@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { encrypt, decrypt } from "@/lib/encryption";
 
 // Using Tabbly.io - Specific provider for Indian numbers
 const TABBLY_API_KEY = process.env.TABBLY_API_KEY || "";
@@ -52,13 +53,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     let failed = 0;
 
     for (const guest of guests) {
-      if (!guest.phone) {
+      const phone = guest.phone?.includes(':') ? decrypt(guest.phone) : guest.phone;
+      if (!phone) {
         failed++;
         continue;
       }
 
       // Format phone numbers carefully to E.164 required by Tabbly
-      let formattedPhone = String(guest.phone).trim().replace(/[^0-9+]/g, '');
+      let formattedPhone = String(phone).trim().replace(/[^0-9+]/g, '');
       if (!formattedPhone.startsWith('+')) {
         if (formattedPhone.length === 10) {
           formattedPhone = "+91" + formattedPhone;
@@ -121,7 +123,7 @@ Keep the conversation natural, short, and respectful. Wait for their responses c
           guest_id: guest.id,
           type: "call",
           status: "initiated",
-          payload: { provider: "tabbly", phone: formattedPhone }
+          payload: { provider: "tabbly", phone: encrypt(formattedPhone) }
         });
 
       } catch (e) {

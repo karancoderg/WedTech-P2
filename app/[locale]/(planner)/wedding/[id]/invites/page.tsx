@@ -32,6 +32,7 @@ import type { Wedding, Guest, WeddingFunction } from "@/lib/types";
 import { generateWhatsAppLink, generateReminderLink, generateWhatsAppMessage, normalizePhone } from "@/lib/whatsapp";
 import { generateEmailLink } from "@/lib/email";
 import { toast } from "sonner";
+import { encrypt, decrypt } from "@/lib/encryption";
 
 export default function InvitesPage() {
   const params = useParams();
@@ -78,7 +79,15 @@ export default function InvitesPage() {
       supabase.from("wedding_functions").select("*").eq("wedding_id", weddingId).order("sort_order"),
     ]);
     if (weddingRes.data) setWedding(weddingRes.data);
-    if (guestRes.data) setGuests(guestRes.data);
+    
+    // Decrypt guest data
+    const decryptedGuests = (guestRes.data || []).map(guest => ({
+      ...guest,
+      phone: guest.phone?.includes(':') ? decrypt(guest.phone) : guest.phone,
+      email: guest.email?.includes(':') ? decrypt(guest.email) : guest.email,
+    }));
+    
+    if (guestRes.data) setGuests(decryptedGuests);
     if (groupRes.data) setGuestGroups(groupRes.data);
     if (funcRes.data) setFunctions(funcRes.data);
     setLoading(false);
