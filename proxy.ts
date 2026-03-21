@@ -12,6 +12,8 @@ const isProtectedRoute = createRouteMatcher([
 
 export default clerkMiddleware(async (auth, req) => {
   const { pathname } = req.nextUrl;
+  console.log("Middleware hit path:", pathname);
+
 
   // Skip intl middleware for API routes
   if (pathname.startsWith('/api')) {

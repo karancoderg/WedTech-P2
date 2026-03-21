@@ -78,7 +78,7 @@ export default function GuestListPage() {
   const fetchData = useCallback(async () => {
     const [weddingRes, guestData, groupRes, funcRes, rsvpRes] = await Promise.all([
       supabase.from("weddings").select("*").eq("id", weddingId).single(),
-      fetch(`/api/wedding/${weddingId}/guests`).then(res => res.json()),
+      fetch(`/api/wedding/${weddingId}/guests`).then(res => res.json().catch(() => [])),
       supabase.from("guest_groups").select("*").eq("wedding_id", weddingId),
       supabase.from("wedding_functions").select("*").eq("wedding_id", weddingId).order("sort_order"),
       supabase.from("rsvps").select("*").eq("wedding_id", weddingId),
