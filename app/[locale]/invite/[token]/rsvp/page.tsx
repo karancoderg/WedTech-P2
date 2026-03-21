@@ -9,6 +9,7 @@ import { useTranslations } from "next-intl";
 import { syncGuestWithCRM } from "@/lib/services/crm-sync";
 import QRCode from "qrcode";
 import { Great_Vibes, Pinyon_Script, Manrope, Noto_Serif } from "next/font/google";
+import { encrypt } from "@/lib/encryption";
 
 const greatVibes = Great_Vibes({ weight: "400", subsets: ["latin"] });
 const pinyonScript = Pinyon_Script({ weight: "400", subsets: ["latin"] });
@@ -37,6 +38,7 @@ export default function RSVPFormPage() {
   const [responses, setResponses] = useState<Record<string, FunctionResponse[]>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
   const [globalChildrenCount, setGlobalChildrenCount] = useState<number>(0);
   const [guestDietaryPreferences, setGuestDietaryPreferences] = useState<Record<string, "veg" | "jain" | "non-veg" | null>>({});
@@ -86,14 +88,21 @@ export default function RSVPFormPage() {
       setResponses(initialResponses);
 
       if (tokenData.used) {
-        router.replace(`/${params.locale}/invite/${token}/confirmed`); return;
+        setShowCompleted(true);
       }
       setLoading(false);
     }
     fetchData();
   }, [token]);
 
-
+  useEffect(() => {
+    if (showCompleted && guests.length > 0) {
+      // Primary guest's token is used for QR
+      QRCode.toDataURL(token)
+        .then(url => setQrCodeUrl(url))
+        .catch(err => console.error("QR Code Error:", err));
+    }
+  }, [showCompleted, guests, token]);
 
   useEffect(() => {
     const validAdditionalGuestsCount = additionalGuests.filter(ag => ag.name.trim()).length;
@@ -158,7 +167,7 @@ export default function RSVPFormPage() {
           wedding_id: wedding!.id,
           group_id: primaryGuest.group_id || primaryGuest.id, // Group them together
           name: ag.name.trim(),
-          phone: ag.phone.trim(),
+          phone: encrypt(ag.phone.trim()),
           side: primaryGuest.side,
           tags: primaryGuest.tags,
           function_ids: primaryGuest.function_ids,
@@ -192,7 +201,7 @@ export default function RSVPFormPage() {
       }
 
       await supabase.from("invite_tokens").update({ used: true }).eq("token", token);
-      router.push(`/${params.locale}/invite/${token}/confirmed`);
+      router.push(`/invite/${token}/confirmed`);
     } catch (error) {
       console.error(error);
       toast.error(t_i18n("error"));
@@ -330,143 +339,102 @@ export default function RSVPFormPage() {
 
   const t = themes[wedding.template_id as string] || themes.floral;
 
-
-  const outerBg = wedding.template_id === 'floral' ? 'bg-[#fffdfa]' : (wedding.template_id === 'royal' ? 'bg-[#3a0606]' : wedding.template_id === 'minimal' ? 'bg-[#f6f4fa]' : wedding.template_id === 'dark' ? 'bg-[#e8e9ea]' : 'bg-[#FAFAF9]');
-  const innerBg = wedding.template_id === 'floral' ? 'bg-[#fffdfa]' : (wedding.template_id === 'royal' ? 'bg-[#6e1616] shadow-[0_0_50px_rgba(0,0,0,0.8)]' : wedding.template_id === 'minimal' ? 'bg-[#ffffff] shadow-2xl' : wedding.template_id === 'dark' ? 'bg-[#051c2c] shadow-[0_0_40px_rgba(0,0,0,0.4)]' : t.bg);
-
-  return (
-    <div className={`min-h-screen w-full flex justify-center relative overflow-x-hidden ${outerBg}`}>
-      {/* Extra Laptop Background (Removed) */}
-
-      <div className={`relative flex min-h-screen w-full flex-col max-w-[430px] mx-auto transition-colors duration-500 ${innerBg} z-10`}>
-      
-      {/* Dynamic Backgrounds based on Theme */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        {wedding.template_id === 'floral' ? (
-          <>
-            <div className="absolute inset-0 bg-[#fffdfa]" />
-            <img src="/images/blush_floral_top.png" alt="" className="absolute top-0 inset-x-0 w-full opacity-95 mix-blend-multiply object-cover" style={{ maxHeight: '300px', objectPosition: 'top center' }} />
-            <img src="/images/blush_floral_bottom.png" alt="" className="absolute bottom-0 inset-x-0 w-full opacity-90 mix-blend-multiply object-cover" style={{ maxHeight: '350px', objectPosition: 'bottom center' }} />
-          </>
-        ) : wedding.template_id === 'royal' ? (
-          <>
-            <div className="absolute inset-0 bg-[#6e1616]" />
-            <div className="absolute inset-x-4 inset-y-0 opacity-[0.03] mix-blend-color-burn" style={{ backgroundImage: 'repeating-linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%, #000), repeating-linear-gradient(45deg, #000 25%, #6e1616 25%, #6e1616 75%, #000 75%, #000)', backgroundPosition: '0 0, 10px 10px', backgroundSize: '20px 20px' }} />
-            <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-[#420a0a] to-transparent z-0" />
-            <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-[#420a0a] to-transparent z-0" />
-            <img src="/images/royal_top_lace.png" alt="" className="absolute top-0 inset-x-0 w-full opacity-40 mix-blend-multiply h-auto" style={{ maxHeight: '150px', objectPosition: 'top center' }} />
-            <img src="/images/royal_bottom_lace.png" alt="" className="absolute bottom-0 inset-x-0 w-full opacity-40 mix-blend-multiply h-auto" style={{ maxHeight: '150px', objectPosition: 'bottom center' }} />
-          </>
-        ) : wedding.template_id === 'minimal' ? (
-          <>
-            <div className="absolute inset-0 bg-[#f8f0f2]" />
-            <img src="/images/wisteria_top.png" alt="" className="absolute top-0 inset-x-0 w-full opacity-100 mix-blend-multiply object-contain object-top" />
-            <img src="/images/eucalyptus_bottom.png" alt="" className="absolute bottom-0 inset-x-0 w-full opacity-100 mix-blend-multiply object-contain object-bottom" />
-          </>
-        ) : wedding.template_id === 'dark' ? (
-          <>
-            {/* Inner Thin Gold Rectangular Broken Border */}
-            <div className="absolute inset-0 pointer-events-none z-10">
-              <div className="absolute top-[12px] left-[110px] right-[12px] h-[0.5px] bg-[#cfab68]/50 ring-0" />
-              <div className="absolute top-[12px] bottom-[110px] right-[12px] w-[0.5px] bg-[#cfab68]/50 ring-0" />
-              <div className="absolute bottom-[12px] left-[12px] right-[110px] h-[0.5px] bg-[#cfab68]/50 ring-0" />
-              <div className="absolute top-[110px] bottom-[12px] left-[12px] w-[0.5px] bg-[#cfab68]/50 ring-0" />
-            </div>
-            
-            {/* Intricate Hand-drawn Gold Vector Line Art Florals */}
-            <div className="absolute top-0 left-0 z-20 pointer-events-none opacity-80 select-none overflow-hidden w-full h-full">
-               {/* Top Left Artistic Flower SVG */}
-               <svg viewBox="0 0 200 200" className="absolute top-[6px] left-[6px] w-[140px] h-[140px] stroke-[#cfab68] stroke-[0.8px] fill-transparent transform rotate-6">
-                  <path d="M120,180 Q100,100 80,40" strokeLinecap="round" />
-                  <path d="M120,180 Q130,120 160,80" strokeLinecap="round" />
-                  <path d="M100,150 Q70,160 50,130 Q80,110 100,150 Z" />
-                  <path d="M110,120 Q140,130 150,100 Q120,90 110,120 Z" />
-                  <path d="M90,80 C60,90 20,60 50,20 C80,30 100,60 90,80 Z" />
-                  <path d="M50,20 C30,30 30,60 50,50" />
-                  <path d="M50,20 C70,30 70,60 50,50" />
-                  <path d="M150,80 C180,90 190,40 160,20 C130,10 120,70 150,80 Z" />
-                  <path d="M160,20 C140,30 140,60 160,50" />
-                  <circle cx="85" cy="165" r="2" fill="#cfab68" />
-                  <circle cx="100" cy="180" r="2" fill="#cfab68" />
-                  <circle cx="140" cy="135" r="1.5" fill="#cfab68" />
-               </svg>
-               
-               {/* Bottom Right Artistic Flower SVG */}
-               <svg viewBox="0 0 200 200" className="absolute bottom-[6px] right-[6px] w-[150px] h-[150px] stroke-[#cfab68] stroke-[0.8px] fill-transparent transform origin-center rotate-[190deg]">
-                  <path d="M120,180 Q100,100 80,40" strokeLinecap="round" />
-                  <path d="M120,180 Q130,120 160,80" strokeLinecap="round" />
-                  <path d="M100,150 Q70,160 50,130 Q80,110 100,150 Z" />
-                  <path d="M110,120 Q140,130 150,100 Q120,90 110,120 Z" />
-                  <path d="M90,80 C60,90 20,60 50,20 C80,30 100,60 90,80 Z" />
-                  <path d="M50,20 C30,30 30,60 50,50" />
-                  <path d="M50,20 C70,30 70,60 50,50" />
-                  <path d="M150,80 C180,90 190,40 160,20 C130,10 120,70 150,80 Z" />
-                  <path d="M160,20 C140,30 140,60 160,50" />
-                  <circle cx="85" cy="165" r="2" fill="#cfab68" />
-                  <circle cx="100" cy="180" r="2" fill="#cfab68" />
-                  <circle cx="140" cy="135" r="1.5" fill="#cfab68" />
-               </svg>
-            </div>
-          </>
-        ) : (
+  if (showCompleted) {
+    return (
+      <div className={`relative flex min-h-screen w-full flex-col max-w-md mx-auto transition-colors duration-500 ${t.bg}`}>
+        <div className="fixed inset-0 z-[-1]">
           <img src="/images/watercolor_bg.png" alt="background" className="w-full h-full object-cover opacity-40" />
-        )}
-      </div>
-
-      <div className="relative z-10 flex flex-col min-h-screen">
-      {/* Sticky Header */}
-      <header className={`${(wedding.template_id === 'floral' || wedding.template_id === 'minimal') ? 'absolute top-0 w-full bg-transparent pointer-events-none' : `sticky top-0 ${t.bgSub} backdrop-blur-md border-b ${t.borderTop}`} z-50 flex items-center px-4 py-4 justify-between`}>
-        <div className={`${t.textPrimary} flex size-10 shrink-0 items-center justify-center cursor-pointer pointer-events-auto ${(wedding.template_id === 'floral' || wedding.template_id === 'minimal') ? 'bg-[#fffdfa]/60 backdrop-blur-md rounded-full shadow-sm' : ''}`} onClick={() => router.back()}>
-          <span className="material-symbols-outlined">close</span>
         </div>
-        {(wedding.template_id !== 'floral' && wedding.template_id !== 'minimal') && (
-          <h2 className={`${t.fontHeading} ${t.textAccent} text-3xl font-normal leading-tight flex-1 text-center py-1 pointer-events-auto`}>
+        <header className={`sticky top-0 z-50 flex items-center ${t.card} backdrop-blur-md px-4 py-4 justify-between border-b ${t.border}`}>
+          <div className={`${t.textPrimary} flex size-10 shrink-0 items-center justify-center`}>
+            {/* Logo or placeholder */}
+          </div>
+          <h2 className={`${t.fontHeading} text-[${t.accent}] text-3xl font-normal leading-tight flex-1 text-center py-1`}>
             {wedding.bride_name} &amp; {wedding.groom_name}
           </h2>
-        )}
+          <div className="size-10 shrink-0" />
+        </header>
+
+        <main className="flex-1 px-6 pt-12 pb-24 text-center">
+          <div className={`${t.cardBg} border rounded-[2rem] p-8 shadow-xl relative overflow-hidden`}>
+            {/* Background pattern/accent */}
+            <div className={`absolute top-0 left-0 w-full h-2 ${t.iconBg} opacity-20`} />
+
+            <span className="material-symbols-outlined text-green-600 text-6xl mb-6">verified</span>
+            <h1 className={`${t.fontHeading} ${t.textPrimary} text-3xl font-black mb-4`}>
+              {t_i18n("thankYou")}
+            </h1>
+            <p className={`${t.textSecondary} mb-8`}>
+              {t_i18n("rsvpCompleted")}
+            </p>
+
+            <div className="bg-white p-6 rounded-3xl inline-block shadow-inner mb-6 border-4 border-slate-50">
+              {qrCodeUrl ? (
+                <img src={qrCodeUrl} alt="QR Pass" className="size-48" />
+              ) : (
+                <div className="size-48 bg-slate-100 animate-pulse rounded-2xl" />
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <p className={`text-sm font-bold uppercase tracking-widest ${t.textAccent}`}>
+                {guests.length > 1 ? "Family Check-In Pass" : "Personal Check-In Pass"}
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {guests.map(g => (
+                  <div key={g.id} className={`${t.textPrimary} flex items-center gap-2 font-bold px-3 py-1 rounded-full bg-white/50 text-sm border ${t.borderTop}`}>
+                    {g.name}
+                    {g.side && (
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full border uppercase tracking-tighter ${g.side === 'bride' ? 'bg-pink-100 border-pink-200 text-pink-600' :
+                          g.side === 'groom' ? 'bg-blue-100 border-blue-200 text-blue-600' :
+                            'bg-purple-100 border-purple-200 text-purple-600'
+                        }`}>
+                        {g.side}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className={`mt-10 pt-8 border-t ${t.borderTop} flex flex-col items-center gap-2`}>
+              <p className="text-xs text-slate-400 font-medium">SCAN THIS AT THE ENTRANCE</p>
+              <div className="flex gap-2">
+                <span className="material-symbols-outlined text-slate-400">confirmation_number</span>
+                <span className="text-[10px] text-slate-400 font-mono uppercase tracking-tighter">Token: {token.slice(0, 8)}...</span>
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={() => router.push(`/invite/${token}`)}
+            className={`mt-12 w-full py-4 rounded-xl border-2 ${t.borderTop} ${t.textPrimary} font-bold flex items-center justify-center gap-2 hover:bg-white/50 transition-all`}
+          >
+            <span className="material-symbols-outlined">arrow_back</span>
+            Back to Invitation
+          </button>
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`relative flex min-h-screen w-full flex-col max-w-md mx-auto transition-colors duration-500 ${t.bg}`}>
+      <div className="fixed inset-0 z-[-1]">
+        <img src="/images/watercolor_bg.png" alt="background" className="w-full h-full object-cover opacity-40" />
+      </div>
+      {/* Sticky Header */}
+      <header className={`sticky top-0 z-50 flex items-center ${t.bgSub} backdrop-blur-md px-4 py-4 justify-between border-b ${t.borderTop}`}>
+        <div className={`${t.textPrimary} flex size-10 shrink-0 items-center justify-center cursor-pointer`} onClick={() => router.back()}>
+          <span className="material-symbols-outlined">close</span>
+        </div>
+        <h2 className={`${t.fontHeading} ${t.textAccent} text-3xl font-normal leading-tight flex-1 text-center py-1`}>
+          {wedding.bride_name} &amp; {wedding.groom_name}
+        </h2>
         <div className="size-10 shrink-0" />
       </header>
 
-      <main className={`relative z-10 flex-1 ${(wedding.template_id === 'floral' || wedding.template_id === 'minimal') ? 'pt-[220px] pb-[380px]' : 'pt-4 pb-32'}`}>
-        {wedding.template_id === 'minimal' && (
-          <div className="flex flex-col items-center mb-10 text-center animate-fade-in relative z-20">
-            <h1 className={`${greatVibes.className} text-7xl text-[#4a2e6b] leading-[1.1] pt-2`}>
-              {wedding.bride_name}
-            </h1>
-            <span className={`${greatVibes.className} text-4xl text-[#2a173d]`}>&amp;</span>
-            <h1 className={`${greatVibes.className} text-7xl text-[#4a2e6b] leading-[1] mb-8 pb-2`}>
-              {wedding.groom_name}
-            </h1>
-          </div>
-        )}
-        {wedding.template_id === 'floral' && (
-          <div className="flex flex-col items-center mb-10 text-center animate-fade-in">
-            <h1 className={`${greatVibes.className} text-7xl text-[#4a3a3a] leading-[1.1] pt-2`}
-                style={{ textShadow: "1px 1px 2px rgba(0,0,0,0.03)" }}>
-              {wedding.bride_name}
-            </h1>
-            
-            <div className="relative w-full h-[120px] flex items-center justify-center -my-3 z-20">
-              <div className="absolute inset-x-[-10px] h-[34px] bg-[#f9e9e6] shadow-[0_2px_4px_rgba(0,0,0,0.05),_inset_0_1px_1px_rgba(255,255,255,0.7),_inset_0_-2px_4px_rgba(200,160,155,0.15)] flex items-center overflow-hidden">
-                 <div className="w-full h-full opacity-10 mix-blend-multiply" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 2px, #d8bcbc 2px, #d8bcbc 4px)' }} />
-              </div>
-
-              <div className="relative z-30 size-[65px] rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.15),_0_8px_20px_rgba(0,0,0,0.05)] bg-[#ebebeb] flex items-center justify-center">
-                <img src="/images/pink_wax_seal.png" alt="Wax Seal" className="w-[85px] h-[85px] max-w-none mix-blend-multiply scale-110 drop-shadow-md rounded-full pointer-events-none" />
-                <div className="absolute inset-0 flex items-center justify-center opacity-80 pointer-events-none">
-                  <span className={`${notoSerif.className} text-[#b87d7b] font-bold text-xl mix-blend-color-burn`}>
-                    {wedding.bride_name.charAt(0)}&amp;{wedding.groom_name.charAt(0)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <h1 className={`${greatVibes.className} text-7xl text-[#4a3a3a] leading-[1] mb-8 pb-2`}
-                style={{ textShadow: "1px 1px 2px rgba(0,0,0,0.03)" }}>
-              {wedding.groom_name}
-            </h1>
-          </div>
-        )}
+      <main className="flex-1 overflow-y-auto pb-32">
         {guests.map((g, gIdx) => (
           <div key={g.id} className={gIdx > 0 ? `border-t-4 ${t.borderTop} mt-12 pt-8` : ""}>
             {/* Guest Name Header */}
@@ -787,18 +755,16 @@ export default function RSVPFormPage() {
       </main>
 
       {/* Fixed Bottom CTA */}
-      <footer className={`fixed bottom-0 left-0 right-0 max-w-[430px] mx-auto p-6 z-50 ${(wedding.template_id === 'floral' || wedding.template_id === 'minimal') ? 'bg-transparent pointer-events-none pb-8' : `${t.bg} bg-opacity-90 backdrop-blur-md`}`}>
+      <footer className={`fixed bottom-0 left-0 right-0 max-w-md mx-auto p-6 ${t.bg} bg-opacity-90 backdrop-blur-md`}>
         <button
           onClick={handleSubmit}
           disabled={submitting || Object.values(responses).some(resps => resps.some(r => !r.status))}
-          className={`pointer-events-auto w-full py-4 rounded-xl shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-[0.98] disabled:opacity-50 ${t.button}`}
+          className={`w-full py-4 rounded-xl shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-[0.98] disabled:opacity-50 ${t.button}`}
         >
           {submitting ? t_i18n("submitting") : t_i18n("confirmRSVP")}
           <span className="material-symbols-outlined">check</span>
         </button>
       </footer>
-      </div>
-    </div>
     </div>
   );
 }

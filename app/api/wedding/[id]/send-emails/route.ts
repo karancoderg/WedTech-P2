@@ -6,7 +6,7 @@ import { Guest, Wedding, WeddingFunction } from "@/lib/types";
 import { z } from "zod";
 import dns from "dns";
 import { promisify } from "util";
-import { decrypt } from "@/lib/encryption";
+import { encrypt, decrypt } from "@/lib/encryption";
 
 const resolveMx = promisify(dns.resolveMx);
 const emailSchema = z.string().email();
@@ -71,7 +71,7 @@ export async function POST(
       smtpConfig = {
         host: smtpSettings.smtp_host,
         port: smtpSettings.smtp_port,
-        user: smtpSettings.smtp_email,
+        user: smtpSettings.smtp_email?.includes(':') ? decrypt(smtpSettings.smtp_email) : smtpSettings.smtp_email,
         pass: decrypt(smtpSettings.smtp_password_encrypted),
       };
     }
@@ -107,8 +107,9 @@ export async function POST(
       const batch = guests.slice(i, i + BATCH_SIZE);
       
       const batchPromises = batch.map(async (guest) => {
+        const guestEmail = guest.email?.includes(':') ? decrypt(guest.email) : guest.email;
         try {
-          if (!guest.email) {
+          if (!guestEmail) {
             throw new Error("Email address missing");
           }
 
@@ -119,7 +120,7 @@ export async function POST(
           }
 
           // Domain/MX record validation
-          const domain = guest.email.toLowerCase().split("@")[1];
+          const domain = guestEmail.toLowerCase().split("@")[1];
 
           // Typo Detection
           for (const [valid, typos] of Object.entries(DOMAIN_TYPOS)) {
@@ -155,7 +156,7 @@ export async function POST(
               wedding_id: weddingId,
               guest_id: guest.id,
               status: "sent",
-              payload: { type: "invitation_email", to: guest.email }
+              payload: { type: "invitation_email", to: encrypt(guestEmail) }
             })
           ]);
 
@@ -174,7 +175,7 @@ export async function POST(
               wedding_id: weddingId,
               guest_id: guest.id,
               status: "failed",
-              payload: { type: "invitation_email", to: guest.email, error: errorMessage }
+              payload: { type: "invitation_email", to: encrypt(guestEmail), error: errorMessage }
             })
           ]);
 

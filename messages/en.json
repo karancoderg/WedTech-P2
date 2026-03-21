@@ -7,8 +7,7 @@
     "dear": "Dear",
     "requestPleasure": "We request the pleasure of your company",
     "rsvpNow": "RSVP Now",
-    "poweredBy": "Powered by",
-    "navRSVP": "RSVP"
+    "poweredBy": "Powered by"
   },
   "RSVP": {
     "willYouAttend": "Will you be attending {function}?",
