@@ -10,7 +10,7 @@ export interface Wedding {
   groom_name: string;
   wedding_date: string;
   cover_photo_url: string | null;
-  template_id: 'floral' | 'royal' | 'minimal';
+  template_id: 'floral' | 'royal' | 'minimal' | 'dark' | 'bohemian';
   total_guests: number;
   total_confirmed: number;
   total_declined: number;
@@ -93,7 +93,7 @@ export interface CreateWeddingForm {
   brideName: string;
   groomName: string;
   weddingDate: string;
-  templateId: 'floral' | 'royal' | 'minimal';
+  templateId: 'floral' | 'royal' | 'minimal' | 'dark' | 'bohemian';
   functions: CreateFunctionForm[];
 }
 

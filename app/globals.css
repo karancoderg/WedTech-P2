@@ -198,3 +198,25 @@ body {
 .planner-dash .bg-slate-100 {
   background-color: #F2ECE4 !important;
 }
+
+/* ===== Invitation Theme Textures ===== */
+.mandala-pattern {
+  background-image: url('https://www.transparenttextures.com/patterns/mandala.png');
+  background-repeat: repeat;
+}
+
+.vellum-texture {
+  background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCDQ99qDQhW1ASNVMM_bJJH2novZb3PWhXTTXk8S5rlIq6g7AJFp4_SoI-ur65b4iuR-g0Bpic1NbZw-TScnFn1wUyBurb-qxtyqaqNDFreTFpt3lSWX5ciK3STg0Y4Lz1cgsaPa7wF7kA2R-8XFnzn-B7ZmJbBoawcMgTTf9zLbCT7xY0u39VPOeP7S3Q-g-YbU2Nt0lPvEgufKVIfwg8bM3rhWSNivZlX_nBczxbFabq0LidWi2yk0KpTs4cwx3YDTmu4EwoM9e3Q');
+  background-repeat: repeat;
+  background-size: 400px;
+}
+
+.paper-texture {
+  background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDYqk31ro6jn1gR9VkyNMLKKIFnzvnNy_2B7iFX_j8PCpE55HJdhgQVoqSBgxXumTbSPhP7IZO-GsrlsSaki22GcZb7Ixm6YzSzecIS5LmSaqSALDPi0LW_nABsEyONqndU7NOxXyglO7M6kUiOFQLZQqhhqqP1LGETiTqWepI-GSR9Fru59izOdSvfU72Jjqvw7xF0yDICh7m0XyGeByrf408RtPRHpkL6eqRD24X9IBdKS4447pv5tjuBLSQFrHSmgDDp330sZXML');
+  background-repeat: repeat;
+  background-size: 400px;
+}
+
+.gold-glow {
+  box-shadow: inset 0 0 100px rgba(242, 202, 80, 0.05);
+}

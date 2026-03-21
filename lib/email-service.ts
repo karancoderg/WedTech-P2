@@ -2,6 +2,31 @@ import nodemailer from 'nodemailer';
 import { Guest, Wedding, WeddingFunction } from './types';
 import { formatDate } from './whatsapp';
 
+const translations = {
+  en: {
+    invitationHeader: "You are Cordially Invited",
+    groom_and_bride: "&",
+    weddingCelebration: "Wedding Celebration",
+    dear: "Dear",
+    requestPleasure: "We request the pleasure of your company at the wedding celebrations of our children.",
+    viewInvite: "View Invitation & RSVP",
+    orScanQR: "Or scan the QR code on your card",
+    fromDeskOf: "From the desk of",
+    poweredBy: "Powered by WedSync • Premium Wedding Management"
+  },
+  hi: {
+    invitationHeader: "आप सादर आमंत्रित हैं",
+    groom_and_bride: "और",
+    weddingCelebration: "विवाह समारोह",
+    dear: "प्रिय",
+    requestPleasure: "हम अपने बच्चों के विवाह उत्सव में आपकी उपस्थिति का आनंद लेने का अनुरोध करते हैं।",
+    viewInvite: "निमंत्रण और RSVP देखें",
+    orScanQR: "या अपने कार्ड पर QR कोड स्कैन करें",
+    fromDeskOf: "की ओर से",
+    poweredBy: "WedSync द्वारा संचालित • प्रीमियम विवाह प्रबंधन"
+  }
+};
+
 export interface SmtpConfig {
   host: string;
   port: number;
@@ -43,115 +68,118 @@ export class EmailService {
   /**
    * Generates the personalized email content
    */
-  private static generateContent(guest: Guest, wedding: Wedding, functions: WeddingFunction[]) {
-    const guestFunctions = this.formatFunctions(guest, functions);
-    const rsvpLink = `${process.env.NEXT_PUBLIC_BASE_URL}/invite/${guest.invite_token}/rsvp`;
+  private static generateContent(
+    guest: Guest,
+    wedding: Wedding,
+    functions: WeddingFunction[]
+  ): { subject: string; text: string; html: string } {
+    const locale = (guest as any).locale || 'en';
+    const t = translations[locale as 'en' | 'hi'] || translations.en;
+    const inviteUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/${locale}/invite/${guest.invite_token}`;
+    
+    // Theme-specific styles and structures
+    const templateId = wedding.template_id || 'royal';
+    
+    const themes: Record<string, { bg: string, cardBg: string, accent: string, text: string, textSecondary: string }> = {
+      royal: {
+        bg: '#570000',
+        cardBg: '#3d0000',
+        accent: '#e9c349',
+        text: '#ffffff',
+        textSecondary: 'rgba(233,195,73,0.7)',
+      },
+      minimal: {
+        bg: '#f9f9f9',
+        cardBg: '#ffffff',
+        accent: '#8a4853',
+        text: '#1a1c1c',
+        textSecondary: '#524345',
+      },
+      floral: {
+        bg: '#faf9f6',
+        cardBg: '#ffffff',
+        accent: '#7b5455',
+        text: '#1a1c1a',
+        textSecondary: '#4f4443',
+      },
+      dark: {
+        bg: '#0b141f',
+        cardBg: '#18202c',
+        accent: '#f2ca50',
+        text: '#dae3f3',
+        textSecondary: '#7f735a',
+      },
+      bohemian: {
+        bg: '#fdf9f4',
+        cardBg: '#f1ede8',
+        accent: '#914730',
+        text: '#1c1c19',
+        textSecondary: '#54433e',
+      }
+    };
+
+    const theme = themes[templateId] || themes.royal;
+
+    const guestFunctionsHtml = functions
+      .filter((f) => guest.function_ids.includes(f.id))
+      .map(
+        (f) => `
+      <div style="margin-bottom: 25px; padding-bottom: 25px; border-bottom: 1px solid ${theme.accent}20;">
+        <p style="text-transform: uppercase; letter-spacing: 3px; font-size: 10px; font-weight: 700; color: ${theme.accent}; margin: 0 0 8px 0;">${f.name}</p>
+        <p style="font-size: 18px; color: ${theme.text}; margin: 0 0 5px 0;">${new Date(f.date).toLocaleDateString(locale === 'hi' ? 'hi-IN' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+        <p style="font-size: 13px; color: ${theme.textSecondary}; margin: 0;">${f.time} onwards • ${f.venue_name}</p>
+      </div>`
+      )
+      .join("");
 
     const subject = `Invitation: Wedding of ${wedding.bride_name} & ${wedding.groom_name}`;
-    const text = `Hi ${guest.name},
-
-You're invited to ${wedding.bride_name} & ${wedding.groom_name}'s wedding celebrations!
-
-Your Events:
-${guestFunctions}
-
-Please RSVP here:
-${rsvpLink}
-
-We look forward to celebrating with you!
-
-Best,
-${wedding.wedding_name} Team`;
+    const text = `Hi ${guest.name}, You're invited to ${wedding.bride_name} & ${wedding.groom_name}'s wedding! View details and RSVP here: ${inviteUrl}`;
 
     const html = `
       <!DOCTYPE html>
       <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Wedding Invitation</title>
-      </head>
-      <body style="margin: 0; padding: 0; background-color: #fdfaf8; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
-        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="table-layout: fixed;">
-          <tr>
-            <td align="center" style="padding: 40px 20px;">
-              <!-- Main Card -->
-              <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.05); border: 1px solid #f0e6e0;">
-                
-                <!-- Hero Header -->
-                <tr>
-                  <td align="center" style="padding: 60px 40px 40px 40px; background: linear-gradient(135deg, #fff7f6 0%, #ffffff 100%);">
-                    <div style="font-size: 14px; font-weight: 800; color: #be185d; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 20px;">Invitation</div>
-                    <h1 style="margin: 0; font-size: 32px; color: #1e293b; font-weight: 900; letter-spacing: -1px; line-height: 1.2;">
-                      ${wedding.bride_name} <span style="color: #be185d;">&</span> ${wedding.groom_name}
-                    </h1>
-                    <div style="margin-top: 15px; height: 2px; width: 40px; background-color: #be185d; display: inline-block;"></div>
-                  </td>
-                </tr>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Inter:wght@300;400;700&display=swap" rel="stylesheet">
+        </head>
+        <body style="margin: 0; padding: 0; font-family: 'Inter', sans-serif; background-color: ${theme.bg}; color: ${theme.text}; line-height: 1.6;">
+          <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: ${theme.bg};">
+            <tr>
+              <td align="center" style="padding: 40px 20px;">
+                <table width="100%" max-width="500" border="0" cellspacing="0" cellpadding="0" style="background-color: ${theme.cardBg}; border-radius: 12px; border-top: 4px solid ${theme.accent}; max-width: 500px; box-shadow: 0 20px 40px rgba(0,0,0,0.2);">
+                  <tr>
+                    <td style="padding: 50px 40px;">
+                      <div style="text-align: center; margin-bottom: 40px;">
+                        <p style="text-transform: uppercase; letter-spacing: 5px; font-size: 10px; color: ${theme.textSecondary}; margin-bottom: 20px;">${t.invitationHeader || 'You are Cordially Invited'}</p>
+                        <h1 style="font-family: 'Great Vibes', cursive, serif; font-size: 42px; color: ${theme.text}; font-weight: normal; margin: 0;">${wedding.bride_name}</h1>
+                        <div style="margin: 15px 0; color: ${theme.accent}; font-weight: 300; letter-spacing: 3px;">&amp;</div>
+                        <h1 style="font-family: 'Great Vibes', cursive, serif; font-size: 42px; color: ${theme.text}; font-weight: normal; margin: 0;">${wedding.groom_name}</h1>
+                        <p style="text-transform: uppercase; letter-spacing: 6px; font-size: 9px; color: ${theme.textSecondary}; margin-top: 20px;">Wedding Celebration</p>
+                      </div>
 
-                <!-- Content Body -->
-                <tr>
-                  <td style="padding: 0 40px 40px 40px; text-align: center;">
-                    <p style="font-size: 18px; color: #475569; margin: 0 0 32px 0; line-height: 1.6;">
-                      Hi <strong>${guest.name}</strong>, we are delighted to invite you to join us in celebrating our wedding!
-                    </p>
+                      <div style="text-align: center; margin-bottom: 40px; padding: 25px; border: 1px solid ${theme.accent}30; border-radius: 8px;">
+                        <p style="font-size: 16px; margin: 0;">${t.dear} <span style="font-weight: 700; color: ${theme.text};">${guest.name}</span>,</p>
+                        <p style="font-size: 13px; color: ${theme.textSecondary}; font-style: italic; margin-top: 10px; margin-bottom: 0;">${t.requestPleasure}</p>
+                      </div>
 
-                    <!-- Events Section -->
-                    <div style="background-color: #fcf8f6; border-radius: 20px; padding: 32px; text-align: left; margin-bottom: 40px;">
-                      <h3 style="margin: 0 0 20px 0; font-size: 16px; color: #1e293b; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Your Guest Itinerary</h3>
-                      
-                      <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                        ${functions
-                          .filter((f) => guest.function_ids.includes(f.id))
-                          .map((f, idx, arr) => `
-                            <tr>
-                              <td style="padding: ${idx === 0 ? '0' : '20px'} 0; border-top: ${idx === 0 ? 'none' : '1px solid #efe4dd'};">
-                                <div style="font-size: 16px; font-weight: 700; color: #1e293b; margin-bottom: 4px;">${f.name}</div>
-                                <div style="font-size: 14px; color: #64748b; font-weight: 500; display: flex; align-items: center; gap: 8px;">
-                                  <span style="color: #be185d;">📅</span> ${formatDate(f.date)}
-                                </div>
-                                <div style="font-size: 14px; color: #64748b; font-weight: 500; margin-top: 4px;">
-                                  <span style="color: #be185d;">📍</span> ${f.venue_name}
-                                </div>
-                              </td>
-                            </tr>
-                          `).join('')}
-                      </table>
-                    </div>
+                      <div style="text-align: center; margin-bottom: 40px;">
+                        ${guestFunctionsHtml}
+                      </div>
 
-                    <!-- RSVP Button -->
-                    <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                      <tr>
-                        <td align="center">
-                          <a href="${rsvpLink}" style="display: inline-block; background-color: #be185d; color: #ffffff; padding: 20px 48px; border-radius: 16px; text-decoration: none; font-size: 16px; font-weight: 800; box-shadow: 0 10px 20px rgba(190, 24, 93, 0.2); transition: all 0.3s ease;">
-                            Kindly RSVP Here
-                          </a>
-                        </td>
-                      </tr>
-                    </table>
-
-                    <p style="margin-top: 40px; font-size: 14px; color: #94a3b8; font-weight: 500;">
-                      We look forward to sharing this special day with you!
-                    </p>
-                  </td>
-                </tr>
-
-                <!-- Footer Branding -->
-                <tr>
-                  <td align="center" style="padding: 32px; background-color: #f8fafc; border-top: 1px solid #f1f5f9;">
-                    <div style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">
-                      From the desk of <strong>${wedding.wedding_name}</strong>
-                    </div>
-                    <div style="font-size: 11px; color: #94a3b8; margin-top: 8px;">
-                      Powered by WedSync • Premium Wedding Management
-                    </div>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-        </table>
-      </body>
+                      <div style="text-align: center;">
+                        <a href="${inviteUrl}" style="display: inline-block; background: ${theme.accent}; color: ${theme.cardBg}; padding: 18px 40px; text-decoration: none; border-radius: 4px; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 3px;">${t.viewInvite || 'View Invitation & RSVP'}</a>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+                <div style="text-align: center; margin-top: 30px;">
+                  <p style="font-size: 9px; text-transform: uppercase; letter-spacing: 3px; color: ${theme.textSecondary};">Experience by <span style="font-weight: 700; color: ${theme.accent};">WedSync</span></p>
+                </div>
+              </td>
+            </tr>
+          </table>
+        </body>
       </html>
     `;
 
