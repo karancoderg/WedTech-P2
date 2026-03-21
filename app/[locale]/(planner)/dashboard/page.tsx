@@ -63,6 +63,13 @@ export default function DashboardPage() {
       toast.error("Please fill required fields");
       return;
     }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (new Date(editDate) < today) {
+      toast.error("Wedding date cannot be in the past");
+      return;
+    }
+
     setLoading(true);
     const { error } = await supabase.from("weddings").update({
       wedding_name: editName,
@@ -106,7 +113,19 @@ export default function DashboardPage() {
   const panelColors = ["#EDE8E1", "#E8EDF2", "#EDE8ED", "#E5EDEA"];
 
   return (
-    <div className="space-y-8">
+    <div className="relative min-h-screen p-1">
+      {/* Premium Background Decoration */}
+      <div 
+        className="fixed inset-0 pointer-events-none opacity-[0.12] z-0"
+        style={{
+          backgroundImage: "url('/images/flower.png')",
+          backgroundSize: "800px",
+          backgroundPosition: "center",
+          backgroundRepeat: "repeat",
+        }}
+      />
+
+      <div className="relative z-10 space-y-8">
       {/* Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm flex flex-col">
@@ -131,8 +150,12 @@ export default function DashboardPage() {
       <div>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold tracking-tight text-slate-900 uppercase">My Weddings</h2>
-          <Link href="/wedding/new" className="text-sm font-semibold text-primary hover:underline">
-            + New Wedding
+          <Link href="/wedding/new">
+            <button className="bg-luxury-gradient text-white px-6 py-2.5 rounded-2xl text-sm font-bold shadow-lg premium-shadow transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:brightness-110 flex items-center gap-2 group relative overflow-hidden">
+              <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+              <span className="material-symbols-outlined text-[22px] group-hover:rotate-90 transition-transform duration-500">add</span>
+              <span className="tracking-wide">New Wedding</span>
+            </button>
           </Link>
         </div>
 
@@ -175,61 +198,28 @@ export default function DashboardPage() {
                     </button>
                   </div>
 
-                  {/* SVG Illustration Panel */}
+                  {/* Theme Image Panel */}
                   {(() => {
-                    const color = "rgba(100,85,70,0.25)";
-                    const illustrations = [
-                      // 0: Interlocking wedding rings
-                      <svg key="rings" width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="28" cy="36" r="16" stroke={color} strokeWidth="2"/>
-                        <circle cx="44" cy="36" r="16" stroke={color} strokeWidth="2"/>
-                        <path d="M24 28 Q28 24 32 28" stroke={color} strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-                        <path d="M40 28 Q44 24 48 28" stroke={color} strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-                      </svg>,
-                      // 1: Simple floral bloom
-                      <svg key="floral" width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="36" cy="36" r="5" stroke={color} strokeWidth="1.5"/>
-                        <ellipse cx="36" cy="20" rx="5" ry="9" stroke={color} strokeWidth="1.5"/>
-                        <ellipse cx="36" cy="52" rx="5" ry="9" stroke={color} strokeWidth="1.5"/>
-                        <ellipse cx="20" cy="36" rx="9" ry="5" stroke={color} strokeWidth="1.5"/>
-                        <ellipse cx="52" cy="36" rx="9" ry="5" stroke={color} strokeWidth="1.5"/>
-                        <ellipse cx="24" cy="24" rx="5" ry="9" transform="rotate(45 24 24)" stroke={color} strokeWidth="1.5"/>
-                        <ellipse cx="48" cy="48" rx="5" ry="9" transform="rotate(45 48 48)" stroke={color} strokeWidth="1.5"/>
-                        <ellipse cx="48" cy="24" rx="5" ry="9" transform="rotate(-45 48 24)" stroke={color} strokeWidth="1.5"/>
-                        <ellipse cx="24" cy="48" rx="5" ry="9" transform="rotate(-45 24 48)" stroke={color} strokeWidth="1.5"/>
-                      </svg>,
-                      // 2: Tiered wedding cake
-                      <svg key="cake" width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect x="18" y="44" width="36" height="14" rx="1" stroke={color} strokeWidth="1.5"/>
-                        <rect x="24" y="32" width="24" height="14" rx="1" stroke={color} strokeWidth="1.5"/>
-                        <rect x="29" y="22" width="14" height="12" rx="1" stroke={color} strokeWidth="1.5"/>
-                        <line x1="36" y1="22" x2="36" y2="16" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
-                        <circle cx="36" cy="14" r="2.5" stroke={color} strokeWidth="1.5"/>
-                        <path d="M22 44 Q25 40 28 44" stroke={color} strokeWidth="1" strokeLinecap="round" fill="none"/>
-                        <path d="M34 32 Q36 28 38 32" stroke={color} strokeWidth="1" strokeLinecap="round" fill="none"/>
-                      </svg>,
-                      // 3: Laurel wreath
-                      <svg key="laurel" width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M36 52 C36 52 16 44 16 28 C16 20 22 14 28 16 C30 16 32 18 32 20" stroke={color} strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-                        <path d="M36 52 C36 52 56 44 56 28 C56 20 50 14 44 16 C42 16 40 18 40 20" stroke={color} strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-                        <ellipse cx="22" cy="22" rx="5" ry="3" transform="rotate(-30 22 22)" stroke={color} strokeWidth="1.2" fill="none"/>
-                        <ellipse cx="18" cy="32" rx="5" ry="3" transform="rotate(-10 18 32)" stroke={color} strokeWidth="1.2" fill="none"/>
-                        <ellipse cx="20" cy="42" rx="5" ry="3" transform="rotate(15 20 42)" stroke={color} strokeWidth="1.2" fill="none"/>
-                        <ellipse cx="50" cy="22" rx="5" ry="3" transform="rotate(30 50 22)" stroke={color} strokeWidth="1.2" fill="none"/>
-                        <ellipse cx="54" cy="32" rx="5" ry="3" transform="rotate(10 54 32)" stroke={color} strokeWidth="1.2" fill="none"/>
-                        <ellipse cx="52" cy="42" rx="5" ry="3" transform="rotate(-15 52 42)" stroke={color} strokeWidth="1.2" fill="none"/>
-                        <path d="M30 54 Q36 58 42 54" stroke={color} strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-                      </svg>,
+                    const dashboardImages = [
+                      "/images/dashboard/floral_peonies_watercolor_1774105824990.png",
+                      "/images/dashboard/mehndi_hands_ring_1774105891201.png",
+                      "/images/dashboard/royal_wedding_rings_1774105805720.png",
                     ];
+                    const photoUrl = wedding.cover_photo_url || dashboardImages[index % dashboardImages.length];
                     return (
                       <div
-                        className="relative w-full md:w-44 h-44 md:h-auto flex-shrink-0 flex items-center justify-center"
+                        className="relative w-full md:w-44 h-44 md:h-auto flex-shrink-0 overflow-hidden"
                         style={{ background: panelColors[index % panelColors.length] }}
                       >
-                        {illustrations[index % illustrations.length]}
+                        <img 
+                          src={photoUrl} 
+                          alt="Wedding Theme" 
+                          className="w-full h-full object-cover mix-blend-multiply opacity-90 transition-transform duration-500 group-hover:scale-110"
+                        />
                       </div>
                     );
                   })()}
+
 
 
                   <div className="flex-1 p-6 flex flex-col">
@@ -335,7 +325,7 @@ export default function DashboardPage() {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Date</label>
-                <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} className="w-full border-2 border-slate-100 rounded-xl px-4 py-3 focus:border-primary focus:ring-0 transition-colors outline-none" />
+                <input type="date" min={new Date().toISOString().split("T")[0]} value={editDate} onChange={(e) => setEditDate(e.target.value)} className="w-full border-2 border-slate-100 rounded-xl px-4 py-3 focus:border-primary focus:ring-0 transition-colors outline-none" />
               </div>
             </div>
             <div className="p-5 border-t border-slate-100 bg-slate-50 flex gap-3">
@@ -345,6 +335,7 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

@@ -19,6 +19,15 @@ interface FunctionForm {
   venueAddress: string;
 }
 
+const DASHBOARD_IMAGES = [
+  "/images/dashboard/floral_peonies_watercolor_1774105824990.png",
+  "/images/dashboard/mehndi_hands_ring_1774105891201.png",
+  "/images/dashboard/royal_wedding_rings_1774105805720.png",
+  "/images/dashboard/bride.png",
+  "/images/dashboard/hall.png",
+  "/images/dashboard/jewel.png",
+];
+
 export default function CreateWeddingPage() {
   const { user } = useUser();
   const router = useRouter();
@@ -68,6 +77,9 @@ export default function CreateWeddingPage() {
     if (!user?.id) return;
     setSaving(true);
     try {
+      // Pick random cover photo
+      const randomImage = DASHBOARD_IMAGES[Math.floor(Math.random() * DASHBOARD_IMAGES.length)];
+
       // Create wedding
       const { data: wedding, error: weddingError } = await supabase
         .from("weddings")
@@ -78,6 +90,7 @@ export default function CreateWeddingPage() {
           groom_name: groomName,
           wedding_date: weddingDate,
           template_id: templateId,
+          cover_photo_url: randomImage,
         })
         .select()
         .single();
@@ -115,7 +128,19 @@ export default function CreateWeddingPage() {
   const canProceedStep2 = functions.every((f) => f.name && f.venueName);
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="relative min-h-screen p-1">
+      {/* Premium Background Decoration */}
+      <div 
+        className="fixed inset-0 pointer-events-none opacity-[0.12] z-0"
+        style={{
+          backgroundImage: "url('/images/flower.png')",
+          backgroundSize: "800px",
+          backgroundPosition: "center",
+          backgroundRepeat: "repeat",
+        }}
+      />
+
+      <div className="relative z-10 max-w-2xl mx-auto space-y-6">
       <h1 className="text-2xl font-semibold text-stone-900">Create New Wedding</h1>
 
       {/* Progress Stepper */}
@@ -189,13 +214,23 @@ export default function CreateWeddingPage() {
               </label>
               <Input
                 type="date"
+                min={new Date().toISOString().split("T")[0]}
                 value={weddingDate}
                 onChange={(e) => setWeddingDate(e.target.value)}
               />
             </div>
             <div className="flex justify-end">
               <Button
-                onClick={() => setStep(2)}
+                onClick={() => {
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const selectedDate = new Date(weddingDate);
+                  if (selectedDate < today) {
+                    toast.error("Wedding date cannot be in the past");
+                    return;
+                  }
+                  setStep(2);
+                }}
                 disabled={!canProceedStep1}
                 className="bg-wedding-gold hover:bg-wedding-gold-light text-white gap-2"
               >
@@ -375,6 +410,7 @@ export default function CreateWeddingPage() {
           </CardContent>
         </Card>
       )}
+      </div>
     </div>
   );
 }

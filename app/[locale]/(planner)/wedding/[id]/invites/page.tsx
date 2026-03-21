@@ -29,7 +29,7 @@ const translations = {
 };
 import { supabase } from "@/lib/supabase";
 import type { Wedding, Guest, WeddingFunction } from "@/lib/types";
-import { generateWhatsAppLink, generateReminderLink } from "@/lib/whatsapp";
+import { generateWhatsAppLink, generateReminderLink, generateWhatsAppMessage, normalizePhone } from "@/lib/whatsapp";
 import { generateEmailLink } from "@/lib/email";
 import { toast } from "sonner";
 
@@ -240,6 +240,19 @@ export default function InvitesPage() {
 
   function getInitials(name: string) {
     return name.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
+  }
+
+  function handleExportForExtension() {
+    if (selectedIds.size === 0 || !wedding) return;
+
+    const selectedGuests = guests.filter((g) => selectedIds.has(g.id));
+    const data = selectedGuests.map((guest) => ({
+      phone: normalizePhone(guest.phone).replace("+", ""),
+      message: generateWhatsAppMessage(guest, wedding, functions),
+    }));
+
+    navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+    toast.success("📋 JSON copied to clipboard for extension!");
   }
 
   if (loading) {
@@ -658,7 +671,7 @@ export default function InvitesPage() {
 
       {/* Floating Bulk Action Bar */}
       {selectedIds.size > 0 && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-20">
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-4xl px-4 z-20">
           <div className="bg-inverse-surface text-inverse-on-surface p-4 rounded-2xl shadow-2xl flex items-center justify-between border border-white/10">
             <div className="flex items-center gap-3 pl-2 shrink-0">
               <div className="bg-primary size-8 rounded-full flex items-center justify-center font-black text-sm text-on-primary">
@@ -696,6 +709,13 @@ export default function InvitesPage() {
                   {sendingEmails ? "sync" : "mail"}
                 </span>
                 {sendingEmails ? "Sending..." : `Email ${selectedIds.size}`}
+              </button>
+              <button
+                onClick={handleExportForExtension}
+                className="px-3 py-2 bg-amber-500 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 hover:bg-amber-600 transition-all font-body"
+              >
+                <span className="material-symbols-outlined text-lg">content_paste_go</span>
+                Export for Extension
               </button>
               <button
                 onClick={() => markAllAsSent(Array.from(selectedIds))}
