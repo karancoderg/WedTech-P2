@@ -211,154 +211,142 @@ export default function InvitesPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <div className="max-w-7xl mx-auto space-y-16 pb-16">
       {/* HEADER */}
       <header className="flex justify-between items-end">
-        <div>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight">Invitations</h2>
-          <p className="text-slate-500 font-medium">{wedding?.wedding_name}</p>
+        <div className="flex flex-col gap-2">
+          <h1 className="text-5xl font-serif font-bold tracking-tight text-on-surface">Invitations</h1>
+          <p className="text-primary font-body text-lg opacity-80">{wedding?.wedding_name || "Sharma-Kapoor Weddings"}</p>
         </div>
         <button
           onClick={handleSyncRSVPs}
           disabled={syncing}
-          className="flex items-center gap-2 bg-white border border-slate-200 px-4 py-2 rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-6 py-2.5 border border-outline-variant bg-surface-container-lowest text-primary font-label text-sm font-semibold rounded-lg hover:bg-surface-container transition-colors disabled:opacity-50"
         >
+          {syncing ? "Syncing..." : "Sync RSVPs from AI Calls"}
           <span className={`material-symbols-outlined text-lg ${syncing ? "animate-spin" : ""}`}>
             {syncing ? "sync" : "refresh"}
           </span>
-          {syncing ? "Syncing..." : "Sync RSVPs from AI Calls"}
         </button>
       </header>
 
       {/* STAT CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-xl border border-primary/10 shadow-sm">
-          <p className="text-sm font-medium text-slate-500 mb-1">Total Invites</p>
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-black text-slate-900">{guests.length}</span>
-            <span className="text-xs font-bold text-slate-400">Guests</span>
-          </div>
+      <section className="grid grid-cols-1 md:grid-cols-5 gap-6">
+        <div className="bg-surface-container-lowest p-6 rounded-xl premium-shadow border-l-[3px] border-primary-container relative overflow-hidden">
+          <p className="text-outline text-xs font-label uppercase tracking-wider mb-2">Total Invites</p>
+          <h3 className="text-3xl font-serif font-bold text-on-surface">{guests.length} <span className="text-sm font-body font-normal text-outline">Guests</span></h3>
         </div>
-        <div className="bg-white p-6 rounded-xl border border-primary/10 shadow-sm">
-          <p className="text-sm font-medium text-slate-500 mb-1">Sent</p>
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-black text-green-600">{sentGuests.length}</span>
+        <div className="bg-surface-container-lowest p-6 rounded-xl premium-shadow border-l-[3px] border-emerald-500">
+          <p className="text-outline text-xs font-label uppercase tracking-wider mb-2">Sent</p>
+          <div className="flex items-center justify-between">
+            <h3 className="text-3xl font-serif font-bold text-on-surface">{sentGuests.length}</h3>
             {guests.length > 0 && (
-              <span className="text-xs font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded">
+              <span className="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded-full border border-emerald-100 uppercase tracking-tighter">
                 {Math.round((sentGuests.length / guests.length) * 100)}% Done
               </span>
             )}
           </div>
         </div>
-        <div className="bg-white p-6 rounded-xl border border-primary/10 shadow-sm">
-          <p className="text-sm font-medium text-slate-500 mb-1">Not Sent</p>
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-black text-amber-600">{pendingGuests.length}</span>
-            <span className="text-xs font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">Pending</span>
+        <div className="bg-surface-container-lowest p-6 rounded-xl premium-shadow border-l-[3px] border-amber-400">
+          <p className="text-outline text-xs font-label uppercase tracking-wider mb-2">Not Sent</p>
+          <div className="flex items-center justify-between">
+            <h3 className="text-3xl font-serif font-bold text-on-surface">{pendingGuests.length}</h3>
+            {pendingGuests.length > 0 && (
+              <span className="bg-amber-50 text-amber-700 text-[10px] font-bold px-2 py-1 rounded-full border border-amber-100 uppercase tracking-tighter">Pending</span>
+            )}
           </div>
         </div>
-      </div>
+        <div className="bg-surface-container-lowest p-6 rounded-xl premium-shadow border-l-[3px] border-blue-400">
+          <p className="text-outline text-xs font-label uppercase tracking-wider mb-2">Awaiting RSVP</p>
+          <div className="flex items-center justify-between">
+            <h3 className="text-3xl font-serif font-bold text-on-surface">{pendingRsvpGuests.length}</h3>
+            {pendingRsvpGuests.length > 0 && (
+              <span className="bg-blue-50 text-blue-700 text-[10px] font-bold px-2 py-1 rounded-full border border-blue-100 uppercase tracking-tighter">Follow Up</span>
+            )}
+          </div>
+        </div>
+        <div className="bg-surface-container-lowest p-6 rounded-xl premium-shadow border-l-[3px] border-emerald-500">
+          <p className="text-outline text-xs font-label uppercase tracking-wider mb-2">Confirmed</p>
+          <div className="flex items-center justify-between">
+            <h3 className="text-3xl font-serif font-bold text-on-surface">{guests.filter(g => g.overall_status === 'confirmed').length}</h3>
+            <div className="bg-emerald-500 text-white w-6 h-6 flex items-center justify-center rounded-full">
+              <span className="material-symbols-outlined text-sm">check</span>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* ACTION CARDS */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Amber Alert */}
-        {pendingGuests.length > 0 && (
-          <div className="bg-amber-50 border border-amber-200 p-5 rounded-xl flex items-center justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <span className="material-symbols-outlined text-amber-600 mt-1">chat_bubble</span>
-              <div>
-                <h4 className="font-bold text-slate-900 text-sm">{pendingGuests.length} invites not sent yet</h4>
-                <p className="text-slate-600 text-sm">Send via WhatsApp to complete outreach.</p>
-              </div>
-            </div>
-            <button
-              onClick={() => markAllAsSent(pendingGuests.map((g) => g.id))}
-              className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold shrink-0 hover:bg-primary/90 transition-colors"
-            >
-              Mark All Sent
-            </button>
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="bg-[#FFF9E6] p-8 rounded-xl flex flex-col gap-6 relative overflow-hidden">
+          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-amber-600 premium-shadow">
+            <span className="material-symbols-outlined text-3xl">notifications_active</span>
           </div>
-        )}
+          <div>
+            <h4 className="text-xl font-serif font-bold text-on-surface mb-1">Send Reminders</h4>
+            <p className="text-on-surface-variant text-sm">{pendingRsvpGuests.length} guests haven't RSVPed yet</p>
+          </div>
+          <button 
+            onClick={() => {
+              const links = pendingRsvpGuests.map((g) => (wedding ? generateReminderLink(g, wedding) : "")).join("\n");
+              navigator.clipboard.writeText(links);
+              toast.success("Reminder links copied!");
+            }}
+            disabled={pendingRsvpGuests.length === 0}
+            className="mt-auto w-full py-3 bg-on-surface text-surface text-xs font-label uppercase tracking-widest font-bold rounded-lg transition-transform hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
+          >
+            Copy Reminder Links
+          </button>
+        </div>
 
-        {/* Blue Reminder */}
-        {pendingRsvpGuests.length > 0 && (
-          <div className="bg-blue-50 border border-blue-200 p-5 rounded-xl flex items-center justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <span className="material-symbols-outlined text-blue-600 mt-1">notifications_active</span>
-              <div>
-                <h4 className="font-bold text-slate-900 text-sm">{pendingRsvpGuests.length} guests haven&apos;t RSVPed yet</h4>
-                <p className="text-slate-600 text-sm">Follow up with guests who haven&apos;t confirmed.</p>
-              </div>
-            </div>
-            <button
-              onClick={() => {
-                const links = pendingRsvpGuests.map((g) => (wedding ? generateReminderLink(g, wedding) : "")).join("\n");
-                navigator.clipboard.writeText(links);
-                toast.success("Reminder links copied!");
-              }}
-              className="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-bold shrink-0 hover:opacity-90 transition-opacity"
-            >
-              Copy Reminder Links
-            </button>
+        <div className="bg-[#F3E8FF] p-8 rounded-xl flex flex-col gap-6 relative overflow-hidden">
+          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-purple-600 premium-shadow">
+            <span className="material-symbols-outlined text-3xl">record_voice_over</span>
           </div>
-        )}
-
-        {/* AI Call Card */}
-        <div className="bg-purple-50 border border-purple-200 p-5 rounded-xl flex items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <span className="material-symbols-outlined text-purple-600 mt-1">smart_toy</span>
-            <div>
-              <h4 className="font-bold text-slate-900 text-sm">AI Voice Calls</h4>
-              <p className="text-slate-600 text-sm">Auto-call pending guests to collect RSVPs.</p>
-            </div>
+          <div>
+            <h4 className="text-xl font-serif font-bold text-on-surface mb-1">AI Voice Calls</h4>
+            <p className="text-on-surface-variant text-sm">Auto-call pending guests to collect RSVPs</p>
           </div>
-          <button
+          <button 
             onClick={() => handleAICall(pendingRsvpGuests.map((g) => g.id))}
             disabled={callingGuests || pendingRsvpGuests.length === 0}
-            className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-bold shrink-0 hover:bg-purple-700 transition-colors disabled:opacity-50"
+            className="mt-auto w-full py-3 bg-purple-600 text-white text-xs font-label uppercase tracking-widest font-bold rounded-lg transition-transform hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
           >
             {callingGuests ? "Calling..." : `Call ${pendingRsvpGuests.length} Guests`}
           </button>
         </div>
 
-        {/* Email Invitations Card */}
-        <div className="bg-blue-50 border border-blue-200 p-5 rounded-xl flex items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <span className="material-symbols-outlined text-blue-600 mt-1">mail</span>
-            <div>
-              <h4 className="font-bold text-slate-900 text-sm">Email Invitations</h4>
-              <p className="text-slate-600 text-sm">Send invite emails to guests with email addresses.</p>
-            </div>
+        <div className="bg-[#E0F2FE] p-8 rounded-xl flex flex-col gap-6 relative overflow-hidden">
+          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-blue-600 premium-shadow">
+            <span className="material-symbols-outlined text-3xl">mail</span>
           </div>
-          <button
+          <div>
+            <h4 className="text-xl font-serif font-bold text-on-surface mb-1">Email Invitations</h4>
+            <p className="text-on-surface-variant text-sm">Send invite emails to guests with email addresses</p>
+          </div>
+          <button 
             onClick={() => handleBulkEmail(pendingGuests.filter((g) => !!g.email))}
-            disabled={sendingEmails}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold shrink-0 hover:bg-blue-700 transition-colors disabled:opacity-50"
+            disabled={sendingEmails || pendingGuests.length === 0}
+            className="mt-auto w-full py-3 bg-blue-600 text-white text-xs font-label uppercase tracking-widest font-bold rounded-lg transition-transform hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
           >
             {sendingEmails ? "Sending..." : "Email Pending"}
           </button>
         </div>
-      </div>
+      </section>
 
       {/* TABLE */}
-      <div className="bg-white rounded-xl border border-primary/10 shadow-sm overflow-hidden">
+      <div className="bg-surface-container-lowest rounded-xl premium-shadow overflow-hidden">
         {/* Filter Tabs + Search */}
-        <div className="px-6 py-4 border-b border-primary/10 flex flex-wrap items-center gap-3 justify-between">
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={selectedIds.size === filteredGuests.length && filteredGuests.length > 0}
-              onChange={toggleSelectAll}
-              className="rounded border-slate-300 text-primary focus:ring-primary"
-              title="Select all"
-            />
-            <div className="flex gap-1 p-1 bg-[#f8f7f5] rounded-lg">
+        <div className="px-8 py-6 border-b border-surface-container flex flex-wrap items-center gap-4 justify-between">
+          <div className="flex items-center gap-4">
+            <h3 className="text-xl font-serif font-bold text-on-surface">Guest List</h3>
+            <div className="flex gap-1 p-1 bg-surface-container-low rounded-lg">
               {(["all", "pending", "sent"] as const).map((f) => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  className={`px-4 py-1.5 text-sm font-bold rounded-md capitalize ${
-                    filter === f ? "bg-white shadow-sm text-primary" : "text-slate-500 hover:text-slate-700"
+                  className={`px-3 py-1.5 text-xs font-bold rounded-md capitalize transition-colors ${
+                    filter === f ? "bg-white shadow-sm text-primary" : "text-outline hover:text-on-surface"
                   }`}
                 >
                   {f} ({f === "all" ? guests.length : f === "pending" ? pendingGuests.length : sentGuests.length})
@@ -367,38 +355,49 @@ export default function InvitesPage() {
             </div>
           </div>
           {/* Search bar */}
-          <div className="relative min-w-[220px]">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name or phone..."
-              className="w-full pl-9 pr-4 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-            />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                <span className="material-symbols-outlined text-[16px]">close</span>
-              </button>
-            )}
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search guests..."
+                className="pl-10 pr-4 py-2 bg-surface-container rounded-lg border-none focus:ring-1 focus:ring-primary text-sm w-64 font-body outline-none transition-all"
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface">
+                  <span className="material-symbols-outlined text-[16px]">close</span>
+                </button>
+              )}
+            </div>
+            <button className="material-symbols-outlined text-outline hover:text-primary transition-colors">filter_list</button>
           </div>
         </div>
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="w-full text-left border-collapse min-w-[800px]">
             <thead>
-              <tr className="bg-slate-50">
-                <th className="px-6 py-3 w-10"></th>
-                <th className="px-6 py-3 text-[11px] font-black text-slate-500 uppercase tracking-wider">Guest Name</th>
-                <th className="px-6 py-3 text-[11px] font-black text-slate-500 uppercase tracking-wider">Side</th>
-                <th className="px-6 py-3 text-[11px] font-black text-slate-500 uppercase tracking-wider">Contact</th>
-                <th className="px-6 py-3 text-[11px] font-black text-slate-500 uppercase tracking-wider">Invitation</th>
-                <th className="px-6 py-3 text-[11px] font-black text-slate-500 uppercase tracking-wider">RSVP Status</th>
-                <th className="px-6 py-3 text-[11px] font-black text-slate-500 uppercase tracking-wider text-right">Actions</th>
+              <tr className="bg-surface-container-low">
+                <th className="px-8 py-4 w-12">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.size === filteredGuests.length && filteredGuests.length > 0}
+                    onChange={toggleSelectAll}
+                    style={{ accentColor: "var(--color-primary)" }}
+                    className="w-4 h-4 rounded cursor-pointer"
+                    title="Select all"
+                  />
+                </th>
+                <th className="px-4 py-4 text-xs font-label uppercase tracking-widest text-outline font-bold">Name</th>
+                <th className="px-4 py-4 text-xs font-label uppercase tracking-widest text-outline font-bold">Status</th>
+                <th className="px-4 py-4 text-xs font-label uppercase tracking-widest text-outline font-bold">Contact</th>
+                <th className="px-4 py-4 text-xs font-label uppercase tracking-widest text-outline font-bold">Side</th>
+                <th className="px-8 py-4 text-xs font-label uppercase tracking-widest text-outline font-bold text-right">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-primary/5">
+            <tbody className="divide-y divide-surface-container">
               {(() => {
                 const rows: React.ReactNode[] = [];
 
@@ -418,51 +417,60 @@ export default function InvitesPage() {
                 // Helper: render one invite row
                 function InviteRow({ guest, indent }: { guest: Guest; indent?: boolean }) {
                   return (
-                    <tr key={guest.id} className={`hover:bg-slate-50/50 transition-colors ${selectedIds.has(guest.id) ? "bg-primary/5" : indent ? "bg-slate-50/30" : ""}`}>
-                      <td className="px-6 py-4">
+                    <tr key={guest.id} className={`hover:bg-surface-container transition-colors ${selectedIds.has(guest.id) ? "bg-primary-fixed/20" : ""}`}>
+                      <td className="px-8 py-5">
                         <input
                           type="checkbox"
                           checked={selectedIds.has(guest.id)}
                           onChange={() => toggleSelect(guest.id)}
-                          className="rounded border-slate-300 text-primary focus:ring-primary"
+                          style={{ accentColor: "var(--color-primary)" }}
+                          className="w-4 h-4 rounded cursor-pointer"
                         />
                       </td>
-                      <td className={`${indent ? "pl-10 pr-6" : "px-6"} py-4`}>
-                        <div className="flex items-center gap-3">
-                          {indent && <span className="text-slate-300 text-sm">└</span>}
-                          <div className="size-7 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary uppercase shrink-0">
-                            {getInitials(guest.name)}
-                          </div>
-                          <p className="font-semibold text-sm">{guest.name}</p>
+                      <td className={`px-4 py-5 flex items-center gap-3 ${indent ? "ml-6" : ""}`}>
+                        {indent && <span className="text-outline text-sm">└</span>}
+                        <div className="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container font-bold text-xs shrink-0">
+                          {getInitials(guest.name)}
+                        </div>
+                        <div>
+                          <p className="font-body font-bold text-sm text-on-surface">{guest.name}</p>
+                          {guest.email && <p className="text-xs text-outline">{guest.email}</p>}
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded border text-[10px] font-bold capitalize ${sideColors[guest.side]?.bg || "bg-slate-50 border-slate-200"} ${sideColors[guest.side]?.text || "text-slate-600"}`}>
+                      <td className="px-4 py-5 font-body">
+                        {guest.overall_status === "confirmed" ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-full border border-emerald-100">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            Confirmed
+                          </span>
+                        ) : guest.overall_status === "declined" ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 text-xs font-bold rounded-full border border-red-100">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                            Declined
+                          </span>
+                        ) : !guest.invite_sent_at ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 text-xs font-bold rounded-full border border-amber-100">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                            Not Sent
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full border border-blue-100">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                            Awaiting
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-5 text-sm text-on-surface-variant font-medium">
+                        {guest.phone || "—"}
+                      </td>
+                      <td className="px-4 py-5">
+                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold capitalize ${sideColors[guest.side]?.bg || "bg-slate-50 border-slate-200"} ${sideColors[guest.side]?.text || "text-slate-600"}`}>
                           {guest.side}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-500">{guest.phone}</td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
-                          guest.invite_sent_at ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
-                        }`}>
-                          {guest.invite_sent_at ? "Sent" : "Not Sent"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`text-xs font-bold ${
-                          guest.overall_status === "confirmed" ? "text-green-600"
-                            : guest.overall_status === "declined" ? "text-red-500"
-                            : "text-slate-400 italic"
-                        }`}>
-                          {guest.overall_status === "confirmed" ? "Attending"
-                            : guest.overall_status === "declined" ? "Declined"
-                            : guest.invite_sent_at ? "Awaiting Response" : "—"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-8 py-5 text-right font-body">
                         <div className="flex justify-end gap-2">
-                          <button onClick={() => copyInviteLink(guest.invite_token)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-primary transition-colors" title="Copy Link">
+                          <button onClick={() => copyInviteLink(guest.invite_token)} className="p-2 hover:bg-surface-container rounded-lg text-outline hover:text-primary transition-colors" title="Copy Link">
                             <span className="material-symbols-outlined text-lg">content_copy</span>
                           </button>
                           {wedding && (
@@ -473,8 +481,8 @@ export default function InvitesPage() {
                               onClick={() => markAsSent(guest.id)}
                               className={`p-2 rounded-lg transition-all ${
                                 guest.invite_sent_at
-                                  ? "hover:bg-green-50 text-slate-400 hover:text-green-600"
-                                  : "bg-green-500 text-white active:scale-95 shadow-sm"
+                                  ? "hover:bg-emerald-50 text-outline hover:text-emerald-600"
+                                  : "bg-emerald-500 text-white active:scale-95 shadow-sm"
                               }`}
                               title="Send WhatsApp"
                             >
@@ -484,20 +492,19 @@ export default function InvitesPage() {
                           <button
                             onClick={() => handleAICall([guest.id])}
                             disabled={callingGuests}
-                            className="p-2 hover:bg-purple-50 rounded-lg text-slate-400 hover:text-purple-600 transition-colors"
+                            className="p-2 hover:bg-purple-50 rounded-lg text-outline hover:text-purple-600 transition-colors"
                             title="AI Voice Call"
                           >
                             <span className="material-symbols-outlined text-lg">call</span>
                           </button>
                           {wedding && guest.email && (
-                            <a
-                              href={generateEmailLink(guest, wedding, functions)}
-                              className="p-2 hover:bg-blue-50 rounded-lg text-slate-400 hover:text-blue-600 transition-colors"
+                            <button
+                              onClick={() => handleBulkEmail([guest])}
+                              className="p-2 hover:bg-blue-50 rounded-lg text-outline hover:text-blue-600 transition-colors"
                               title="Send Email"
-                              onClick={() => markAsSent(guest.id)}
                             >
                               <span className="material-symbols-outlined text-lg">mail</span>
-                            </a>
+                            </button>
                           )}
                         </div>
                       </td>
@@ -505,15 +512,15 @@ export default function InvitesPage() {
                   );
                 }
 
-                // Render family sections
                 for (const [groupId, members] of grouped.entries()) {
                   const group = guestGroups.find((g) => g.id === groupId);
                   const isCollapsed = collapsedGroups.has(groupId);
                   const allSent = members.every((m) => m.invite_sent_at);
                   const noneSent = members.every((m) => !m.invite_sent_at);
+                  
                   rows.push(
-                    <tr key={`group-header-${groupId}`} className="bg-primary/5 border-b border-primary/10">
-                      <td className="px-6 py-3">
+                    <tr key={`group-header-${groupId}`} className="bg-surface-container-low border-b border-surface-container">
+                      <td className="px-8 py-4">
                         <input
                           type="checkbox"
                           checked={members.every((m) => selectedIds.has(m.id))}
@@ -523,10 +530,11 @@ export default function InvitesPage() {
                             members.forEach((m) => allSelected ? next.delete(m.id) : next.add(m.id));
                             setSelectedIds(next);
                           }}
-                          className="rounded border-slate-300 text-primary focus:ring-primary"
+                          style={{ accentColor: "var(--color-primary)" }}
+                          className="w-4 h-4 rounded cursor-pointer"
                         />
                       </td>
-                      <td className="px-6 py-3" colSpan={5}>
+                      <td className="px-4 py-4" colSpan={5}>
                         <div className="flex items-center gap-3">
                           <button onClick={() => toggleGroupCollapse(groupId)} className="flex items-center gap-2 flex-1 text-left">
                             <span className="material-symbols-outlined text-primary text-[18px]">
@@ -538,7 +546,6 @@ export default function InvitesPage() {
                               {members.length} {members.length === 1 ? "member" : "members"}
                             </span>
                           </button>
-                          {/* Family-level send all button */}
                           {!allSent && wedding && (
                             <button
                               onClick={() => markAllAsSent(members.filter((m) => !m.invite_sent_at).map((m) => m.id))}
@@ -549,7 +556,7 @@ export default function InvitesPage() {
                             </button>
                           )}
                           {allSent && (
-                            <span className="ml-auto text-[11px] font-bold text-green-600 flex items-center gap-1">
+                            <span className="ml-auto text-[11px] font-bold text-emerald-600 flex items-center gap-1">
                               <span className="material-symbols-outlined text-[14px]">check_circle</span>
                               All sent
                             </span>
@@ -563,32 +570,36 @@ export default function InvitesPage() {
                   }
                 }
 
-                // Render ungrouped guests normally
                 ungrouped.forEach((guest) => rows.push(<InviteRow key={guest.id} guest={guest} />));
 
-                return rows;
+                return rows.length > 0 ? rows : (
+                  <tr>
+                    <td colSpan={6} className="px-8 py-8 text-center text-outline font-body">
+                      No guests found
+                    </td>
+                  </tr>
+                );
               })()}
             </tbody>
           </table>
         </div>
 
-        {/* Pagination */}
-        <div className="px-6 py-4 bg-slate-50/50 border-t border-primary/10 flex items-center justify-between">
-          <p className="text-xs font-medium text-slate-500">
-            Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, filteredGuests.length)} of {filteredGuests.length} guests
+        <div className="px-8 py-6 bg-surface-container-low flex items-center justify-between">
+          <p className="text-xs text-outline font-medium font-body">
+            Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, filteredGuests.length)} of {filteredGuests.length} Guests
           </p>
           <div className="flex gap-2">
             <button
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="px-3 py-1 bg-white border border-slate-200 rounded text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+              className="px-3 py-1 border border-outline-variant rounded bg-white text-xs font-bold text-on-surface hover:bg-surface-container-highest transition-colors disabled:opacity-50 font-body"
             >
               Previous
             </button>
             <button
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages || totalPages === 0}
-              className="px-3 py-1 bg-white border border-slate-200 rounded text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+              className="px-3 py-1 border border-outline-variant rounded bg-white text-xs font-bold text-on-surface hover:bg-surface-container-highest transition-colors disabled:opacity-50 font-body"
             >
               Next
             </button>
@@ -599,20 +610,20 @@ export default function InvitesPage() {
       {/* Floating Bulk Action Bar */}
       {selectedIds.size > 0 && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-20">
-          <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-2xl shadow-slate-900/40 flex items-center justify-between border border-white/10">
+          <div className="bg-inverse-surface text-inverse-on-surface p-4 rounded-2xl shadow-2xl flex items-center justify-between border border-white/10">
             <div className="flex items-center gap-3 pl-2 shrink-0">
-              <div className="bg-primary size-8 rounded-full flex items-center justify-center font-black text-sm">
+              <div className="bg-primary size-8 rounded-full flex items-center justify-center font-black text-sm text-on-primary">
                 {selectedIds.size}
               </div>
               <div>
-                <p className="text-sm font-bold">{selectedIds.size} selected</p>
-                <p className="text-[10px] text-slate-400 font-medium">Bulk actions</p>
+                <p className="text-sm font-bold font-body">{selectedIds.size} selected</p>
+                <p className="text-[10px] text-outline font-medium font-body">Bulk actions</p>
               </div>
             </div>
             <div className="flex gap-2">
               <button
                 onClick={() => setSelectedIds(new Set())}
-                className="px-3 py-2 hover:bg-white/10 text-slate-300 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all"
+                className="px-3 py-2 hover:bg-white/10 text-inverse-on-surface rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all font-body"
               >
                 <span className="material-symbols-outlined text-lg">close</span>
                 Clear
@@ -620,7 +631,7 @@ export default function InvitesPage() {
               <button
                 onClick={() => handleAICall(Array.from(selectedIds))}
                 disabled={callingGuests}
-                className="px-3 py-2 bg-purple-600 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 hover:bg-purple-700 transition-all disabled:opacity-50"
+                className="px-3 py-2 bg-purple-600 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 hover:bg-purple-700 transition-all disabled:opacity-50 font-body"
               >
                 <span className="material-symbols-outlined text-lg">
                   {callingGuests ? "sync" : "call"}
@@ -630,7 +641,7 @@ export default function InvitesPage() {
               <button
                 onClick={() => handleBulkEmail(guests.filter((g) => selectedIds.has(g.id)))}
                 disabled={sendingEmails}
-                className="px-3 py-2 bg-blue-600 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 hover:bg-blue-700 transition-all disabled:opacity-50"
+                className="px-3 py-2 bg-blue-600 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 hover:bg-blue-700 transition-all disabled:opacity-50 font-body"
               >
                 <span className="material-symbols-outlined text-lg">
                   {sendingEmails ? "sync" : "mail"}
@@ -639,7 +650,7 @@ export default function InvitesPage() {
               </button>
               <button
                 onClick={() => markAllAsSent(Array.from(selectedIds))}
-                className="px-3 py-2 bg-primary text-white rounded-lg font-bold text-xs flex items-center gap-1.5 hover:bg-primary/90 transition-all"
+                className="px-3 py-2 bg-primary text-on-primary rounded-lg font-bold text-xs flex items-center gap-1.5 hover:bg-primary/90 transition-all font-body"
               >
                 <span className="material-symbols-outlined text-lg">mark_email_read</span>
                 Mark Sent
@@ -652,16 +663,16 @@ export default function InvitesPage() {
       {/* Bulk Email Confirmation Dialog */}
       {showBulkEmailDialog && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowBulkEmailDialog(false)}>
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-xl font-black text-slate-900 mb-2">Send Email Invitations</h3>
-            <p className="text-slate-500 text-sm mb-6">Review before sending</p>
+          <div className="bg-surface-container-lowest rounded-2xl p-8 w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-serif font-black text-on-surface mb-2">Send Email Invitations</h3>
+            <p className="text-outline text-sm mb-6 font-body">Review before sending</p>
             <div className="space-y-3 mb-6">
               {guestsWithEmail.length > 0 && (
-                <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                  <span className="material-symbols-outlined text-green-600">check_circle</span>
+                <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                  <span className="material-symbols-outlined text-emerald-600">check_circle</span>
                   <div>
-                    <p className="font-bold text-sm text-slate-900">{guestsWithEmail.length} guests will receive emails</p>
-                    <p className="text-xs text-slate-500">Valid email addresses</p>
+                    <p className="font-bold text-sm text-on-surface font-body">{guestsWithEmail.length} guests will receive emails</p>
+                    <p className="text-xs text-outline font-body">Valid email addresses</p>
                   </div>
                 </div>
               )}
@@ -669,17 +680,17 @@ export default function InvitesPage() {
                 <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
                   <span className="material-symbols-outlined text-amber-600">warning</span>
                   <div>
-                    <p className="font-bold text-sm text-slate-900">{guestsWithInvalidEmail.length} guests skipped</p>
-                    <p className="text-xs text-slate-500">Invalid or unrecognised email domains</p>
+                    <p className="font-bold text-sm text-on-surface font-body">{guestsWithInvalidEmail.length} guests skipped</p>
+                    <p className="text-xs text-outline font-body">Invalid or unrecognised email domains</p>
                   </div>
                 </div>
               )}
               {guestsWithoutEmail.length > 0 && (
-                <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                  <span className="material-symbols-outlined text-slate-400">mail_off</span>
+                <div className="flex items-center gap-3 p-3 bg-surface-container rounded-lg border border-outline-variant">
+                  <span className="material-symbols-outlined text-outline">mail_off</span>
                   <div>
-                    <p className="font-bold text-sm text-slate-900">{guestsWithoutEmail.length} guests have no email</p>
-                    <p className="text-xs text-slate-500">Will not be contacted</p>
+                    <p className="font-bold text-sm text-on-surface font-body">{guestsWithoutEmail.length} guests have no email</p>
+                    <p className="text-xs text-outline font-body">Will not be contacted</p>
                   </div>
                 </div>
               )}
@@ -687,14 +698,14 @@ export default function InvitesPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowBulkEmailDialog(false)}
-                className="flex-1 px-4 py-2 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+                className="flex-1 px-4 py-2 border border-outline-variant rounded-lg text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-colors font-body"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmSendEmails}
                 disabled={guestsWithEmail.length === 0}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors disabled:opacity-50 font-body"
               >
                 Send {guestsWithEmail.length} Emails
               </button>
