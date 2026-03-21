@@ -39,17 +39,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         let status = "pending";
         let pax = 0;
         let dietary = null;
+        let needsAccommodation = false;
 
         if (dataSource.rsvp_status) {
             status = String(dataSource.rsvp_status).toLowerCase().trim();
             pax = parseInt(dataSource.guest_count) || (status === "confirmed" ? 1 : 0);
             dietary = dataSource.dietary_preference || null;
+            const accVal = String(dataSource.accommodation_needed || "").toLowerCase().trim();
+            needsAccommodation = ["yes", "true", "needed", "1"].includes(accVal);
         } else {
             // Approach C: Fallback to local transcript parsing
             const parsed = await parseRSVPFromTranscript(transcript);
             status = parsed.status;
             pax = parsed.total_pax;
             dietary = parsed.dietary_preference;
+            needsAccommodation = parsed.needs_accommodation;
         }
 
         if (status === "pending") continue;
@@ -80,6 +84,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                         status: status,
                         total_pax: status === "confirmed" ? pax : 0,
                         dietary_preference: dietary,
+                        needs_accommodation: status === "confirmed" && needsAccommodation,
                         responded_at: log.called_time // Use the call time from Tabbly as responded_at
                     }).eq("id", existingRSVP.id);
                 } else {
@@ -90,6 +95,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                         status: status,
                         total_pax: status === "confirmed" ? pax : 0,
                         dietary_preference: dietary,
+                        needs_accommodation: status === "confirmed" && needsAccommodation,
                         responded_at: log.called_time
                     });
                 }

@@ -84,6 +84,7 @@ Phase 2: After they acknowledge the invitation, politely ask for their RSVP deta
 1. Ask if they will be able to attend.
 2. If attending, ask how many people (total pax) will be joining.
 3. Ask if they have any dietary preferences (Veg, Non-Veg, or Jain).
+4. Ask if they will need accommodation or hotel arrangements for the wedding.
 
 Phase 3: Wrap up by letting them know they will also receive a WhatsApp link with detailed RSVP forms and directions. 
 

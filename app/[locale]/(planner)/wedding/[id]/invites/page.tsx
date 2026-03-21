@@ -32,7 +32,7 @@ import type { Wedding, Guest, WeddingFunction } from "@/lib/types";
 import { generateWhatsAppLink, generateReminderLink, generateWhatsAppMessage, normalizePhone } from "@/lib/whatsapp";
 import { generateEmailLink } from "@/lib/email";
 import { toast } from "sonner";
-import { encrypt, decrypt } from "@/lib/encryption";
+
 
 export default function InvitesPage() {
   const params = useParams();
@@ -72,22 +72,16 @@ export default function InvitesPage() {
   }
 
   const fetchData = useCallback(async () => {
-    const [weddingRes, guestRes, groupRes, funcRes] = await Promise.all([
+    const [weddingRes, guestData, groupRes, funcRes] = await Promise.all([
       supabase.from("weddings").select("*").eq("id", weddingId).single(),
-      supabase.from("guests").select("*").eq("wedding_id", weddingId),
+      fetch(`/api/wedding/${weddingId}/guests`).then(res => res.json()),
       supabase.from("guest_groups").select("*").eq("wedding_id", weddingId),
       supabase.from("wedding_functions").select("*").eq("wedding_id", weddingId).order("sort_order"),
     ]);
     if (weddingRes.data) setWedding(weddingRes.data);
     
-    // Decrypt guest data
-    const decryptedGuests = (guestRes.data || []).map(guest => ({
-      ...guest,
-      phone: guest.phone?.includes(':') ? decrypt(guest.phone) : guest.phone,
-      email: guest.email?.includes(':') ? decrypt(guest.email) : guest.email,
-    }));
-    
-    if (guestRes.data) setGuests(decryptedGuests);
+    // Guest data is already decrypted server-side
+    if (guestData) setGuests(guestData);
     if (groupRes.data) setGuestGroups(groupRes.data);
     if (funcRes.data) setFunctions(funcRes.data);
     setLoading(false);
