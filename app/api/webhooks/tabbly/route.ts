@@ -19,6 +19,7 @@ export async function POST(req: Request) {
     let status = "pending";
     let pax = 0;
     let dietary = null;
+    let needsAccommodation = false;
 
     const dataSource = payload.variables || payload.extracted_data || {};
     
@@ -26,12 +27,15 @@ export async function POST(req: Request) {
         status = String(dataSource.rsvp_status).toLowerCase().trim();
         pax = parseInt(dataSource.guest_count) || (status === "confirmed" ? 1 : 0);
         dietary = dataSource.dietary_preference || null;
+        const accVal = String(dataSource.accommodation_needed || "").toLowerCase().trim();
+        needsAccommodation = ["yes", "true", "needed", "1"].includes(accVal);
     } else {
         // Approach C: Fallback to local transcript parsing
         const parsed = await parseRSVPFromTranscript(transcript);
         status = parsed.status;
         pax = parsed.total_pax;
         dietary = parsed.dietary_preference;
+        needsAccommodation = parsed.needs_accommodation;
     }
 
     // Update Guest status
@@ -58,6 +62,7 @@ export async function POST(req: Request) {
                         status: status,
                         total_pax: status === "confirmed" ? pax : 0,
                         dietary_preference: dietary,
+                        needs_accommodation: status === "confirmed" && needsAccommodation,
                         responded_at: new Date().toISOString()
                     }).eq("id", existingRSVP.id);
                 } else {
@@ -68,6 +73,7 @@ export async function POST(req: Request) {
                         status: status,
                         total_pax: status === "confirmed" ? pax : 0,
                         dietary_preference: dietary,
+                        needs_accommodation: status === "confirmed" && needsAccommodation,
                         responded_at: new Date().toISOString()
                     });
                 }
@@ -82,7 +88,7 @@ export async function POST(req: Request) {
         status: payload.status,
         payload: {
             transcript: encrypt(transcript),
-            parsed: { status, pax, dietary }
+            parsed: { status, pax, dietary, needsAccommodation }
         }
     });
 

@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 import type { Wedding, Guest, WeddingFunction, RSVP } from "@/lib/types";
 
 import { toast } from "sonner";
-import { encrypt, decrypt } from "@/lib/encryption";
+import { encryptValue } from "@/lib/client-encryption";
 
 function deriveFunctionsForSide(side: 'bride' | 'groom' | 'both', allFunctions: WeddingFunction[]) {
   if (side === 'both') return allFunctions.map(f => f.id);
@@ -76,23 +76,17 @@ export default function GuestListPage() {
   const [editTags, setEditTags] = useState("");
 
   const fetchData = useCallback(async () => {
-    const [weddingRes, guestRes, groupRes, funcRes, rsvpRes] = await Promise.all([
+    const [weddingRes, guestData, groupRes, funcRes, rsvpRes] = await Promise.all([
       supabase.from("weddings").select("*").eq("id", weddingId).single(),
-      supabase.from("guests").select("*").eq("wedding_id", weddingId),
+      fetch(`/api/wedding/${weddingId}/guests`).then(res => res.json()),
       supabase.from("guest_groups").select("*").eq("wedding_id", weddingId),
       supabase.from("wedding_functions").select("*").eq("wedding_id", weddingId).order("sort_order"),
       supabase.from("rsvps").select("*").eq("wedding_id", weddingId),
     ]);
     if (weddingRes.data) setWedding(weddingRes.data);
     
-    // Decrypt guest data
-    const decryptedGuests = (guestRes.data || []).map(guest => ({
-      ...guest,
-      phone: guest.phone?.includes(':') ? decrypt(guest.phone) : guest.phone,
-      email: guest.email?.includes(':') ? decrypt(guest.email) : guest.email,
-    }));
-    
-    if (guestRes.data) setGuests(decryptedGuests);
+    // Guest data is already decrypted server-side
+    if (guestData) setGuests(guestData);
     if (groupRes.data) setGuestGroups(groupRes.data);
     if (funcRes.data) setFunctions(funcRes.data);
     if (rsvpRes.data) setRsvps(rsvpRes.data);
@@ -146,8 +140,8 @@ export default function GuestListPage() {
     const { data: newGuest, error } = await supabase.from("guests").insert({
       wedding_id: weddingId, 
       name: newName, 
-      phone: encrypt(newPhone), 
-      email: newEmail ? encrypt(newEmail) : null, 
+      phone: await encryptValue(newPhone), 
+      email: newEmail ? await encryptValue(newEmail) : null, 
       side: newSide,
       tags: newTags.split(",").map((t) => t.trim()).filter(Boolean),
       function_ids: funcIds, 
@@ -184,8 +178,8 @@ export default function GuestListPage() {
     }
     const { error } = await supabase.from("guests").update({
       name: editName,
-      phone: encrypt(editPhone),
-      email: editEmail ? encrypt(editEmail) : null,
+      phone: await encryptValue(editPhone),
+      email: editEmail ? await encryptValue(editEmail) : null,
       side: editSide,
       tags: editTags.split(",").map((t) => t.trim()).filter(Boolean),
     }).eq("id", editingGuest.id);
@@ -423,8 +417,8 @@ export default function GuestListPage() {
         const { data: newGuest, error: guestError } = await supabase.from("guests").insert({
           wedding_id: weddingId,
           name: String(name).trim(),
-          phone: encrypt(String(phone).trim()),
-          email: email ? encrypt(String(email).trim()) : null,
+          phone: await encryptValue(String(phone).trim()),
+          email: email ? await encryptValue(String(email).trim()) : null,
           side: side as "bride" | "groom" | "both",
           tags: tagsStr ? String(tagsStr).split(/[;,]/).map((t: string) => t.trim()).filter(Boolean) : [],
           function_ids: derivedFuncIds,

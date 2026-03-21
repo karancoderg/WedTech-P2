@@ -9,7 +9,7 @@ import { useTranslations } from "next-intl";
 import { syncGuestWithCRM } from "@/lib/services/crm-sync";
 import QRCode from "qrcode";
 import { Great_Vibes, Pinyon_Script, Manrope, Noto_Serif } from "next/font/google";
-import { encrypt } from "@/lib/encryption";
+import { encryptValue } from "@/lib/client-encryption";
 
 const greatVibes = Great_Vibes({ weight: "400", subsets: ["latin"] });
 const pinyonScript = Pinyon_Script({ weight: "400", subsets: ["latin"] });
@@ -167,7 +167,7 @@ export default function RSVPFormPage() {
           wedding_id: wedding!.id,
           group_id: primaryGuest.group_id || primaryGuest.id, // Group them together
           name: ag.name.trim(),
-          phone: encrypt(ag.phone.trim()),
+          phone: await encryptValue(ag.phone.trim()),
           side: primaryGuest.side,
           tags: primaryGuest.tags,
           function_ids: primaryGuest.function_ids,

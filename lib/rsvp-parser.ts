@@ -41,17 +41,31 @@ export async function parseRSVPFromTranscript(transcript: string) {
         dietary_preference = "veg";
     }
 
+    // 4. Accommodation Detection
+    let needs_accommodation = false;
+    const noAccommodationKeywords = ["no accommodation", "don't need accommodation", "do not need accommodation", "no hotel", "no room", "staying with family", "staying at home", "local", "nearby"];
+    const yesAccommodationKeywords = ["need accommodation", "need a hotel", "need a room", "need hotel", "need room", "book a room", "book a hotel", "accommodation", "hotel", "stay arrangement"];
+
+    const noAccommodation = noAccommodationKeywords.some(keyword => text.includes(keyword));
+    const yesAccommodation = yesAccommodationKeywords.some(keyword => text.includes(keyword));
+
+    if (yesAccommodation && !noAccommodation) {
+        needs_accommodation = true;
+    }
+
     return {
       status,
       total_pax,
-      dietary_preference
+      dietary_preference,
+      needs_accommodation
     };
   } catch (error) {
     console.error("Local Parsing Error:", error);
     return {
       status: "pending",
       total_pax: 0,
-      dietary_preference: null
+      dietary_preference: null,
+      needs_accommodation: false
     };
   }
 }
