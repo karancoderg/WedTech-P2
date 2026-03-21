@@ -726,7 +726,7 @@ export default function InvitesPage() {
             <div className="p-8 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-slate-50/50">
               {[
                 { id: 'royal', name: 'Royal Traditional', desc: 'Deep maroon & gold, mandala patterns', preview: '/images/templates/royal.png' },
-                { id: 'minimal', name: 'Modern Minimalist', desc: 'Clean white, rose gold, geometric', preview: '/images/templates/minimal.png' },
+                { id: 'minimal', name: 'Lavender Elegance', desc: 'Purple watercolor, elegant florals, airy', preview: '/images/templates/minimal.png' },
                 { id: 'floral', name: 'Elegant Floral', desc: 'Watercolor petals, airy aesthetic', preview: '/images/templates/floral.png' },
                 { id: 'dark', name: 'Midnight Gala', desc: 'Dark navy, glowing gold, luxury', preview: '/images/templates/dark.png' },
                 { id: 'bohemian', name: 'Earthly Bohemian', desc: 'Terracotta, organic leaves, rustic', preview: '/images/templates/bohemian.png' }
