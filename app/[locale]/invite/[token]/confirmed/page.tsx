@@ -124,18 +124,123 @@ export default function ConfirmedPage() {
       borderTop: "border-slate-100",
       buttonLink: "text-slate-900 hover:text-slate-700",
       whatsappBtn: "border-slate-300 text-slate-800 bg-slate-50 hover:bg-slate-100",
+    },
+    dark: {
+      bg: "bg-[#0b141f]",
+      textAccent: "text-[#f2ca50]",
+      textPrimary: "text-[#dae3f3]",
+      textSecondary: "text-[#7f735a]",
+      iconBg: "bg-[#f2ca50]/20",
+      iconText: "text-[#f2ca50]",
+      cardBg: "bg-[#18202c] border-[#f2ca50]/20",
+      cardSubBg: "bg-[#0b141f]/50",
+      borderTop: "border-[#f2ca50]/20",
+      buttonLink: "text-[#f2ca50] hover:text-[#cfab68]",
+      whatsappBtn: "border-green-500 text-[#dae3f3] bg-[#0b141f] hover:bg-[#18202c]",
+    },
+    bohemian: {
+      bg: "bg-[#fdf9f4]",
+      textAccent: "text-[#914730]",
+      textPrimary: "text-[#1c1c19]",
+      textSecondary: "text-[#54433e]/70",
+      iconBg: "bg-[#914730]/10",
+      iconText: "text-[#914730]",
+      cardBg: "bg-[#f1ede8] border-[#914730]/20",
+      cardSubBg: "bg-[#fdf9f4]",
+      borderTop: "border-[#914730]/20",
+      buttonLink: "text-[#914730] hover:text-[#7f735a]",
+      whatsappBtn: "border-green-600 text-green-700 bg-green-50/50 hover:bg-green-100",
     }
   };
 
-  const t = themeStyles['floral'];
+  const t = themeStyles[wedding.template_id as keyof typeof themeStyles] || themeStyles['floral'];
+
+  const outerBg = wedding.template_id === 'floral' ? 'bg-[#fffdfa]' : (wedding.template_id === 'royal' ? 'bg-[#3a0606]' : wedding.template_id === 'minimal' ? 'bg-[#f6f4fa]' : wedding.template_id === 'dark' ? 'bg-[#e8e9ea]' : 'bg-[#FAFAF9]');
+  const innerBg = wedding.template_id === 'floral' ? 'bg-[#fffdfa]' : (wedding.template_id === 'royal' ? 'bg-[#6e1616] shadow-[0_0_50px_rgba(0,0,0,0.8)]' : wedding.template_id === 'minimal' ? 'bg-[#ffffff]' : wedding.template_id === 'dark' ? 'bg-[#051c2c] shadow-[0_0_40px_rgba(0,0,0,0.4)]' : t.bg);
 
   return (
-    <div className={`relative w-full max-w-[430px] min-h-screen ${t.bg} shadow-2xl flex flex-col overflow-x-hidden mx-auto transition-colors duration-500`}>
-      <div className="fixed inset-0 z-[-1]">
-        <img src="/images/watercolor_bg.png" alt="background" className="w-full h-full object-cover opacity-40" />
-      </div>
+    <div className={`min-h-screen w-full flex justify-center relative overflow-hidden ${outerBg}`}>
+      {/* Extra Laptop Corners Background (Hidden on Mobile) */}
+      {/* Extra Laptop Background (Removed) */}
+
+      <div className={`relative w-full max-w-[430px] min-h-screen ${innerBg} shadow-2xl flex flex-col overflow-x-hidden transition-colors duration-500 z-10`}>
+        {/* Dynamic Backgrounds based on Theme */}
+        <div className="absolute inset-0 z-0 flex justify-center pointer-events-none">
+          <div className="w-full max-w-[430px] relative h-full">
+            {wedding.template_id === 'floral' ? (
+              <>
+                <div className="absolute inset-0 bg-[#fffdfa]" />
+                <img src="/images/blush_floral_top.png" alt="" className="absolute top-0 inset-x-0 w-full opacity-95 mix-blend-multiply object-cover" style={{ maxHeight: '300px', objectPosition: 'top center' }} />
+                <img src="/images/blush_floral_bottom.png" alt="" className="absolute bottom-0 inset-x-0 w-full opacity-90 mix-blend-multiply object-cover" style={{ maxHeight: '350px', objectPosition: 'bottom center' }} />
+              </>
+            ) : wedding.template_id === 'royal' ? (
+              <>
+                <div className="absolute inset-0 bg-[#6e1616]" />
+                <div className="absolute inset-x-4 inset-y-0 opacity-[0.03] mix-blend-color-burn" style={{ backgroundImage: 'repeating-linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%, #000)', backgroundPosition: '0 0, 10px 10px', backgroundSize: '20px 20px' }} />
+                <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-[#420a0a] to-transparent z-0" />
+                <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-[#420a0a] to-transparent z-0" />
+                <img src="/images/royal_top_lace.png" alt="" className="absolute top-0 inset-x-0 w-full opacity-40 mix-blend-multiply h-auto" style={{ maxHeight: '150px', objectPosition: 'top center' }} />
+                <img src="/images/royal_bottom_lace.png" alt="" className="absolute bottom-0 inset-x-0 w-full opacity-40 mix-blend-multiply h-auto" style={{ maxHeight: '150px', objectPosition: 'bottom center' }} />
+              </>
+            ) : wedding.template_id === 'minimal' ? (
+              <>
+                <div className="absolute inset-0 bg-[#f8f0f2]" />
+                <img src="/images/wisteria_top.png" alt="" className="absolute top-0 inset-x-0 w-full opacity-100 mix-blend-multiply object-contain object-top" />
+                <img src="/images/eucalyptus_bottom.png" alt="" className="absolute bottom-0 inset-x-0 w-full opacity-100 mix-blend-multiply object-contain object-bottom" />
+              </>
+            ) : wedding.template_id === 'dark' ? (
+              <>
+                {/* Inner Thin Gold Rectangular Broken Border */}
+                <div className="absolute inset-0 pointer-events-none z-10">
+                  <div className="absolute top-[24px] left-[110px] right-[24px] h-[0.5px] bg-[#cfab68]/50 ring-0" />
+                  <div className="absolute top-[24px] bottom-[110px] right-[24px] w-[0.5px] bg-[#cfab68]/50 ring-0" />
+                  <div className="absolute bottom-[24px] left-[24px] right-[110px] h-[0.5px] bg-[#cfab68]/50 ring-0" />
+                  <div className="absolute top-[110px] bottom-[24px] left-[24px] w-[0.5px] bg-[#cfab68]/50 ring-0" />
+                </div>
+                
+                {/* Intricate Hand-drawn Gold Vector Line Art Florals */}
+                <div className="absolute top-0 left-0 z-20 pointer-events-none opacity-80 select-none overflow-hidden w-full h-full">
+                   {/* Top Left Artistic Flower SVG */}
+                   <svg viewBox="0 0 200 200" className="absolute top-[6px] left-[6px] w-[140px] h-[140px] stroke-[#cfab68] stroke-[0.8px] fill-transparent transform rotate-6">
+                      <path d="M120,180 Q100,100 80,40" strokeLinecap="round" />
+                      <path d="M120,180 Q130,120 160,80" strokeLinecap="round" />
+                      <path d="M100,150 Q70,160 50,130 Q80,110 100,150 Z" />
+                      <path d="M110,120 Q140,130 150,100 Q120,90 110,120 Z" />
+                      <path d="M90,80 C60,90 20,60 50,20 C80,30 100,60 90,80 Z" />
+                      <path d="M50,20 C30,30 30,60 50,50" />
+                      <path d="M50,20 C70,30 70,60 50,50" />
+                      <path d="M150,80 C180,90 190,40 160,20 C130,10 120,70 150,80 Z" />
+                      <path d="M160,20 C140,30 140,60 160,50" />
+                      <circle cx="85" cy="165" r="2" fill="#cfab68" />
+                      <circle cx="100" cy="180" r="2" fill="#cfab68" />
+                      <circle cx="140" cy="135" r="1.5" fill="#cfab68" />
+                   </svg>
+                   
+                   {/* Bottom Right Artistic Flower SVG */}
+                   <svg viewBox="0 0 200 200" className="absolute bottom-[6px] right-[6px] w-[150px] h-[150px] stroke-[#cfab68] stroke-[0.8px] fill-transparent transform origin-center rotate-[190deg]">
+                      <path d="M120,180 Q100,100 80,40" strokeLinecap="round" />
+                      <path d="M120,180 Q130,120 160,80" strokeLinecap="round" />
+                      <path d="M100,150 Q70,160 50,130 Q80,110 100,150 Z" />
+                      <path d="M110,120 Q140,130 150,100 Q120,90 110,120 Z" />
+                      <path d="M90,80 C60,90 20,60 50,20 C80,30 100,60 90,80 Z" />
+                      <path d="M50,20 C30,30 30,60 50,50" />
+                      <path d="M50,20 C70,30 70,60 50,50" />
+                      <path d="M150,80 C180,90 190,40 160,20 C130,10 120,70 150,80 Z" />
+                      <path d="M160,20 C140,30 140,60 160,50" />
+                      <circle cx="85" cy="165" r="2" fill="#cfab68" />
+                      <circle cx="100" cy="180" r="2" fill="#cfab68" />
+                      <circle cx="140" cy="135" r="1.5" fill="#cfab68" />
+                   </svg>
+                </div>
+              </>
+            ) : (
+              <img src="/images/watercolor_bg.png" alt="background" className="w-full h-full object-cover opacity-40" />
+            )}
+          </div>
+        </div>
+
       {/* Header */}
-      <div className="flex items-center bg-transparent p-4 pb-2 justify-between">
+      <div className={`relative z-10 flex items-center bg-transparent p-4 pb-2 justify-between ${(wedding.template_id === 'floral' || wedding.template_id === 'minimal') ? 'pt-[200px]' : ''}`}>
         <div className="size-12" />
         <h2 className={`${t.textPrimary} text-lg font-semibold leading-tight tracking-tight flex-1 text-center`}>
           RSVP Confirmation
@@ -144,7 +249,7 @@ export default function ConfirmedPage() {
       </div>
 
       {/* Celebration Hero */}
-      <div className="flex flex-col items-center px-6 pt-10 pb-8 text-center">
+      <div className="relative z-10 flex flex-col items-center px-6 pt-10 pb-8 text-center">
         <div className={`mb-6 flex h-20 w-20 items-center justify-center rounded-full ${t.iconBg} animate-scale-in`}>
           <span className={`material-symbols-outlined ${t.iconText} text-[48px] font-bold`}>check_circle</span>
         </div>
@@ -159,7 +264,7 @@ export default function ConfirmedPage() {
 
       {/* QR Code Pass */}
       {qrCodeDataUrl && (
-        <div className="px-4 pb-6">
+        <div className="relative z-10 px-4 pb-6">
           <div className={`${t.cardBg} flex flex-col items-center rounded-2xl shadow-sm border p-6`}>
             <p className={`text-xs font-bold ${t.textSecondary} uppercase tracking-widest mb-4`}>Your Event Pass</p>
             <div className={`p-2 border-2 ${t.borderTop} rounded-2xl bg-white shadow-sm`}>
@@ -173,7 +278,7 @@ export default function ConfirmedPage() {
       )}
 
       {/* Summary Card */}
-      <div className="px-4 pb-6">
+      <div className="relative z-10 px-4 pb-6">
         <div className={`${t.cardBg} rounded-2xl shadow-sm border p-6`}>
           <h3 className={`${t.textPrimary} text-lg font-bold mb-4`}>RSVP Summary</h3>
 
@@ -228,7 +333,7 @@ export default function ConfirmedPage() {
       </div>
 
       {/* Calendar Actions */}
-      <div className="px-4 space-y-4 mb-8">
+      <div className="relative z-10 px-4 space-y-4 mb-8">
         {confirmedFunctions.map((func) => (
           <a
             key={func.id}
@@ -244,7 +349,7 @@ export default function ConfirmedPage() {
       </div>
 
       {/* WhatsApp Share */}
-      <div className="px-4 mb-10">
+      <div className="relative z-10 px-4 mb-10">
         <a href={waShareLink} target="_blank" rel="noopener">
           <button className={`w-full flex items-center justify-center gap-3 py-4 border-2 font-bold rounded-xl transition-colors ${t.whatsappBtn}`}>
             <span className="material-symbols-outlined">share</span>
@@ -254,13 +359,14 @@ export default function ConfirmedPage() {
       </div>
 
       {/* Footer */}
-      <footer className="mt-auto py-8 text-center px-6">
+      <footer className={`relative z-10 mt-auto pt-8 pb-${(wedding.template_id === 'floral' || wedding.template_id === 'minimal') ? '[380px]' : '8'} text-center px-6`}>
         <p className={`italic ${t.textSecondary} text-sm mb-4`}>&ldquo;Together is a beautiful place to be&rdquo;</p>
         <div className="flex flex-col items-center gap-1">
           <p className={`text-[10px] uppercase tracking-widest ${t.textSecondary} font-bold opacity-60`}>Powered by WedSync</p>
           <div className={`h-1 w-8 ${t.textAccent} bg-current opacity-20 rounded-full mt-2`} />
         </div>
       </footer>
+    </div>
     </div>
   );
 }

@@ -211,8 +211,8 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col items-center text-center mb-24">
             <div className="flex w-full justify-center max-w-sm">
-              <input type="email" placeholder="ENTER YOUR EMAIL ADDRESS..." className="w-full border-b border-[#CBA88A] bg-transparent pb-3 text-[9px] tracking-[0.2em] outline-none text-[#5C4033] placeholder-[#CBA88A]" />
-              <button className="bg-[#5C4033] text-white px-8 py-3 text-[9px] tracking-[0.2em] font-bold hover:bg-[#4A3228] transition-colors ml-4 uppercase">Submit</button>
+              <input suppressHydrationWarning type="email" placeholder="ENTER YOUR EMAIL ADDRESS..." className="w-full border-b border-[#CBA88A] bg-transparent pb-3 text-[9px] tracking-[0.2em] outline-none text-[#5C4033] placeholder-[#CBA88A]" />
+              <button suppressHydrationWarning className="bg-[#5C4033] text-white px-8 py-3 text-[9px] tracking-[0.2em] font-bold hover:bg-[#4A3228] transition-colors ml-4 uppercase">Submit</button>
             </div>
           </div>
 
