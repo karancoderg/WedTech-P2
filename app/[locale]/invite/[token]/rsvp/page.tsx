@@ -8,9 +8,12 @@ import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { syncGuestWithCRM } from "@/lib/services/crm-sync";
 import QRCode from "qrcode";
-import { Great_Vibes } from "next/font/google";
+import { Great_Vibes, Pinyon_Script, Manrope, Noto_Serif } from "next/font/google";
 
 const greatVibes = Great_Vibes({ weight: "400", subsets: ["latin"] });
+const pinyonScript = Pinyon_Script({ weight: "400", subsets: ["latin"] });
+const manrope = Manrope({ subsets: ["latin"] });
+const notoSerif = Noto_Serif({ subsets: ["latin"] });
 
 
 interface FunctionResponse {
@@ -220,58 +223,120 @@ export default function RSVPFormPage() {
     );
   }
 
-  const themeStyles = {
-    floral: {
-      bg: "bg-transparent",
-      borderTop: "border-emerald-200/50",
-      textAccent: "text-emerald-900",
-      textPrimary: "text-slate-800",
-      textSecondary: "text-slate-500",
-      fontHeading: greatVibes.className,
-      button: "bg-emerald-800 hover:bg-emerald-900 text-white shadow-emerald-200",
-      cardBg: "bg-white/70 backdrop-blur-[2px] border-emerald-100",
-      icon: "text-emerald-700",
-      iconBg: "bg-emerald-700",
-      checkbox: "peer-checked:bg-emerald-800",
-      cardActive: "border-emerald-800 bg-emerald-50/50",
-      cardInactive: "border-emerald-100 hover:border-emerald-300",
-      bgSub: "bg-white/80 backdrop-blur-[2px]",
-    },
+  const themes: Record<string, any> = {
     royal: {
-      bg: "bg-slate-950",
-      borderTop: "border-amber-500/30",
-      textAccent: "text-amber-400",
+      bg: "bg-[#570000]",
+      card: "bg-white/5 backdrop-blur-sm border border-[#e9c349]/20",
+      accent: "#e9c349",
       textPrimary: "text-white",
-      textSecondary: "text-amber-200/80",
-      fontHeading: "font-serif",
-      button: "bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-amber-500/20",
-      cardBg: "bg-slate-900 border-amber-500/20",
-      icon: "text-amber-500",
-      iconBg: "bg-amber-500",
-      checkbox: "peer-checked:bg-amber-500",
-      cardActive: "border-amber-500",
-      cardInactive: "border-transparent hover:border-amber-500/20",
-      bgSub: "bg-slate-900",
+      textSecondary: "text-[#e9c349]/70",
+      textAccent: "text-[#e9c349]",
+      fontHeading: notoSerif.className,
+      fontBody: "font-body",
+      button: "bg-gradient-to-r from-[#735c00] via-[#e9c349] to-[#735c00] text-[#241a00] font-bold rounded-sm tracking-[0.2em]",
+      input: "bg-white/5 border-[#e9c349]/20 text-white focus:border-[#e9c349] focus:ring-[#e9c349]/20",
+      border: "border-[#e9c349]/20",
+      borderTop: "border-[#e9c349]/20",
+      cardActive: "border-[#e9c349] bg-white/10",
+      cardInactive: "border-[#e9c349]/10 hover:border-[#e9c349]/30",
+      cardBg: "bg-white/5 backdrop-blur-sm border-[#e9c349]/20",
+      icon: "text-[#e9c349]",
+      iconBg: "bg-[#e9c349]",
+      bgSub: "bg-[#570000]/80",
+      checkbox: "peer-checked:bg-[#e9c349]",
+      customBg: "mandala-pattern"
     },
     minimal: {
-      bg: "bg-white",
-      borderTop: "border-slate-200",
-      textAccent: "text-slate-900",
-      textPrimary: "text-slate-900",
-      textSecondary: "text-slate-500",
-      fontHeading: "font-sans font-black tracking-tight",
-      button: "bg-slate-900 hover:bg-slate-800 text-white shadow-slate-200",
-      cardBg: "bg-slate-50 border-slate-100",
-      icon: "text-slate-900",
-      iconBg: "bg-slate-900",
-      checkbox: "peer-checked:bg-slate-900",
-      cardActive: "border-slate-900",
-      cardInactive: "border-transparent hover:border-slate-900/20",
-      bgSub: "bg-white",
+      bg: "bg-[#f9f9f9]",
+      card: "bg-white border border-[#8a4853]/10 shadow-sm",
+      accent: "#8a4853",
+      textPrimary: "text-[#1a1c1c]",
+      textSecondary: "text-[#1a1c1c]/60",
+      textAccent: "text-[#8a4853]",
+      fontHeading: manrope.className + " font-extralight tracking-tighter uppercase",
+      fontBody: manrope.className,
+      button: "bg-[#8a4853] text-white rounded-none tracking-widest uppercase font-bold",
+      input: "bg-white border-[#8a4853]/20 text-[#1a1c1c] focus:border-[#8a4853] focus:ring-[#8a4853]/10",
+      border: "border-[#8a4853]/10",
+      borderTop: "border-[#8a4853]/10",
+      cardActive: "border-[#8a4853] bg-[#8a4853]/5",
+      cardInactive: "border-[#8a4853]/5 hover:border-[#8a4853]/20",
+      cardBg: "bg-white border-[#8a4853]/10",
+      icon: "text-[#8a4853]",
+      iconBg: "bg-[#8a4853]",
+      bgSub: "bg-[#f9f9f9]",
+      checkbox: "peer-checked:bg-[#8a4853]",
+      customBg: ""
+    },
+    floral: {
+      bg: "bg-[#faf9f6]",
+      card: "bg-white/80 backdrop-blur-md border border-[#7b5455]/10 shadow-sm",
+      accent: "#7b5455",
+      textPrimary: "text-[#1a1c1a]",
+      textSecondary: "text-[#4f4443]/70",
+      textAccent: "text-[#7b5455]",
+      fontHeading: notoSerif.className,
+      fontBody: manrope.className,
+      button: "bg-[#7b5455] text-white rounded-sm shadow-lg tracking-widest uppercase font-bold",
+      input: "bg-white border-[#7b5455]/20 text-[#1a1c1a] focus:border-[#7b5455] focus:ring-[#7b5455]/10",
+      border: "border-[#7b5455]/10",
+      borderTop: "border-[#7b5455]/10",
+      cardActive: "border-[#7b5455] bg-[#7b5455]/5",
+      cardInactive: "border-[#7b5455]/5 hover:border-[#7b5455]/20",
+      cardBg: "bg-white/80 border-[#7b5455]/10",
+      icon: "text-[#7b5455]",
+      iconBg: "bg-[#7b5455]",
+      bgSub: "bg-[#faf9f6]/90",
+      checkbox: "peer-checked:bg-[#7b5455]",
+      customBg: "vellum-texture"
+    },
+    dark: {
+      bg: "bg-[#0b141f]",
+      card: "bg-[#18202c] border border-[#f2ca50]/10 shadow-xl",
+      accent: "#f2ca50",
+      textPrimary: "text-[#dae3f3]",
+      textSecondary: "text-[#7f735a]",
+      textAccent: "text-[#f2ca50]",
+      fontHeading: notoSerif.className + " italic",
+      fontBody: manrope.className,
+      button: "bg-[#f2ca50] text-[#0b141f] rounded-lg shadow-xl font-bold uppercase tracking-widest",
+      input: "bg-[#0b141f] border-[#f2ca50]/20 text-[#dae3f3] focus:border-[#f2ca50] focus:ring-[#f2ca50]/10",
+      border: "border-[#f2ca50]/10",
+      borderTop: "border-[#f2ca50]/10",
+      cardActive: "border-[#f2ca50] bg-[#f2ca50]/10",
+      cardInactive: "border-[#f2ca50]/5 hover:border-[#f2ca50]/20",
+      cardBg: "bg-[#18202c] border-[#f2ca50]/10",
+      icon: "text-[#f2ca50]",
+      iconBg: "bg-[#f2ca50]",
+      bgSub: "bg-[#0b141f]/80",
+      checkbox: "peer-checked:bg-[#f2ca50]",
+      customBg: "gold-glow"
+    },
+    bohemian: {
+      bg: "bg-[#fdf9f4]",
+      card: "bg-[#f1ede8] border border-[#914730]/10 shadow-sm",
+      accent: "#914730",
+      textPrimary: "text-[#1c1c19]",
+      textSecondary: "text-[#54433e]/70",
+      textAccent: "text-[#914730]",
+      fontHeading: pinyonScript.className,
+      fontBody: notoSerif.className,
+      button: "bg-gradient-to-br from-[#914730] to-[#7f735a] text-white rounded-full shadow-lg font-serif tracking-widest",
+      input: "bg-white/50 border-[#914730]/20 text-[#1c1c19] focus:border-[#914730] focus:ring-[#914730]/10",
+      border: "border-[#914730]/10",
+      borderTop: "border-[#914730]/10",
+      cardActive: "border-[#914730] bg-[#914730]/5",
+      cardInactive: "border-[#914730]/5 hover:border-[#914730]/20",
+      cardBg: "bg-[#f1ede8] border-[#914730]/10",
+      icon: "text-[#914730]",
+      iconBg: "bg-[#914730]",
+      bgSub: "bg-[#fdf9f4]/90",
+      checkbox: "peer-checked:bg-[#914730]",
+      customBg: "paper-texture"
     }
   };
 
-  const t = themeStyles['floral']; // Forcing the new watercolor design
+  const t = themes[wedding.template_id as string] || themes.floral;
 
   if (showCompleted) {
     return (
@@ -279,11 +344,11 @@ export default function RSVPFormPage() {
         <div className="fixed inset-0 z-[-1]">
           <img src="/images/watercolor_bg.png" alt="background" className="w-full h-full object-cover opacity-40" />
         </div>
-        <header className={`sticky top-0 z-50 flex items-center ${t.bgSub} backdrop-blur-md px-4 py-4 justify-between border-b ${t.borderTop}`}>
+        <header className={`sticky top-0 z-50 flex items-center ${t.card} backdrop-blur-md px-4 py-4 justify-between border-b ${t.border}`}>
           <div className={`${t.textPrimary} flex size-10 shrink-0 items-center justify-center`}>
             {/* Logo or placeholder */}
           </div>
-          <h2 className={`${t.fontHeading} ${t.textAccent} text-3xl font-normal leading-tight flex-1 text-center py-1`}>
+          <h2 className={`${t.fontHeading} text-[${t.accent}] text-3xl font-normal leading-tight flex-1 text-center py-1`}>
             {wedding.bride_name} &amp; {wedding.groom_name}
           </h2>
           <div className="size-10 shrink-0" />

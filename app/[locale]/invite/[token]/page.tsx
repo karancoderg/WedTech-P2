@@ -6,9 +6,12 @@ import { useTranslations, useLocale } from "next-intl";
 import { supabase } from "@/lib/supabase";
 import type { Wedding, Guest, WeddingFunction } from "@/lib/types";
 import { formatDate } from "@/lib/whatsapp";
-import { Great_Vibes } from "next/font/google";
+import { Great_Vibes, Pinyon_Script, Manrope, Noto_Serif } from "next/font/google";
 
 const greatVibes = Great_Vibes({ weight: "400", subsets: ["latin"] });
+const pinyonScript = Pinyon_Script({ weight: "400", subsets: ["latin"] });
+const manrope = Manrope({ subsets: ["latin"] });
+const notoSerif = Noto_Serif({ subsets: ["latin"] });
 
 export default function InviteLandingPage() {
   const params = useParams();
@@ -65,111 +68,172 @@ export default function InviteLandingPage() {
       </div>
     );
   }
-
-  const themeStyles = {
-    floral: {
-      bg: "bg-transparent",
-      borderTop: "from-emerald-200 via-emerald-400 to-emerald-200",
-      textAccent: "text-emerald-700",
-      textPrimary: "text-slate-800",
-      textSecondary: "text-slate-500",
-      fontDisplay: "font-serif italic",
-      fontHeading: greatVibes.className,
-      divider: "border-emerald-200",
-      button: "bg-emerald-700 hover:bg-emerald-800 text-white shadow-emerald-200",
-      cardBg: "bg-white/70 backdrop-blur-sm border-emerald-100",
-      icon: "text-emerald-600",
-    },
+  // Premium dark wedding card design
+  // -------------------------------------------------------------------------
+  // THEME DEFINITIONS
+  // -------------------------------------------------------------------------
+  const themes: Record<string, any> = {
     royal: {
-      bg: "bg-slate-950",
-      borderTop: "from-amber-300 via-amber-500 to-amber-300",
-      textAccent: "text-amber-400",
+      bg: "bg-[#570000]",
+      accent: "#e9c349",
       textPrimary: "text-white",
-      textSecondary: "text-amber-200/80",
-      fontDisplay: "font-serif italic tracking-widest text-amber-200",
-      fontHeading: "font-serif",
-      divider: "border-amber-500/30",
-      button: "bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-amber-500/20",
-      cardBg: "bg-slate-900 border-amber-500/20",
-      icon: "text-amber-500",
+      textSecondary: "text-[#e9c349]/70",
+      fontHeading: notoSerif.className,
+      fontBody: "font-body",
+      ornament: (
+        <span className="material-symbols-outlined text-[#e9c349] opacity-60" style={{ fontVariationSettings: "'FILL' 1" }}>auto_graph</span>
+      ),
+      button: "bg-gradient-to-r from-[#735c00] via-[#e9c349] to-[#735c00] text-[#241a00] font-bold rounded-sm tracking-[0.2em]",
+      border: "bg-gradient-to-r from-transparent via-[#e9c349]/30 to-transparent",
+      customBg: "mandala-pattern"
     },
     minimal: {
-      bg: "bg-white",
-      borderTop: "from-slate-200 via-slate-400 to-slate-200",
-      textAccent: "text-slate-900",
-      textPrimary: "text-slate-900",
-      textSecondary: "text-slate-500",
-      fontDisplay: "font-sans uppercase tracking-[0.3em] font-light",
-      fontHeading: "font-sans font-black tracking-tight",
-      divider: "border-slate-200",
-      button: "bg-slate-900 hover:bg-slate-800 text-white shadow-slate-200",
-      cardBg: "bg-slate-50 border-slate-100",
-      icon: "text-slate-900",
+      bg: "bg-[#f9f9f9]",
+      accent: "#8a4853",
+      textPrimary: "text-[#1a1c1c]",
+      textSecondary: "text-[#1a1c1c]/60",
+      fontHeading: manrope.className + " font-extralight tracking-tighter",
+      fontBody: manrope.className,
+      ornament: <div className="h-px w-24 bg-[#8a4853]/20" />,
+      button: "bg-[#8a4853] text-white rounded-none tracking-widest uppercase font-bold",
+      border: "bg-[#8a4853]/10",
+      customBg: ""
+    },
+    floral: {
+      bg: "bg-[#faf9f6]",
+      accent: "#7b5455",
+      textPrimary: "text-[#1a1c1a]",
+      textSecondary: "text-[#4f4443]/70",
+      fontHeading: notoSerif.className,
+      fontBody: manrope.className,
+      ornament: (
+        <div className="flex gap-2 opacity-40">
+          <span className="material-symbols-outlined text-[#7b5455]">filter_vintage</span>
+        </div>
+      ),
+      button: "bg-[#7b5455] text-white rounded-sm shadow-lg tracking-widest uppercase font-bold",
+      border: "bg-[#7b5455]/10",
+      customBg: "vellum-texture"
+    },
+    dark: {
+      bg: "bg-[#0b141f]",
+      accent: "#f2ca50",
+      textPrimary: "text-[#dae3f3]",
+      textSecondary: "text-[#7f735a]",
+      fontHeading: notoSerif.className + " italic",
+      fontBody: manrope.className,
+      ornament: <div className="size-2 rounded-full bg-[#f2ca50] shadow-[0_0_15px_rgba(242,202,80,0.5)]" />,
+      button: "bg-[#f2ca50] text-[#0b141f] rounded-lg shadow-xl font-bold uppercase tracking-widest",
+      border: "bg-[#f2ca50]/10",
+      customBg: "gold-glow"
+    },
+    bohemian: {
+      bg: "bg-[#fdf9f4]",
+      accent: "#914730",
+      textPrimary: "text-[#1c1c19]",
+      textSecondary: "text-[#54433e]/70",
+      fontHeading: pinyonScript.className,
+      fontBody: notoSerif.className,
+      ornament: <span className="material-symbols-outlined text-[#914730] opacity-40" style={{ fontVariationSettings: "'wght' 100" }}>eco</span>,
+      button: "bg-gradient-to-br from-[#914730] to-[#7f735a] text-white rounded-full shadow-lg font-serif tracking-widest",
+      border: "bg-[#914730]/10",
+      customBg: "paper-texture"
     }
   };
 
-  const t = themeStyles['floral'];
+  const currentTheme = themes[wedding.template_id as string] || themes.royal;
 
   return (
-    <div className={`relative flex min-h-screen w-full flex-col ${t.bg} overflow-x-hidden max-w-[430px] mx-auto shadow-2xl transition-colors duration-500`}>
-      <div className="fixed inset-0 z-[-1]">
-        <img src="/images/watercolor_bg.png" alt="background" className="w-full h-full object-cover" />
-      </div>
-      {/* Top Decorative Border */}
-      <div className={`absolute inset-x-0 top-0 h-2 bg-gradient-to-r ${t.borderTop}`} />
+    <div className={`relative flex min-h-screen w-full flex-col overflow-x-hidden max-w-[430px] mx-auto shadow-2xl transition-colors duration-700 ${currentTheme.bg}`}>
+      
+      {/* Background patterns */}
+      <div className={`fixed inset-0 z-0 pointer-events-none opacity-10 ${currentTheme.customBg}`} />
 
-      {/* Hero Section */}
-      <div className="relative pt-12 pb-8 px-6 text-center mt-4">
-        <p className={`${t.textAccent} ${t.fontDisplay} text-2xl mb-4 opacity-90`}>
+      {/* Top Border */}
+      <div className={`absolute inset-x-0 top-0 h-[3px] ${currentTheme.border}`} />
+
+      {/* Content Container */}
+      <div className="relative z-10 flex flex-col items-center px-8 pt-16 pb-10">
+        
+        {/* Top Ornament */}
+        <div className="flex items-center gap-3 mb-8 w-full justify-center">
+          <div className={`h-[1px] flex-1 opacity-20 ${currentTheme.border}`} />
+          {currentTheme.ornament}
+          <div className={`h-[1px] flex-1 opacity-20 ${currentTheme.border}`} />
+        </div>
+
+        {/* Header Text */}
+        <p className={`${currentTheme.textSecondary} text-[10px] tracking-[0.4em] uppercase mb-4 font-bold`}>
           {t_i18n("invitedTo")}
         </p>
-        <h1 className={`${t.textPrimary} ${t.fontHeading} text-4xl leading-tight mb-8`}>
-          {wedding.bride_name} &amp; {wedding.groom_name}&apos;s
-          <br />
-          <span className="text-2xl font-sans font-light tracking-widest uppercase mt-3 block opacity-80">
-            {t_i18n("wedding")}
-          </span>
+
+        {/* Couple Names */}
+        <h1 className={`${currentTheme.fontHeading} text-5xl ${currentTheme.textPrimary} leading-tight text-center mb-2`}>
+          {wedding.bride_name}
         </h1>
-      </div>
-
-      {/* Event Details */}
-      {functions.map((func) => (
-        <div key={func.id} className="flex flex-col items-center px-6 text-center space-y-4 mb-8">
-          <div className={`inline-block px-4 py-1 border-y ${t.divider} mb-2`}>
-            <h4 className={`${t.textAccent} text-lg font-bold tracking-[0.2em] uppercase`}>{func.name}</h4>
-          </div>
-          <div className="space-y-1">
-            <h2 className={`${t.textPrimary} text-xl font-medium tracking-tight`}>{formatDate(func.date)}</h2>
-            <p className={`${t.textSecondary} text-base`}>{func.time} {t_i18n("onwards")}</p>
-          </div>
-          <div className="flex items-center gap-2 pt-2">
-            <span className={`material-symbols-outlined text-xl ${t.icon}`}>location_on</span>
-            <p className={`${t.textPrimary} text-sm tracking-wide opacity-90`}>{func.venue_name}</p>
-          </div>
-          {func.maps_url && (
-            <a href={func.maps_url} target="_blank" rel="noopener" className={`${t.textAccent} text-sm font-semibold underline opacity-90 hover:opacity-100`}>
-              {t_i18n("viewOnMaps")} →
-            </a>
-          )}
+        <div className="flex items-center gap-4 my-2">
+          <div className={`h-px w-12 opacity-30 ${currentTheme.border}`} />
+          <span className={`${currentTheme.textPrimary} text-xs tracking-[0.3em] font-light opacity-60`}>&amp;</span>
+          <div className={`h-px w-12 opacity-30 ${currentTheme.border}`} />
         </div>
-      ))}
+        <h1 className={`${currentTheme.fontHeading} text-5xl ${currentTheme.textPrimary} leading-tight text-center mb-8`}>
+          {wedding.groom_name}
+        </h1>
 
-      {/* Personalization */}
-      <div className="mt-4 px-6">
-        <div className={`${t.cardBg} border rounded-xl p-5 text-center shadow-sm`}>
-          <p className={`${t.textPrimary} text-lg`}>
+        {/* Wedding Subtitle */}
+        <p className={`${currentTheme.textSecondary} text-[9px] tracking-[0.5em] uppercase mb-12 opacity-50`}>
+          {t_i18n("wedding")}
+        </p>
+
+        {/* Event Schedule Slider/Stack */}
+        <div className="w-full space-y-10 mb-12">
+          {functions.map((func, i) => (
+            <div key={func.id} className="text-center animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${i * 100}ms` } as any}>
+              <p className={`${currentTheme.textPrimary} text-[11px] tracking-[0.3em] uppercase font-black mb-3 opacity-80`}>{func.name}</p>
+              <h2 className={`${currentTheme.textPrimary} text-2xl font-light mb-1`}>{formatDate(func.date)}</h2>
+              <p className={`${currentTheme.textSecondary} text-xs tracking-widest font-medium`}>{func.time} {t_i18n("onwards")}</p>
+              
+              <div className="flex flex-col items-center mt-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className={`material-symbols-outlined text-sm opacity-50`} style={{ color: currentTheme.accent }}>location_on</span>
+                  <p className={`${currentTheme.textSecondary} text-sm font-light`}>{func.venue_name}</p>
+                </div>
+                {func.maps_url && (
+                  <a href={func.maps_url} target="_blank" rel="noopener"
+                    className={`text-[10px] tracking-[0.2em] uppercase underline opacity-40 hover:opacity-100 transition-opacity`}
+                    style={{ color: currentTheme.accent }}>
+                    {t_i18n("viewOnMaps")}
+                  </a>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Divider */}
+        <div className="flex items-center gap-3 mb-12 w-full justify-center">
+          <div className={`h-px flex-1 opacity-20 ${currentTheme.border}`} />
+          <div className="size-1 rounded-full opacity-40" style={{ backgroundColor: currentTheme.accent }} />
+          <div className={`h-px flex-1 opacity-20 ${currentTheme.border}`} />
+        </div>
+
+        {/* Personalization */}
+        <div className={`w-full border rounded-2xl p-6 text-center mb-10 transition-all ${
+           wedding.template_id === 'royal' ? 'bg-white/[0.03] border-white/10' : 
+           wedding.template_id === 'dark' ? 'bg-white/[0.05] border-white/10' :
+           'bg-black/[0.02] border-black/5'
+        }`}>
+          <p className={`${currentTheme.textPrimary} text-lg mb-2`}>
             {t_i18n("dear")} <span className="font-bold">{guest.name}</span>,
           </p>
-          <p className={`${t.textSecondary} text-sm mt-2 italic`}>{t_i18n("requestPleasure")}</p>
+          <p className={`${currentTheme.textSecondary} text-sm italic leading-relaxed`}>{t_i18n("requestPleasure")}</p>
         </div>
-      </div>
 
-      {/* RSVP Button */}
-      <div className="mt-8 px-6">
+        {/* RSVP Primary Button */}
         {hasConfirmedRsvp ? (
           <button
             onClick={() => router.push(`/${locale}/invite/${token}/confirmed`)}
-            className={`w-full h-14 ${t.button} font-bold text-lg rounded-full shadow-lg hover:brightness-110 active:scale-[0.98] transition-all uppercase tracking-widest flex items-center justify-center gap-2`}
+            className={`w-full h-16 ${currentTheme.button} font-black text-sm tracking-[0.3em] uppercase shadow-2xl active:scale-[0.98] transition-all flex items-center justify-center gap-3`}
           >
             SHOW EVENT PASS
             <span className="material-symbols-outlined">qr_code_2</span>
@@ -177,44 +241,43 @@ export default function InviteLandingPage() {
         ) : (
           <button
             onClick={() => router.push(`/${locale}/invite/${token}/rsvp`)}
-            className={`w-full h-14 ${t.button} font-bold text-lg rounded-full shadow-lg hover:brightness-110 active:scale-[0.98] transition-all uppercase tracking-widest flex items-center justify-center gap-2`}
+            className={`w-full h-16 ${currentTheme.button} font-black text-sm tracking-[0.3em] uppercase shadow-2xl active:scale-[0.98] transition-all flex items-center justify-center gap-3`}
           >
             {t_i18n("rsvpNow")}
-            <span className="material-symbols-outlined">chevron_right</span>
+            <span className="material-symbols-outlined">arrow_forward</span>
           </button>
         )}
-      </div>
 
-      {/* Language Switcher */}
-      <div className="mt-6 px-6 flex justify-center gap-4">
-        <button
-          onClick={() => router.push(`/en/invite/${token}`)}
-          className={`text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border transition-all ${
-            locale === 'en' ? t.button : `${t.cardBg} ${t.textSecondary} ${t.divider}`
-          }`}
-        >
-          English
-        </button>
-        <button
-          onClick={() => router.push(`/hi/invite/${token}`)}
-          className={`text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border transition-all ${
-            locale === 'hi' ? t.button : `${t.cardBg} ${t.textSecondary} ${t.divider}`
-          }`}
-        >
-          हिन्दी
-        </button>
-      </div>
-
-      <div className="pb-12" />
-
-      {/* Footer */}
-      <div className={`mt-auto py-6 border-t ${t.divider} flex flex-col items-center`}>
-        <p className={`${t.textSecondary} text-[10px] tracking-[0.2em] uppercase opacity-70`}>{t_i18n("poweredBy")}</p>
-        <div className="flex items-center gap-1 mt-1 opacity-80">
-          <span className={`material-symbols-outlined text-xs ${t.icon}`}>diamond</span>
-          <span className={`${t.textPrimary} font-bold text-sm tracking-tight font-serif`}>WedSync</span>
+        {/* Language Selection */}
+        <div className="mt-10 flex gap-6">
+          {['en', 'hi'].map((l) => (
+            <button
+              key={l}
+              onClick={() => router.push(`/${l}/invite/${token}`)}
+              className={`text-[10px] font-black uppercase tracking-widest pb-1 border-b-2 transition-all ${
+                locale === l 
+                  ? `border-b-[${currentTheme.accent}] opacity-100` 
+                  : 'border-b-transparent opacity-30 hover:opacity-100'
+              }`}
+            >
+              {l === 'en' ? 'English' : 'हिन्दी'}
+            </button>
+          ))}
         </div>
       </div>
+
+      {/* Footer */}
+      <footer className="relative z-10 py-10 flex flex-col items-center mt-auto">
+        <div className={`h-px w-24 mb-6 opacity-20 ${currentTheme.border}`} />
+        <p className={`${currentTheme.textSecondary} text-[9px] tracking-[0.4em] uppercase opacity-40`}>{t_i18n("poweredBy")}</p>
+        <div className="flex items-center gap-1.5 mt-2 opacity-30">
+          <span className="material-symbols-outlined text-xs" style={{ color: currentTheme.accent }}>diamond</span>
+          <span className={`font-bold text-xs tracking-widest font-serif ${currentTheme.textPrimary}`}>WedSync</span>
+        </div>
+      </footer>
+
+      {/* Bottom Border */}
+      <div className={`absolute inset-x-0 bottom-0 h-[3px] ${currentTheme.border}`} />
     </div>
   );
 }

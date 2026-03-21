@@ -2,6 +2,31 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
+
+const translations = {
+  en: {
+    invitationHeader: "You are Cordially Invited",
+    groom_and_bride: "&",
+    weddingCelebration: "Wedding Celebration",
+    dear: "Dear",
+    requestPleasure: "We request the pleasure of your company at the wedding celebrations of our children.",
+    viewInvite: "View Invitation & RSVP",
+    orScanQR: "Or scan the QR code on your card",
+    fromDeskOf: "From the desk of",
+    poweredBy: "Powered by WedSync • Premium Wedding Management"
+  },
+  hi: {
+    invitationHeader: "आप सादर आमंत्रित हैं",
+    groom_and_bride: "और",
+    weddingCelebration: "विवाह समारोह",
+    dear: "प्रिय",
+    requestPleasure: "हम अपने बच्चों के विवाह उत्सव में आपकी उपस्थिति का आनंद लेने का अनुरोध करते हैं।",
+    viewInvite: "निमंत्रण और RSVP देखें",
+    orScanQR: "या अपने कार्ड पर QR कोड स्कैन करें",
+    fromDeskOf: "की ओर से",
+    poweredBy: "WedSync द्वारा संचालित • प्रीमियम विवाह प्रबंधन"
+  }
+};
 import { supabase } from "@/lib/supabase";
 import type { Wedding, Guest, WeddingFunction } from "@/lib/types";
 import { generateWhatsAppLink, generateReminderLink } from "@/lib/whatsapp";
@@ -17,7 +42,7 @@ export default function InvitesPage() {
   const [guestGroups, setGuestGroups] = useState<{ id: string; name: string }[]>([]);
   const [functions, setFunctions] = useState<WeddingFunction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [callingGuests, setCallingGuests] = useState(false);
   const [sendingEmails, setSendingEmails] = useState(false);
   const [showBulkEmailDialog, setShowBulkEmailDialog] = useState(false);
@@ -29,6 +54,7 @@ export default function InvitesPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 50;
+  const [isDesignModalOpen, setIsDesignModalOpen] = useState(false);
 
   const sideColors: Record<string, { bg: string; text: string }> = {
     bride: { bg: "bg-pink-50 border-pink-200", text: "text-pink-600" },
@@ -61,12 +87,12 @@ export default function InvitesPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-  const pendingGuests = guests.filter((g) => !g.invite_sent_at);
-  const sentGuests = guests.filter((g) => g.invite_sent_at);
-  const pendingRsvpGuests = guests.filter((g) => g.invite_sent_at && g.overall_status === "pending");
+  const pendingGuests = guests.filter((g: Guest) => !g.invite_sent_at);
+  const sentGuests = guests.filter((g: Guest) => g.invite_sent_at);
+  const pendingRsvpGuests = guests.filter((g: Guest) => g.invite_sent_at && g.overall_status === "pending");
 
   const filteredGuests = (filter === "all" ? guests : filter === "pending" ? pendingGuests : sentGuests)
-    .filter((g) => searchQuery
+    .filter((g: Guest) => searchQuery
       ? g.name.toLowerCase().includes(searchQuery.toLowerCase()) || g.phone.includes(searchQuery)
       : true
     );
@@ -105,7 +131,7 @@ export default function InvitesPage() {
   }
 
   async function handleSyncRSVPs() {
-    setSyncing(true);
+    setIsSyncing(true);
     try {
       const res = await fetch(`/api/wedding/${weddingId}/sync-call-rsvps`, {
         method: "POST",
@@ -120,7 +146,7 @@ export default function InvitesPage() {
     } catch (error) {
       toast.error("Error syncing RSVPs");
     } finally {
-      setSyncing(false);
+      setIsSyncing(false);
     }
   }
 
@@ -154,17 +180,17 @@ export default function InvitesPage() {
     if (selectedGuests.length === 0) { toast.error("No guests to email."); return; }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const allowedDomains = ["gmail.com", "outlook.com", "yahoo.com", "hotmail.com", "icloud.com", "yahoo.co.in"];
-    const withEmail = selectedGuests.filter((g) => {
+    const withEmail = selectedGuests.filter((g: Guest) => {
       if (!g.email) return false;
       const domain = g.email.toLowerCase().split("@")[1];
       return emailRegex.test(g.email) && allowedDomains.includes(domain);
     });
-    const withInvalidEmail = selectedGuests.filter((g) => {
+    const withInvalidEmail = selectedGuests.filter((g: Guest) => {
       if (!g.email) return false;
       const domain = g.email.toLowerCase().split("@")[1];
       return !emailRegex.test(g.email) || !allowedDomains.includes(domain);
     });
-    const withoutEmail = selectedGuests.filter((g) => !g.email);
+    const withoutEmail = selectedGuests.filter((g: Guest) => !g.email);
     if (withEmail.length === 0 && withInvalidEmail.length === 0) {
       toast.error("None of the selected guests have email addresses.");
       return;
@@ -196,6 +222,22 @@ export default function InvitesPage() {
     }
   }
 
+  async function handleUpdateTemplate(templateId: string) {
+    if (!wedding) return;
+    const { error } = await supabase
+      .from("weddings")
+      .update({ template_id: templateId })
+      .eq("id", wedding.id);
+
+    if (error) {
+      toast.error("Failed to update template");
+    } else {
+      setWedding({ ...wedding, template_id: templateId as any });
+      toast.success("Invitation design updated!");
+      setIsDesignModalOpen(false);
+    }
+  }
+
   function getInitials(name: string) {
     return name.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
   }
@@ -218,16 +260,23 @@ export default function InvitesPage() {
           <h1 className="text-5xl font-serif font-bold tracking-tight text-on-surface">Invitations</h1>
           <p className="text-primary font-body text-lg opacity-80">{wedding?.wedding_name || "Sharma-Kapoor Weddings"}</p>
         </div>
-        <button
-          onClick={handleSyncRSVPs}
-          disabled={syncing}
-          className="flex items-center gap-2 px-6 py-2.5 border border-outline-variant bg-surface-container-lowest text-primary font-label text-sm font-semibold rounded-lg hover:bg-surface-container transition-colors disabled:opacity-50"
-        >
-          {syncing ? "Syncing..." : "Sync RSVPs from AI Calls"}
-          <span className={`material-symbols-outlined text-lg ${syncing ? "animate-spin" : ""}`}>
-            {syncing ? "sync" : "refresh"}
-          </span>
-        </button>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+          <button
+            onClick={() => setIsDesignModalOpen(true)}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
+          >
+            <span className="material-symbols-outlined text-[20px] text-primary">palette</span>
+            Change Design
+          </button>
+          <button
+            onClick={handleSyncRSVPs}
+            disabled={isSyncing}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-semibold hover:bg-primary/20 transition-colors disabled:opacity-50"
+          >
+            <span className={`material-symbols-outlined text-[20px] ${isSyncing ? 'animate-spin' : ''}`}>sync</span>
+            {isSyncing ? "Syncing..." : "Sync RSVPs"}
+          </button>
+        </div>
       </header>
 
       {/* STAT CARDS */}
@@ -654,6 +703,63 @@ export default function InvitesPage() {
               >
                 <span className="material-symbols-outlined text-lg">mark_email_read</span>
                 Mark Sent
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Design Selector Modal */}
+      {isDesignModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl scale-in-95 animate-in">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">Choose Invitation Design</h2>
+                <p className="text-sm text-slate-500 mt-1">Select a premium template for your wedding invitation & RSVP</p>
+              </div>
+              <button onClick={() => setIsDesignModalOpen(false)} className="size-10 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div className="p-8 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-slate-50/50">
+              {[
+                { id: 'royal', name: 'Royal Traditional', desc: 'Deep maroon & gold, mandala patterns', preview: '/images/templates/royal.png' },
+                { id: 'minimal', name: 'Modern Minimalist', desc: 'Clean white, rose gold, geometric', preview: '/images/templates/minimal.png' },
+                { id: 'floral', name: 'Elegant Floral', desc: 'Watercolor petals, airy aesthetic', preview: '/images/templates/floral.png' },
+                { id: 'dark', name: 'Midnight Gala', desc: 'Dark navy, glowing gold, luxury', preview: '/images/templates/dark.png' },
+                { id: 'bohemian', name: 'Earthly Bohemian', desc: 'Terracotta, organic leaves, rustic', preview: '/images/templates/bohemian.png' }
+              ].map((tpl) => (
+                <div 
+                  key={tpl.id}
+                  onClick={() => handleUpdateTemplate(tpl.id)}
+                  className={`group relative flex flex-col bg-white rounded-xl border-2 transition-all cursor-pointer overflow-hidden hover:shadow-xl ${
+                    wedding?.template_id === tpl.id ? 'border-primary ring-4 ring-primary/10' : 'border-white hover:border-primary/20'
+                  }`}
+                >
+                  <div className="aspect-[4/5] overflow-hidden bg-slate-100">
+                    <div className="w-full h-full bg-cover bg-center transition-transform duration-500 group-hover:scale-105" style={{ backgroundImage: `url(${tpl.preview})` }} />
+                    {wedding?.template_id === tpl.id && (
+                      <div className="absolute top-3 right-3 bg-primary text-white size-8 rounded-full flex items-center justify-center shadow-lg animate-in zoom-in">
+                        <span className="material-symbols-outlined text-base">check</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-4 border-t border-slate-50">
+                    <h3 className="font-bold text-slate-800">{tpl.name}</h3>
+                    <p className="text-xs text-slate-500 mt-1">{tpl.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-6 border-t border-slate-100 bg-white flex justify-end gap-3">
+              <button 
+                onClick={() => setIsDesignModalOpen(false)}
+                className="px-6 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+              >
+                Close
               </button>
             </div>
           </div>
