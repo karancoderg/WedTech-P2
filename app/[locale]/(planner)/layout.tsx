@@ -121,7 +121,17 @@ export default function PlannerLayout({ children }: { children: React.ReactNode 
   return (
     <div className={`flex min-h-screen bg-[#f8f7f5] ${inter.className} ${playfair.variable}`}>
       {/* ===== DESKTOP SIDEBAR ===== */}
-      <aside className="hidden lg:flex w-64 bg-white border-r border-primary/10 flex-col fixed h-full z-10">
+      <aside className="hidden lg:flex w-64 bg-white border-r border-primary/10 flex-col fixed h-full z-10 relative overflow-hidden">
+        {/* Sidebar Floral Decoration */}
+        <div 
+          className="absolute inset-0 pointer-events-none opacity-[0.05] -z-1"
+          style={{
+            backgroundImage: "url('/images/flower.png')",
+            backgroundSize: "400px",
+            backgroundPosition: "center",
+            backgroundRepeat: "repeat",
+          }}
+        />
         {/* Logo */}
         <div className="p-6">
           <div className="flex items-center gap-3">

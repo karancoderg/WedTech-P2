@@ -126,23 +126,11 @@ export default function DashboardPage() {
       />
 
       <div className="relative z-10 space-y-8">
-      {/* Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm flex flex-col">
-          <p className="text-sm font-medium text-slate-500">Active Weddings</p>
-          <p className="text-3xl font-black mt-2">{weddings.length}</p>
-        </div>
-        <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm flex flex-col">
-          <p className="text-sm font-medium text-slate-500">Total Guests</p>
-          <p className="text-3xl font-black mt-2">{totalGuests.toLocaleString()}</p>
-        </div>
-        <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm flex flex-col">
-          <p className="text-sm font-medium text-slate-500">Confirmed</p>
-          <p className="text-3xl font-black mt-2 text-emerald-600">{totalConfirmed}</p>
-        </div>
-        <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm flex flex-col">
-          <p className="text-sm font-medium text-slate-500">Pending RSVPs</p>
-          <p className="text-3xl font-black mt-2 text-amber-600">{totalPending}</p>
+      {/* Planner Header */}
+      <div className="flex items-end justify-between border-b border-slate-100 pb-4">
+        <div>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Overview</h1>
+          <p className="text-slate-500 font-medium">You have {weddings.length} active weddings in your pipeline</p>
         </div>
       </div>
 
@@ -228,23 +216,31 @@ export default function DashboardPage() {
                         <h3 className="text-xl font-bold text-slate-900">{wedding.wedding_name}</h3>
                         <p className="text-slate-500 font-medium">{wedding.bride_name} &amp; {wedding.groom_name}</p>
                       </div>
-                      <span className={`px-3 py-1 text-xs font-bold rounded-full whitespace-nowrap ${daysColor}`}>
+                      <span className={`px-3 py-1 text-xs font-bold rounded-full whitespace-nowrap self-start ${daysColor}`}>
                         {days > 0 ? `${days} Days to go` : days === 0 ? "Today!" : "Past"}
                       </span>
                     </div>
-                    <div className="mt-auto pt-6 space-y-4">
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-xs font-semibold">
-                          <span className="text-slate-500">RSVP Progress ({wConfirmed}/{wTotal} Confirmed)</span>
-                          <span className="text-slate-900">{progress}%</span>
-                        </div>
-                        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-primary transition-all duration-500" style={{ width: `${progress}%` }} />
-                        </div>
+
+                    {/* Per-Wedding Quick Stats */}
+                    <div className="grid grid-cols-3 gap-2 mb-4 p-3 bg-slate-50/50 rounded-xl border border-slate-100/50">
+                      <div className="text-center">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Total</p>
+                        <p className="text-sm font-black text-slate-700">{wTotal}</p>
                       </div>
+                      <div className="text-center border-x border-slate-200/50">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Confirmed</p>
+                        <p className="text-sm font-black text-emerald-600">{wConfirmed}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Pending</p>
+                        <p className="text-sm font-black text-amber-600">{wGuests.filter(g => g.overall_status === "pending").length}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-auto space-y-4">
                       <Link href={`/wedding/${wedding.id}/guests`}>
                         <button className="w-full py-2.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-lg transition-all shadow-md shadow-primary/20">
-                          Open Dashboard
+                          Manage Wedding
                         </button>
                       </Link>
                     </div>
