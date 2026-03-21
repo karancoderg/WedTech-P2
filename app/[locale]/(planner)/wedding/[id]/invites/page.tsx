@@ -29,9 +29,10 @@ const translations = {
 };
 import { supabase } from "@/lib/supabase";
 import type { Wedding, Guest, WeddingFunction } from "@/lib/types";
-import { generateWhatsAppLink, generateReminderLink } from "@/lib/whatsapp";
+import { generateWhatsAppLink, generateReminderLink, generateWhatsAppMessage, normalizePhone } from "@/lib/whatsapp";
 import { generateEmailLink } from "@/lib/email";
 import { toast } from "sonner";
+import { encrypt, decrypt } from "@/lib/encryption";
 
 export default function InvitesPage() {
   const params = useParams();
@@ -78,7 +79,15 @@ export default function InvitesPage() {
       supabase.from("wedding_functions").select("*").eq("wedding_id", weddingId).order("sort_order"),
     ]);
     if (weddingRes.data) setWedding(weddingRes.data);
-    if (guestRes.data) setGuests(guestRes.data);
+    
+    // Decrypt guest data
+    const decryptedGuests = (guestRes.data || []).map(guest => ({
+      ...guest,
+      phone: guest.phone?.includes(':') ? decrypt(guest.phone) : guest.phone,
+      email: guest.email?.includes(':') ? decrypt(guest.email) : guest.email,
+    }));
+    
+    if (guestRes.data) setGuests(decryptedGuests);
     if (groupRes.data) setGuestGroups(groupRes.data);
     if (funcRes.data) setFunctions(funcRes.data);
     setLoading(false);
@@ -240,6 +249,19 @@ export default function InvitesPage() {
 
   function getInitials(name: string) {
     return name.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
+  }
+
+  function handleExportForExtension() {
+    if (selectedIds.size === 0 || !wedding) return;
+
+    const selectedGuests = guests.filter((g) => selectedIds.has(g.id));
+    const data = selectedGuests.map((guest) => ({
+      phone: normalizePhone(guest.phone).replace("+", ""),
+      message: generateWhatsAppMessage(guest, wedding, functions),
+    }));
+
+    navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+    toast.success("📋 JSON copied to clipboard for extension!");
   }
 
   if (loading) {
@@ -658,7 +680,7 @@ export default function InvitesPage() {
 
       {/* Floating Bulk Action Bar */}
       {selectedIds.size > 0 && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-20">
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-4xl px-4 z-20">
           <div className="bg-inverse-surface text-inverse-on-surface p-4 rounded-2xl shadow-2xl flex items-center justify-between border border-white/10">
             <div className="flex items-center gap-3 pl-2 shrink-0">
               <div className="bg-primary size-8 rounded-full flex items-center justify-center font-black text-sm text-on-primary">
@@ -698,6 +720,13 @@ export default function InvitesPage() {
                 {sendingEmails ? "Sending..." : `Email ${selectedIds.size}`}
               </button>
               <button
+                onClick={handleExportForExtension}
+                className="px-3 py-2 bg-amber-500 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 hover:bg-amber-600 transition-all font-body"
+              >
+                <span className="material-symbols-outlined text-lg">content_paste_go</span>
+                Export for Extension
+              </button>
+              <button
                 onClick={() => markAllAsSent(Array.from(selectedIds))}
                 className="px-3 py-2 bg-primary text-on-primary rounded-lg font-bold text-xs flex items-center gap-1.5 hover:bg-primary/90 transition-all font-body"
               >
@@ -726,7 +755,7 @@ export default function InvitesPage() {
             <div className="p-8 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-slate-50/50">
               {[
                 { id: 'royal', name: 'Royal Traditional', desc: 'Deep maroon & gold, mandala patterns', preview: '/images/templates/royal.png' },
-                { id: 'minimal', name: 'Lavender Elegance', desc: 'Purple watercolor, elegant florals, airy', preview: '/images/templates/minimal.png' },
+                { id: 'minimal', name: 'Modern Minimalist', desc: 'Clean white, rose gold, geometric', preview: '/images/templates/minimal.png' },
                 { id: 'floral', name: 'Elegant Floral', desc: 'Watercolor petals, airy aesthetic', preview: '/images/templates/floral.png' },
                 { id: 'dark', name: 'Midnight Gala', desc: 'Dark navy, glowing gold, luxury', preview: '/images/templates/dark.png' },
                 { id: 'bohemian', name: 'Earthly Bohemian', desc: 'Terracotta, organic leaves, rustic', preview: '/images/templates/bohemian.png' }

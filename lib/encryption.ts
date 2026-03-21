@@ -11,7 +11,9 @@ function getKey(): Buffer {
   return crypto.createHash('sha256').update(key).digest();
 }
 
-export function encrypt(plaintext: string): string {
+export function encrypt(plaintext: string | null | undefined): string {
+  if (!plaintext) return "";
+  if (plaintext.includes(':') && plaintext.split(':').length === 3) return plaintext; // Already encrypted
   const iv = crypto.randomBytes(IV_LENGTH);
   const cipher = crypto.createCipheriv(ALGORITHM, getKey(), iv);
 

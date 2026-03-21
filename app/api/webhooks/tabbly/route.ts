@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { encrypt } from "@/lib/encryption";
 import { parseRSVPFromTranscript } from "@/lib/rsvp-parser";
 
 export async function POST(req: Request) {
@@ -80,7 +81,7 @@ export async function POST(req: Request) {
         type: "call_callback",
         status: payload.status,
         payload: {
-            transcript: transcript,
+            transcript: encrypt(transcript),
             parsed: { status, pax, dietary }
         }
     });
