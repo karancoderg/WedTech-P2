@@ -139,24 +139,24 @@ export default function ConfirmedPage() {
       whatsappBtn: "border-green-500 text-[#dae3f3] bg-[#0b141f] hover:bg-[#18202c]",
     },
     bohemian: {
-      bg: "bg-[#fdf9f4]",
-      textAccent: "text-[#914730]",
+      bg: "bg-[#f4f4f4]",
+      textAccent: "text-[#18362b]",
       textPrimary: "text-[#1c1c19]",
       textSecondary: "text-[#54433e]/70",
-      iconBg: "bg-[#914730]/10",
-      iconText: "text-[#914730]",
-      cardBg: "bg-[#f1ede8] border-[#914730]/20",
-      cardSubBg: "bg-[#fdf9f4]",
-      borderTop: "border-[#914730]/20",
-      buttonLink: "text-[#914730] hover:text-[#7f735a]",
+      iconBg: "bg-[#18362b]/10",
+      iconText: "text-[#18362b]",
+      cardBg: "bg-white border-[#18362b]/20",
+      cardSubBg: "bg-[#f4f4f4]",
+      borderTop: "border-[#18362b]/20",
+      buttonLink: "text-[#18362b] hover:text-[#122820]",
       whatsappBtn: "border-green-600 text-green-700 bg-green-50/50 hover:bg-green-100",
     }
   };
 
   const t = themeStyles[wedding.template_id as keyof typeof themeStyles] || themeStyles['floral'];
 
-  const outerBg = wedding.template_id === 'floral' ? 'bg-[#fffdfa]' : (wedding.template_id === 'royal' ? 'bg-[#3a0606]' : wedding.template_id === 'minimal' ? 'bg-[#f6f4fa]' : wedding.template_id === 'dark' ? 'bg-[#e8e9ea]' : 'bg-[#FAFAF9]');
-  const innerBg = wedding.template_id === 'floral' ? 'bg-[#fffdfa]' : (wedding.template_id === 'royal' ? 'bg-[#6e1616] shadow-[0_0_50px_rgba(0,0,0,0.8)]' : wedding.template_id === 'minimal' ? 'bg-[#ffffff]' : wedding.template_id === 'dark' ? 'bg-[#051c2c] shadow-[0_0_40px_rgba(0,0,0,0.4)]' : t.bg);
+  const outerBg = wedding.template_id === 'floral' ? 'bg-[#fffdfa]' : (wedding.template_id === 'royal' ? 'bg-[#faf5f5]' : wedding.template_id === 'minimal' ? 'bg-[#f6f4fa]' : wedding.template_id === 'dark' ? 'bg-[#e8e9ea]' : wedding.template_id === 'bohemian' ? 'bg-[#f4f4f4]' : 'bg-[#FAFAF9]');
+  const innerBg = wedding.template_id === 'floral' ? 'bg-[#fffdfa]' : (wedding.template_id === 'royal' ? 'bg-[#6e1616] shadow-[0_0_50px_rgba(0,0,0,0.8)]' : wedding.template_id === 'minimal' ? 'bg-[#ffffff]' : wedding.template_id === 'dark' ? 'bg-[#051c2c] shadow-[0_0_40px_rgba(0,0,0,0.4)]' : wedding.template_id === 'bohemian' ? 'bg-white' : t.bg);
 
   return (
     <div className={`min-h-screen w-full flex justify-center relative overflow-hidden ${outerBg}`}>
@@ -179,8 +179,8 @@ export default function ConfirmedPage() {
                 <div className="absolute inset-x-4 inset-y-0 opacity-[0.03] mix-blend-color-burn" style={{ backgroundImage: 'repeating-linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%, #000)', backgroundPosition: '0 0, 10px 10px', backgroundSize: '20px 20px' }} />
                 <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-[#420a0a] to-transparent z-0" />
                 <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-[#420a0a] to-transparent z-0" />
-                <img src="/images/royal_top_lace.png" alt="" className="absolute top-0 inset-x-0 w-full opacity-40 mix-blend-multiply h-auto" style={{ maxHeight: '150px', objectPosition: 'top center' }} />
-                <img src="/images/royal_bottom_lace.png" alt="" className="absolute bottom-0 inset-x-0 w-full opacity-40 mix-blend-multiply h-auto" style={{ maxHeight: '150px', objectPosition: 'bottom center' }} />
+                <img src="/images/royal_top_lace.png" alt="" className="absolute top-0 inset-x-0 w-full opacity-90 mix-blend-multiply h-auto object-cover" style={{ maxHeight: '200px', objectPosition: 'top center' }} />
+                <img src="/images/royal_bottom_lace.png" alt="" className="absolute bottom-0 inset-x-0 w-full opacity-90 mix-blend-multiply h-auto object-cover" style={{ maxHeight: '200px', objectPosition: 'bottom center' }} />
               </>
             ) : wedding.template_id === 'minimal' ? (
               <>
@@ -192,10 +192,10 @@ export default function ConfirmedPage() {
               <>
                 {/* Inner Thin Gold Rectangular Broken Border */}
                 <div className="absolute inset-0 pointer-events-none z-10">
-                  <div className="absolute top-[24px] left-[110px] right-[24px] h-[0.5px] bg-[#cfab68]/50 ring-0" />
-                  <div className="absolute top-[24px] bottom-[110px] right-[24px] w-[0.5px] bg-[#cfab68]/50 ring-0" />
-                  <div className="absolute bottom-[24px] left-[24px] right-[110px] h-[0.5px] bg-[#cfab68]/50 ring-0" />
-                  <div className="absolute top-[110px] bottom-[24px] left-[24px] w-[0.5px] bg-[#cfab68]/50 ring-0" />
+                  <div className="absolute top-[12px] left-[98px] right-[12px] h-[0.5px] bg-[#cfab68]/50 ring-0" />
+                  <div className="absolute top-[12px] bottom-[98px] right-[12px] w-[0.5px] bg-[#cfab68]/50 ring-0" />
+                  <div className="absolute bottom-[12px] left-[12px] right-[98px] h-[0.5px] bg-[#cfab68]/50 ring-0" />
+                  <div className="absolute top-[98px] bottom-[12px] left-[12px] w-[0.5px] bg-[#cfab68]/50 ring-0" />
                 </div>
                 
                 {/* Intricate Hand-drawn Gold Vector Line Art Florals */}
@@ -231,16 +231,32 @@ export default function ConfirmedPage() {
                       <circle cx="100" cy="180" r="2" fill="#cfab68" />
                       <circle cx="140" cy="135" r="1.5" fill="#cfab68" />
                    </svg>
-                </div>
-              </>
-            ) : (
+                 </div>
+               </>
+             ) : wedding.template_id === 'bohemian' ? (
+               <svg className="absolute inset-0 w-full h-full pointer-events-none z-0" preserveAspectRatio="none" viewBox="0 0 100 100">
+                 <path d="M0,0 L85,0 C65,15 70,30 95,45 L100,45 L100,85 C75,90 60,75 30,80 C10,85 0,90 0,90 Z" fill="#e3ab9f" opacity="0.9" />
+                 <polyline points="0,5 30,30 15,50" fill="none" stroke="white" strokeWidth="0.4" strokeLinejoin="miter"/>
+                 <polyline points="0,12 35,38 20,55" fill="none" stroke="white" strokeWidth="0.4" strokeLinejoin="miter"/>
+                 <polyline points="0,19 40,46 25,60" fill="none" stroke="white" strokeWidth="0.4" strokeLinejoin="miter"/>
+                 <polyline points="60,100 80,75 100,85" fill="none" stroke="#e3ab9f" strokeWidth="0.4" strokeLinejoin="miter"/>
+                 <polyline points="50,100 75,70 100,80" fill="none" stroke="#e3ab9f" strokeWidth="0.4" strokeLinejoin="miter"/>
+                 <polyline points="40,100 70,65 100,75" fill="none" stroke="#e3ab9f" strokeWidth="0.4" strokeLinejoin="miter"/>
+                 <polyline points="30,100 65,60 100,70" fill="none" stroke="#e3ab9f" strokeWidth="0.4" strokeLinejoin="miter"/>
+                 <path d="M25,100 C30,85 55,85 65,100 Z" fill="#1b3a30" />
+                 <path d="M0,85 C15,85 20,100 0,100 Z" fill="#1b3a30" />
+                 <path d="M0,75 C25,85 40,75 70,85 C85,90 100,85 100,85 L100,100 L0,100 Z" fill="white" opacity="0.8" />
+                 <path d="M10,100 C15,90 45,90 55,100 Z" fill="#1b3a30" />
+                 <path d="M75,100 C80,95 95,95 100,100 Z" fill="#1b3a30" />
+               </svg>
+             ) : (
               <img src="/images/watercolor_bg.png" alt="background" className="w-full h-full object-cover opacity-40" />
             )}
           </div>
         </div>
 
       {/* Header */}
-      <div className={`relative z-10 flex items-center bg-transparent p-4 pb-2 justify-between ${(wedding.template_id === 'floral' || wedding.template_id === 'minimal') ? 'pt-[200px]' : ''}`}>
+      <div className={`relative z-10 flex items-center bg-transparent p-4 pb-2 justify-between ${(wedding.template_id === 'floral' || wedding.template_id === 'minimal') ? 'pt-[200px]' : wedding.template_id === 'bohemian' ? 'pt-[160px]' : ''}`}>
         <div className="size-12" />
         <h2 className={`${t.textPrimary} text-lg font-semibold leading-tight tracking-tight flex-1 text-center`}>
           RSVP Confirmation

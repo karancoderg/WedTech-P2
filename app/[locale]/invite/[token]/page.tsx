@@ -128,16 +128,16 @@ export default function InviteLandingPage() {
       customBg: "gold-glow"
     },
     bohemian: {
-      bg: "bg-[#fdf9f4]",
-      accent: "#914730",
+      bg: "bg-[#ffffff]",
+      accent: "#18362b",
       textPrimary: "text-[#1c1c19]",
       textSecondary: "text-[#54433e]/70",
-      fontHeading: pinyonScript.className,
-      fontBody: notoSerif.className,
-      ornament: <span className="material-symbols-outlined text-[#914730] opacity-40" style={{ fontVariationSettings: "'wght' 100" }}>eco</span>,
-      button: "bg-gradient-to-br from-[#914730] to-[#7f735a] text-white rounded-full shadow-lg font-serif tracking-widest",
-      border: "bg-[#914730]/10",
-      customBg: "paper-texture"
+      fontHeading: notoSerif.className,
+      fontBody: manrope.className,
+      ornament: null,
+      button: "bg-[#18362b] text-white rounded-none shadow-md tracking-widest uppercase font-bold text-xs px-8 py-3",
+      border: "bg-[#18362b]/10",
+      customBg: "none"
     }
   };
 
@@ -155,23 +155,15 @@ export default function InviteLandingPage() {
           {/* Watercolor Base Layer */}
           <div className="absolute inset-0 z-0 pointer-events-none flex justify-center">
             <div className="w-full max-w-[430px] relative h-full overflow-hidden">
-               <div className="absolute top-0 right-0 w-64 h-64 bg-purple-200/50 rounded-full blur-[70px] mix-blend-multiply" />
-               <div className="absolute bottom-0 left-0 w-64 h-64 bg-fuchsia-100/60 rounded-full blur-[70px] mix-blend-multiply" />
-               <div className="absolute top-1/2 left-0 w-48 h-48 bg-blue-100/40 rounded-full blur-[80px] mix-blend-multiply" />
-               
-               {/* Transformed Florals for the Mobile Card Borders */}
-               <img src="/images/wisteria_top.png" alt="" className="absolute top-0 inset-x-0 w-full opacity-100 mix-blend-multiply object-cover" style={{ maxHeight: '220px', objectPosition: 'top center' }} />
-               <img src="/images/eucalyptus_bottom.png" alt="" className="absolute bottom-0 inset-x-0 w-full opacity-100 mix-blend-multiply object-cover" style={{ maxHeight: '220px', objectPosition: 'bottom center' }} />
+              <div className="absolute inset-0 bg-[#f8f0f2]" />
+              <img src="/images/wisteria_top.png" alt="" className="absolute top-0 inset-x-0 w-full opacity-100 mix-blend-multiply object-contain object-top" />
+              <img src="/images/eucalyptus_bottom.png" alt="" className="absolute bottom-0 inset-x-0 w-full opacity-100 mix-blend-multiply object-contain object-bottom" />
             </div>
           </div>
 
           {/* Content */}
           <div className="relative z-10 flex flex-col items-center flex-1 px-8 pt-[220px] pb-[380px] text-center">
             
-            <div className="mb-2 w-full text-center mt-6">
-              <p className="font-serif text-[8px] sm:text-[10px] tracking-[0.1em] text-[#4a2e6b] font-bold">MARRIAGE IS A SUNNAH OF PROPHET MUHAMMAD S.A.W</p>
-              <p className="font-serif text-[8px] sm:text-[10px] tracking-[0.1em] text-[#4a2e6b] font-bold">(SUNAN IBN MAJAH)</p>
-            </div>
 
             <p className="font-serif text-xs md:text-sm tracking-[0.2em] text-[#4a2e6b] uppercase leading-relaxed mt-4 mb-4">
               Y O U  A R E  C O R D I A L L Y<br/>I N V I T E D  T O  T H E<br/>W E D D I N G  O F
@@ -376,7 +368,7 @@ export default function InviteLandingPage() {
   // ── ROYAL POSTCARD LAYOUT (Traditional Palace Aesthetic) ────────────────
   if (wedding.template_id === 'royal') {
     return (
-      <div className="min-h-screen w-full bg-[#3a0606] flex justify-center">
+      <div className="min-h-screen w-full bg-[#faf5f5] flex justify-center">
         <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden max-w-[430px] bg-[#6e1616] shadow-[0_0_50px_rgba(0,0,0,0.8)] z-50">
           
           {/* Repeating Mandala/Damask background subtle pattern */}
@@ -401,9 +393,6 @@ export default function InviteLandingPage() {
           <div className="relative z-10 flex flex-col items-center px-6 pt-6 pb-20 flex-1">
             
             {/* Palace Motif */}
-            <div className="mb-4">
-               <img src="/images/royal_center_motif.png" alt="Crest" className="w-[110px] h-auto mix-blend-multiply" />
-            </div>
 
             <p className={`${notoSerif.className} text-[#deb771] text-[9px] font-bold tracking-[0.3em] uppercase mb-4`}>
               {t_i18n("invitedTo")}
@@ -614,6 +603,131 @@ export default function InviteLandingPage() {
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── GEO BOHO LAYOUT (Abstract shapes, blush & green) ───────────────────────
+  if (wedding.template_id === 'bohemian') {
+    return (
+      <div className="min-h-screen w-full bg-[#f4f4f4] flex justify-center">
+        <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden max-w-[430px] shadow-2xl bg-white z-50">
+          
+          {/* Abstract SVG Background Layer */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none z-0" preserveAspectRatio="none" viewBox="0 0 100 100">
+            {/* Base Blush Shape */}
+            <path d="M0,0 L85,0 C65,15 70,30 95,45 L100,45 L100,85 C75,90 60,75 30,80 C10,85 0,90 0,90 Z" fill="#e3ab9f" opacity="0.9" />
+            
+            {/* Top Left White Nested Chevrons */}
+            <polyline points="0,5 30,30 15,50" fill="none" stroke="white" strokeWidth="0.4" strokeLinejoin="miter"/>
+            <polyline points="0,12 35,38 20,55" fill="none" stroke="white" strokeWidth="0.4" strokeLinejoin="miter"/>
+            <polyline points="0,19 40,46 25,60" fill="none" stroke="white" strokeWidth="0.4" strokeLinejoin="miter"/>
+
+            {/* Bottom Right Blush Nested Chevrons (over white bg) */}
+            <polyline points="60,100 80,75 100,85" fill="none" stroke="#e3ab9f" strokeWidth="0.4" strokeLinejoin="miter"/>
+            <polyline points="50,100 75,70 100,80" fill="none" stroke="#e3ab9f" strokeWidth="0.4" strokeLinejoin="miter"/>
+            <polyline points="40,100 70,65 100,75" fill="none" stroke="#e3ab9f" strokeWidth="0.4" strokeLinejoin="miter"/>
+            <polyline points="30,100 65,60 100,70" fill="none" stroke="#e3ab9f" strokeWidth="0.4" strokeLinejoin="miter"/>
+
+            {/* Bottom Dark Green Shapes */}
+            <path d="M25,100 C30,85 55,85 65,100 Z" fill="#1b3a30" />
+            <path d="M0,85 C15,85 20,100 0,100 Z" fill="#1b3a30" />
+            
+            {/* Additional crisp white wave overlay on the bottom */}
+            <path d="M0,75 C25,85 40,75 70,85 C85,90 100,85 100,85 L100,100 L0,100 Z" fill="white" opacity="0.8" />
+            <path d="M10,100 C15,90 45,90 55,100 Z" fill="#1b3a30" />
+            <path d="M75,100 C80,95 95,95 100,100 Z" fill="#1b3a30" />
+          </svg>
+
+          {/* Foreground Content */}
+          <div className="relative z-10 flex flex-col items-center pt-24 pb-32 px-10 text-center">
+            
+            {/* Top Subtitle */}
+            <div className="flex flex-col items-center mb-6">
+              <span className={`text-[9px] text-[#4a3933] font-medium tracking-[0.25em] ${notoSerif.className} uppercase mb-1`}>
+                Please
+              </span>
+              <span className={`text-[9px] text-[#4a3933] font-medium tracking-[0.25em] ${notoSerif.className} uppercase mb-1`}>
+                Join us for
+              </span>
+              <span className={`text-[9px] text-[#4a3933] font-medium tracking-[0.25em] ${notoSerif.className} uppercase`}>
+                the wedding of
+              </span>
+            </div>
+
+            {/* Couple Names (Bold Serif) */}
+            <h1 className={`${notoSerif.className} text-5xl font-black text-white drop-shadow-sm leading-[1.1] mb-8`}>
+              {wedding.bride_name}<br/>&amp;<br/>{wedding.groom_name}
+            </h1>
+
+            {/* Invite Text */}
+            <div className="flex flex-col items-center mb-8">
+               <span className={`text-[9px] text-[#4a3933] font-medium tracking-[0.2em] ${notoSerif.className} uppercase mb-1`}>
+                Invite you to their
+              </span>
+              <span className={`text-[9px] text-[#4a3933] font-medium tracking-[0.2em] ${notoSerif.className} uppercase`}>
+                wedding celebration
+              </span>
+            </div>
+
+            {/* Event Functions Details */}
+            <div className="flex flex-col items-center w-full gap-8 mb-12">
+              {functions.map((func) => (
+                <div key={func.id} className="flex flex-col items-center">
+                  <h2 className={`${notoSerif.className} text-sm font-black text-[#222] tracking-wider mb-2`}>
+                    {formatDate(func.date)}
+                  </h2>
+                  <span className={`text-[10px] text-[#4a3933] font-medium tracking-widest ${notoSerif.className} mb-1`}>
+                    At {func.time}
+                  </span>
+                  <span className={`text-[10px] text-[#4a3933] font-medium tracking-wide ${notoSerif.className} max-w-[200px] leading-relaxed`}>
+                     {func.venue_name}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Guest Welcome & Action */}
+            <div className="mt-8 flex flex-col items-center w-full">
+               <p className={`${notoSerif.className} text-[10px] text-[#4a3933] tracking-[0.2em] uppercase font-bold mb-4`}>
+                 Reception To Follow
+               </p>
+
+               <div className="w-full mt-4 flex justify-center">
+                 {hasConfirmedRsvp ? (
+                    <button
+                      onClick={() => router.push(`/${locale}/invite/${token}/confirmed`)}
+                      className={`w-[80%] h-12 bg-[#1b3a30] text-white font-bold text-[10px] rounded-none tracking-[0.25em] uppercase hover:bg-[#122820] active:scale-[0.98] transition-all ${manrope.className}`}
+                    >
+                      SHOW EVENT PASS
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => router.push(`/${locale}/invite/${token}/rsvp`)}
+                      className={`w-[80%] h-12 bg-[#1b3a30] text-white font-bold text-[10px] rounded-none tracking-[0.25em] uppercase hover:bg-[#122820] active:scale-[0.98] transition-all flex items-center justify-center gap-2 ${manrope.className}`}
+                    >
+                      {t_i18n("rsvpNow")}
+                    </button>
+                  )}
+               </div>
+            </div>
+
+            {/* Language Switcher */}
+            <div className="mt-12 flex gap-4">
+              {['en', 'hi'].map((l) => (
+                <button key={l}
+                  onClick={() => router.push(`/${l}/invite/${token}`)}
+                  className={`text-[9px] font-bold uppercase tracking-[0.2em] pb-1 transition-all ${
+                    locale === l ? 'border-b border-[#1b3a30] text-[#1b3a30]' : 'text-[#4a3933]/50 hover:text-[#1b3a30]'
+                  }`}
+                >
+                  {l === 'en' ? 'ENGLISH' : 'हिन्दी'}
+                </button>
+              ))}
+            </div>
+
           </div>
         </div>
       </div>
