@@ -113,8 +113,8 @@ export async function POST(
             throw new Error("Email address missing");
           }
 
-          // Syntax validation
-          const validation = emailSchema.safeParse(guest.email);
+          // Syntax validation (use decrypted email, not the raw encrypted DB value)
+          const validation = emailSchema.safeParse(guestEmail);
           if (!validation.success) {
             throw new Error("Invalid email format");
           }
@@ -143,7 +143,7 @@ export async function POST(
             throw new Error(`Domain verification failed: ${domain}`);
           }
 
-          await EmailService.sendInvitation(guest, wedding as unknown as Wedding, functions, smtpConfig);
+          await EmailService.sendInvitation(guest, wedding as unknown as Wedding, functions, smtpConfig, guestEmail);
           
           // Update status & log success
           await Promise.all([

@@ -190,8 +190,9 @@ export class EmailService {
    * Sends a personalized email to a single guest
    * Accepts optional SmtpConfig for per-user credentials
    */
-  public static async sendInvitation(guest: Guest, wedding: Wedding, functions: WeddingFunction[], smtpConfig?: SmtpConfig) {
-    if (!guest.email) {
+  public static async sendInvitation(guest: Guest, wedding: Wedding, functions: WeddingFunction[], smtpConfig?: SmtpConfig, decryptedEmail?: string) {
+    const recipientEmail = decryptedEmail || guest.email;
+    if (!recipientEmail) {
       throw new Error(`Email address missing for guest: ${guest.name}`);
     }
 
@@ -201,7 +202,7 @@ export class EmailService {
 
     return await transporter.sendMail({
       from: fromEmail,
-      to: guest.email,
+      to: recipientEmail,
       subject,
       text,
       html,
