@@ -166,12 +166,12 @@ export default function InviteLandingPage() {
             
 
             <p className="font-serif text-xs md:text-sm tracking-[0.2em] text-[#4a2e6b] uppercase leading-relaxed mt-4 mb-4">
-              Y O U  A R E  C O R D I A L L Y<br/>I N V I T E D  T O  T H E<br/>W E D D I N G  O F
+              {t_i18n("cordiallyInvited")}<br/>{t_i18n("invitedToThe")}<br/>{t_i18n("weddingOf")}
             </p>
 
             <div className="relative w-full flex flex-col items-center select-none pt-4 pb-6 mt-4">
               <span className={`${greatVibes.className} text-6xl text-[#4a2e6b] mb-1`}>{wedding.bride_name}</span>
-              <span className={`${greatVibes.className} text-4xl text-[#2a173d] my-1`}>With</span>
+              <span className={`${greatVibes.className} text-4xl text-[#2a173d] my-1`}>{t_i18n("with")}</span>
               <span className={`${greatVibes.className} text-6xl text-[#4a2e6b] mt-1`}>{wedding.groom_name}</span>
             </div>
 
@@ -196,7 +196,7 @@ export default function InviteLandingPage() {
                       <div className="flex items-center mx-2 space-x-4">
                         <span className="text-[10px] font-bold tracking-[0.1em] uppercase text-slate-600">{dayName}</span>
                         <span className="text-5xl font-light text-slate-700 text-purple-900/80 leading-none pb-1">{dayNum}</span>
-                        <span className="text-[10px] font-bold tracking-[0.1em] uppercase text-slate-600">AT {time}</span>
+                        <span className="text-[10px] font-bold tracking-[0.1em] uppercase text-slate-600">{t_i18n("at")} {time}</span>
                       </div>
                       <div className="flex-1 border-t border-amber-600/30"></div>
                     </div>
@@ -227,7 +227,7 @@ export default function InviteLandingPage() {
                   className="w-full py-4 rounded-xl border-2 border-purple-200/50 text-purple-800 font-bold uppercase tracking-[0.15em] text-xs hover:bg-purple-50 transition-all flex items-center justify-center gap-2"
                 >
                   <span className="material-symbols-outlined text-[16px]">qr_code</span>
-                  Show Event Pass
+                  {t_i18n("showEventPass")}
                 </button>
               )}
             </div>
@@ -301,7 +301,7 @@ export default function InviteLandingPage() {
 
           <div className="relative z-30 flex flex-col items-center flex-1 px-10 pt-28 pb-20">
             <p className={`${manrope.className} text-[10px] uppercase tracking-[0.25em] text-[#cfab68]/80 text-center leading-relaxed mb-10`}>
-              Please Join Us For<br/>The Wedding Of
+              {t_i18n("pleaseJoinUsFor")}<br/>{t_i18n("theWeddingOfNormal")}
             </p>
 
             {/* Names */}
@@ -354,7 +354,7 @@ export default function InviteLandingPage() {
                   className={`${manrope.className} w-full border border-[#cfab68]/50 hover:bg-[#cfab68]/10 text-[#f2d080] font-light tracking-[0.3em] py-4 rounded-sm transition-all uppercase text-[10px] flex items-center justify-center gap-2`}
                 >
                   <span className="material-symbols-outlined text-[14px]">qr_code</span>
-                  Show Event Pass
+                  {t_i18n("showEventPass")}
                 </button>
               )}
             </div>
@@ -411,7 +411,7 @@ export default function InviteLandingPage() {
             </h1>
 
             <p className={`${notoSerif.className} text-[#e8c687] text-[9px] font-bold tracking-[0.4em] uppercase mb-10`}>
-              We invite you to celebrate our wedding
+              {t_i18n("weInviteYouToCelebrate")}
             </p>
 
             {/* Event Details */}
@@ -422,7 +422,7 @@ export default function InviteLandingPage() {
                   <p className={`${notoSerif.className} text-[#ebc98b] text-[10px] font-semibold tracking-[0.2em] uppercase mb-2 drop-shadow-md`}>{func.name}</p>
                   <div className="flex flex-col items-center gap-1">
                     <span className={`${notoSerif.className} text-white/90 text-sm tracking-widest`}>{formatDate(func.date)}</span>
-                    <span className={`${notoSerif.className} text-[#deb771]/80 text-[10px]`}>AT {func.time}</span>
+                    <span className={`${notoSerif.className} text-[#deb771]/80 text-[10px]`}>{t_i18n("at")} {func.time}</span>
                   </div>
                   <p className={`${notoSerif.className} text-white/90 text-[10px] font-medium tracking-[0.1em] uppercase mt-3`}>{func.venue_name}</p>
                 </div>
@@ -432,7 +432,7 @@ export default function InviteLandingPage() {
              {/* Inner Guest Box */}
              <div className="w-[90%] bg-[#420a0a] border border-[#deb771]/40 rounded-sm p-6 flex flex-col items-center text-center shadow-[0_10px_20px_rgba(0,0,0,0.4)] mt-2">
                 <p className={`${notoSerif.className} text-white/80 text-[10px] font-bold tracking-widest mb-3`}>
-                   Dear {guest.name}
+                   {t_i18n("dear")} {guest.name}
                 </p>
                 <h2 className={`${notoSerif.className} text-[#ebc98b] text-xl font-bold tracking-wide mb-3 px-4 leading-relaxed`}>
                    {t_i18n("requestPleasure")}
@@ -444,7 +444,7 @@ export default function InviteLandingPage() {
                       onClick={() => router.push(`/${locale}/invite/${token}/confirmed`)}
                       className={`w-full h-12 bg-[#210202] border border-[#deb771]/30 text-[#ebc98b] font-bold text-[10px] rounded-sm tracking-[0.25em] uppercase hover:bg-[#330505] active:scale-[0.98] transition-all flex items-center justify-center gap-2 ${notoSerif.className}`}
                     >
-                      SHOW EVENT PASS
+                      {t_i18n("showEventPassUpper")}
                     </button>
                   ) : (
                     <button
@@ -505,7 +505,7 @@ export default function InviteLandingPage() {
 
             {/* Intro Text */}
             <p className={`${notoSerif.className} text-[#5a4848] text-[9px] tracking-[0.35em] uppercase mb-4 font-semibold opacity-80 mt-20`}>
-              Together with their families
+              {t_i18n("togetherWithTheirFamilies")}
             </p>
 
             {/* Bride Name */}
@@ -542,7 +542,7 @@ export default function InviteLandingPage() {
             </h1>
 
             <p className={`${notoSerif.className} text-[#5a4848]/80 text-[11px] italic text-center mb-10 tracking-widest leading-relaxed`}>
-              request the pleasure of your company<br/>to celebrate their marriage
+              {t_i18n("requestThePleasureLineBreak1")}<br/>{t_i18n("requestThePleasureLineBreak2")}
             </p>
 
             {/* Event details container with slight white backing for legibility */}
@@ -553,7 +553,7 @@ export default function InviteLandingPage() {
                   <p className={`${notoSerif.className} text-[#7a6464] text-[10px] tracking-[0.25em] uppercase font-bold mb-2`}>{func.name}</p>
                   <div className="flex flex-col items-center gap-1">
                     <span className={`${notoSerif.className} text-[#3a2e2e] text-lg font-medium tracking-wide`}>{formatDate(func.date)}</span>
-                    <span className={`${notoSerif.className} text-[#5a4848] text-xs`}>AT {func.time}</span>
+                    <span className={`${notoSerif.className} text-[#5a4848] text-xs`}>{t_i18n("at")} {func.time}</span>
                   </div>
                   <p className={`${notoSerif.className} text-[#3a2e2e] text-[11px] font-bold tracking-[0.1em] uppercase mt-4`}>{func.venue_name}</p>
                   
@@ -568,7 +568,7 @@ export default function InviteLandingPage() {
             </div>
 
             <p className={`${greatVibes.className} text-4xl text-[#7a6464] mb-8`}>
-               Dear {guest.name},
+               {t_i18n("dear")} {guest.name},
             </p>
 
             {/* RSVP Button */}
@@ -578,7 +578,7 @@ export default function InviteLandingPage() {
                   onClick={() => router.push(`/${locale}/invite/${token}/confirmed`)}
                   className={`w-full h-12 bg-[#8c6767] border border-[#7a5656] text-white font-medium text-[10px] rounded-sm tracking-[0.25em] uppercase shadow-lg shadow-[#8c6767]/20 active:scale-[0.98] transition-transform flex items-center justify-center gap-2 ${notoSerif.className}`}
                 >
-                  SHOW EVENT PASS
+                  {t_i18n("showEventPassUpper")}
                 </button>
               ) : (
                 <button
@@ -599,7 +599,7 @@ export default function InviteLandingPage() {
                     locale === l ? 'border-b border-[#5a4848] text-[#5a4848]' : 'text-[#5a4848]/50 hover:text-[#5a4848]'
                   }`}
                 >
-                  {l === 'en' ? 'English' : 'हिन्दी'}
+                  {l === 'en' ? t_i18n("english") : t_i18n("hindi")}
                 </button>
               ))}
             </div>
@@ -647,13 +647,13 @@ export default function InviteLandingPage() {
             {/* Top Subtitle */}
             <div className="flex flex-col items-center mb-6">
               <span className={`text-[9px] text-[#4a3933] font-medium tracking-[0.25em] ${notoSerif.className} uppercase mb-1`}>
-                Please
+                {t_i18n("please")}
               </span>
               <span className={`text-[9px] text-[#4a3933] font-medium tracking-[0.25em] ${notoSerif.className} uppercase mb-1`}>
-                Join us for
+                {t_i18n("joinUsFor")}
               </span>
               <span className={`text-[9px] text-[#4a3933] font-medium tracking-[0.25em] ${notoSerif.className} uppercase`}>
-                the wedding of
+                {t_i18n("theWeddingOfLower")}
               </span>
             </div>
 
@@ -665,10 +665,10 @@ export default function InviteLandingPage() {
             {/* Invite Text */}
             <div className="flex flex-col items-center mb-8">
                <span className={`text-[9px] text-[#4a3933] font-medium tracking-[0.2em] ${notoSerif.className} uppercase mb-1`}>
-                Invite you to their
+                {t_i18n("inviteYouToTheir")}
               </span>
               <span className={`text-[9px] text-[#4a3933] font-medium tracking-[0.2em] ${notoSerif.className} uppercase`}>
-                wedding celebration
+                {t_i18n("weddingCelebration")}
               </span>
             </div>
 
@@ -680,7 +680,7 @@ export default function InviteLandingPage() {
                     {formatDate(func.date)}
                   </h2>
                   <span className={`text-[10px] text-[#4a3933] font-medium tracking-widest ${notoSerif.className} mb-1`}>
-                    At {func.time}
+                    {t_i18n("at")} {func.time}
                   </span>
                   <span className={`text-[10px] text-[#4a3933] font-medium tracking-wide ${notoSerif.className} max-w-[200px] leading-relaxed`}>
                      {func.venue_name}
@@ -692,7 +692,7 @@ export default function InviteLandingPage() {
             {/* Guest Welcome & Action */}
             <div className="mt-8 flex flex-col items-center w-full">
                <p className={`${notoSerif.className} text-[10px] text-[#4a3933] tracking-[0.2em] uppercase font-bold mb-4`}>
-                 Reception To Follow
+                 {t_i18n("receptionToFollow")}
                </p>
 
                <div className="w-full mt-4 flex justify-center">
@@ -701,7 +701,7 @@ export default function InviteLandingPage() {
                       onClick={() => router.push(`/${locale}/invite/${token}/confirmed`)}
                       className={`w-[80%] h-12 bg-[#1b3a30] text-white font-bold text-[10px] rounded-none tracking-[0.25em] uppercase hover:bg-[#122820] active:scale-[0.98] transition-all ${manrope.className}`}
                     >
-                      SHOW EVENT PASS
+                      {t_i18n("showEventPassUpper")}
                     </button>
                   ) : (
                     <button
@@ -723,7 +723,7 @@ export default function InviteLandingPage() {
                     locale === l ? 'border-b border-[#1b3a30] text-[#1b3a30]' : 'text-[#4a3933]/50 hover:text-[#1b3a30]'
                   }`}
                 >
-                  {l === 'en' ? 'ENGLISH' : 'हिन्दी'}
+                  {l === 'en' ? t_i18n("englishUpper") : t_i18n("hindi")}
                 </button>
               ))}
             </div>

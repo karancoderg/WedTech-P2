@@ -30,6 +30,7 @@ export default function RSVPFormPage() {
   const router = useRouter();
   const token = params.token as string;
   const t_i18n = useTranslations("RSVP");
+  const t_invite = useTranslations("Invite");
 
   const [wedding, setWedding] = useState<Wedding | null>(null);
   const [guests, setGuests] = useState<Guest[]>([]);
@@ -161,11 +162,34 @@ export default function RSVPFormPage() {
       }
 
       const validAdditionalGuests = additionalGuests.filter(ag => ag.name.trim());
+      
+      let effectiveGroupId = primaryGuest.group_id;
+
+      // If they don't have a group, create one so they are grouped with their kids/plus ones
+      if (validAdditionalGuests.length > 0 && !effectiveGroupId) {
+        const { data: newGroup, error: groupError } = await supabase
+          .from("guest_groups")
+          .insert({
+            wedding_id: wedding!.id,
+            name: `${primaryGuest.name.split(" ")[0]}'s Family`
+          })
+          .select()
+          .single();
+
+        if (newGroup) {
+          effectiveGroupId = newGroup.id;
+          // Update primary guest to be part of this new group
+          await supabase.from("guests").update({ group_id: effectiveGroupId }).eq("id", primaryGuest.id);
+        } else {
+          console.error("Failed to create guest group:", groupError);
+        }
+      }
+
       for (const ag of validAdditionalGuests) {
         // Create a new guest linked to the primary guest's group
         const { data: newGuest, error: insertError } = await supabase.from("guests").insert({
           wedding_id: wedding!.id,
-          group_id: primaryGuest.group_id || primaryGuest.id, // Group them together
+          group_id: effectiveGroupId || null, // Group them together if we successfully resolved the group
           name: ag.name.trim(),
           phone: await encryptValue(ag.phone.trim()),
           side: primaryGuest.side,
@@ -177,7 +201,8 @@ export default function RSVPFormPage() {
         }).select().single();
 
         if (insertError) {
-          console.error("Failed to insert additional guest:", insertError);
+          console.error("Failed to insert additional guest:", JSON.stringify(insertError, null, 2));
+          toast.error(`Error adding guest ${ag.name.trim()}: ${insertError.message || 'Unknown database error'}`);
         } else if (newGuest) {
           // Add confirmed RSVPs for this new guest, defaulting to the primary guest's responses
           const primaryResponses = responses[primaryGuest.id];
@@ -474,7 +499,7 @@ export default function RSVPFormPage() {
 
             <div className="space-y-4">
               <p className={`text-sm font-bold uppercase tracking-widest ${t.textAccent}`}>
-                {guests.length > 1 ? "Family Check-In Pass" : "Personal Check-In Pass"}
+                {guests.length > 1 ? t_i18n("familyCheckInPass") : t_i18n("personalCheckInPass")}
               </p>
               <div className="flex flex-wrap justify-center gap-2">
                 {guests.map(g => (
@@ -494,10 +519,10 @@ export default function RSVPFormPage() {
             </div>
 
             <div className={`mt-10 pt-8 border-t ${t.borderTop} flex flex-col items-center gap-2`}>
-              <p className="text-xs text-slate-400 font-medium">SCAN THIS AT THE ENTRANCE</p>
+              <p className="text-xs text-slate-400 font-medium">{t_i18n("scanAtEntrance")}</p>
               <div className="flex gap-2">
                 <span className="material-symbols-outlined text-slate-400">confirmation_number</span>
-                <span className="text-[10px] text-slate-400 font-mono uppercase tracking-tighter">Token: {token.slice(0, 8)}...</span>
+                <span className="text-[10px] text-slate-400 font-mono uppercase tracking-tighter">{t_i18n("tokenText")} {token.slice(0, 8)}...</span>
               </div>
             </div>
           </div>
@@ -507,7 +532,7 @@ export default function RSVPFormPage() {
             className={`mt-12 w-full py-4 rounded-xl border-2 ${t.borderTop} ${t.textPrimary} font-bold flex items-center justify-center gap-2 hover:bg-white/50 transition-all`}
           >
             <span className="material-symbols-outlined">arrow_back</span>
-            Back to Invitation
+            {t_i18n("backToInvitation")}
           </button>
         </main>
       </div>
@@ -606,7 +631,7 @@ export default function RSVPFormPage() {
         </div>
       </div>
       {/* Sticky Header */}
-      <header className={`relative z-50 flex flex-col items-center ${(wedding.template_id === 'minimal' || wedding.template_id === 'floral') ? 'bg-transparent pt-[240px] border-none' : wedding.template_id === 'royal' ? 'bg-transparent pt-0 border-none' : wedding.template_id === 'dark' ? 'bg-transparent pt-[80px] border-none' : `${t.bgSub} backdrop-blur-md border-b ${t.borderTop}`} px-4 py-4 justify-between`}>
+      <header className={`relative z-50 flex flex-col items-center ${(wedding.template_id === 'minimal' || wedding.template_id === 'floral') ? 'bg-transparent pt-[240px] border-none' : wedding.template_id === 'royal' ? 'bg-transparent pt-0 border-none' : wedding.template_id === 'dark' ? 'bg-transparent pt-[80px] border-none' : wedding.template_id === 'bohemian' ? 'bg-transparent pt-[160px] border-none' : `${t.bgSub} backdrop-blur-md border-b ${t.borderTop}`} px-4 py-4 justify-between`}>
         <div className={`absolute top-4 left-4 z-[60] ${t.textPrimary} flex size-10 shrink-0 items-center justify-center cursor-pointer bg-white/20 backdrop-blur-md rounded-full`} onClick={() => router.back()}>
           <span className="material-symbols-outlined">close</span>
         </div>
@@ -615,7 +640,7 @@ export default function RSVPFormPage() {
         {wedding.template_id === 'royal' && (
           <div className="w-full flex flex-col items-center pt-[220px]">
             {/* Invited To */}
-            <p className={`${notoSerif.className} text-[#deb771] text-[9px] font-bold tracking-[0.3em] uppercase mb-3`}>YOU&apos;RE INVITED TO</p>
+            <p className={`${notoSerif.className} text-[#deb771] text-[9px] font-bold tracking-[0.3em] uppercase mb-3`}>{t_invite("invitedTo")}</p>
             {/* Bride Name */}
             <h1 className={`${greatVibes.className} text-6xl text-[#ebc98b] leading-tight text-center`} style={{ textShadow: '1px 2px 4px rgba(0,0,0,0.4)' }}>{wedding.bride_name}</h1>
             <h1 className={`${greatVibes.className} text-4xl text-[#deb771] my-1`}>&amp;</h1>
@@ -626,15 +651,15 @@ export default function RSVPFormPage() {
         {/* Non-Royal themes header */}
         {wedding.template_id !== 'royal' && (
           <div className="flex-1 flex flex-col items-center w-full">
-            <h2 className={`${['minimal', 'floral', 'dark'].includes(wedding.template_id as string) ? greatVibes.className : t.fontHeading} ${wedding.template_id === 'dark' ? 'text-[#f2d080] text-5xl leading-none drop-shadow-lg' : `${t.textAccent} ${(wedding.template_id === 'minimal' || wedding.template_id === 'floral') ? 'text-4xl leading-none' : 'text-3xl'}`} font-normal text-center py-1`}>
+            <h2 className={`${['minimal', 'floral', 'dark'].includes(wedding.template_id as string) ? greatVibes.className : t.fontHeading} ${wedding.template_id === 'dark' ? 'text-[#f2d080] text-5xl leading-none drop-shadow-lg' : wedding.template_id === 'bohemian' ? 'text-white text-5xl font-black drop-shadow-md tracking-wide' : `${t.textAccent} ${(wedding.template_id === 'minimal' || wedding.template_id === 'floral') ? 'text-4xl leading-none' : 'text-3xl'}`} font-normal text-center py-1`}>
               {wedding.bride_name}
             </h2>
             {wedding.template_id !== 'dark' && (
-              <span className={`${(wedding.template_id === 'minimal' || wedding.template_id === 'floral') ? greatVibes.className : t.fontHeading} ${t.textAccent} ${(wedding.template_id === 'minimal' || wedding.template_id === 'floral') ? 'text-2xl mt-1' : 'text-xl mx-2'}`}>
-                {(wedding.template_id === 'minimal' || wedding.template_id === 'floral') ? 'With' : '&'}
+              <span className={`${(wedding.template_id === 'minimal' || wedding.template_id === 'floral') ? greatVibes.className : t.fontHeading} ${wedding.template_id === 'bohemian' ? 'text-white font-black text-3xl py-1 drop-shadow-sm' : `${t.textAccent} ${(wedding.template_id === 'minimal' || wedding.template_id === 'floral') ? 'text-2xl mt-1' : 'text-xl mx-2'}`}`}>
+                {(wedding.template_id === 'minimal' || wedding.template_id === 'floral') ? t_i18n("with") : '&'}
               </span>
             )}
-            <h2 className={`${['minimal', 'floral', 'dark'].includes(wedding.template_id as string) ? greatVibes.className : t.fontHeading} ${wedding.template_id === 'dark' ? 'text-[#f2d080] text-5xl leading-none mt-2 drop-shadow-lg' : `${t.textAccent} ${(wedding.template_id === 'minimal' || wedding.template_id === 'floral') ? 'text-4xl leading-none mt-1' : 'text-3xl'}`} font-normal text-center py-1`}>
+            <h2 className={`${['minimal', 'floral', 'dark'].includes(wedding.template_id as string) ? greatVibes.className : t.fontHeading} ${wedding.template_id === 'dark' ? 'text-[#f2d080] text-5xl leading-none mt-2 drop-shadow-lg' : wedding.template_id === 'bohemian' ? 'text-white text-5xl font-black drop-shadow-md tracking-wide' : `${t.textAccent} ${(wedding.template_id === 'minimal' || wedding.template_id === 'floral') ? 'text-4xl leading-none mt-1' : 'text-3xl'}`} font-normal text-center py-1`}>
               {wedding.groom_name}
             </h2>
           </div>
@@ -657,7 +682,7 @@ export default function RSVPFormPage() {
                         g.side === 'groom' ? 'bg-blue-50 border-blue-200 text-blue-500' :
                           'bg-purple-50 border-purple-200 text-purple-500'
                       }`}>
-                      {g.side === 'both' ? 'Both Sides' : `${g.side}'s Side`}
+                      {g.side === 'both' ? t_i18n("bothSides") : `${g.side}${t_i18n("side")}`}
                     </span>
                   )}
                 </div>
@@ -785,11 +810,11 @@ export default function RSVPFormPage() {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h3 className={`${t.textPrimary} text-xl font-bold leading-tight`}>
-                  Bringing additional guests?
+                  {t_i18n("bringingAdditionalGuests")}
                 </h3>
               </div>
               <p className={`${t.textSecondary} text-sm mb-4`}>
-                Please provide their details so we can properly check them in at the venue.
+                {t_i18n("provideDetails")}
               </p>
 
               <div className="space-y-4">
@@ -802,7 +827,7 @@ export default function RSVPFormPage() {
                       <span className="material-symbols-outlined text-sm">close</span>
                     </button>
                     <div>
-                      <label className={`text-xs font-bold uppercase tracking-widest ${t.textSecondary} mb-1 block`}>Guest Name</label>
+                      <label className={`text-xs font-bold uppercase tracking-widest ${t.textSecondary} mb-1 block`}>{t_i18n("guestName")}</label>
                       <input
                         type="text"
                         placeholder="E.g. John Doe"
@@ -816,7 +841,7 @@ export default function RSVPFormPage() {
                       />
                     </div>
                     <div>
-                      <label className={`text-xs font-bold uppercase tracking-widest ${t.textSecondary} mb-1 block`}>Mobile Number (Optional)</label>
+                      <label className={`text-xs font-bold uppercase tracking-widest ${t.textSecondary} mb-1 block`}>{t_i18n("mobileNumber")}</label>
                       <input
                         type="tel"
                         placeholder="E.g. +91 98765 43210"
@@ -830,7 +855,7 @@ export default function RSVPFormPage() {
                       />
                     </div>
                     <div>
-                      <label className={`text-xs font-bold uppercase tracking-widest ${t.textSecondary} mb-1 block`}>Dietary Preference (Optional)</label>
+                      <label className={`text-xs font-bold uppercase tracking-widest ${t.textSecondary} mb-1 block`}>{t_i18n("dietaryPreferenceOptional")}</label>
                       <div className="flex gap-2">
                         {[
                           { value: "veg" as const, label: "Veg", emoji: "🥦" },
@@ -864,7 +889,7 @@ export default function RSVPFormPage() {
                 className={`w-full mt-4 py-3 rounded-xl border-2 border-dashed ${t.borderTop} ${t.textAccent} font-semibold flex items-center justify-center gap-2 hover:bg-black/5 transition-all`}
               >
                 <span className="material-symbols-outlined">person_add</span>
-                Add Guest
+                {t_i18n("addGuest")}
               </button>
             </div>
 
@@ -874,11 +899,11 @@ export default function RSVPFormPage() {
             <div>
               <div className="mb-4">
                 <h3 className={`${t.textPrimary} text-xl font-bold leading-tight`}>
-                  Children below 12 yrs
+                  {t_i18n("childrenBelow12")}
                 </h3>
               </div>
               <div className={`flex items-center justify-between ${t.cardBg} p-4 rounded-xl border shadow-sm`}>
-                <p className={`${t.textSecondary} text-sm font-medium`}>Special arrangements</p>
+                <p className={`${t.textSecondary} text-sm font-medium`}>{t_i18n("specialArrangements")}</p>
                 <div className="flex items-center gap-5">
                   <button onClick={() => setGlobalChildrenCount(prev => Math.max(0, prev - 1))} className={`size-10 rounded-full ${t.bgSub} shadow flex items-center justify-center ${t.textAccent} font-bold border ${t.borderTop} text-xl`}>−</button>
                   <span className={`font-black text-xl ${t.textPrimary} w-6 text-center`}>{globalChildrenCount}</span>
@@ -900,8 +925,8 @@ export default function RSVPFormPage() {
             {/* Accommodation */}
             <div>
               <div className="mb-1">
-                <h3 className={`${t.textPrimary} text-xl font-bold leading-tight`}>🏨 Accommodation</h3>
-                <p className={`${t.textSecondary} text-sm mt-1`}>Do you require accommodation arrangements?</p>
+                <h3 className={`${t.textPrimary} text-xl font-bold leading-tight`}>🏨 {t_i18n("accommodation")}</h3>
+                <p className={`${t.textSecondary} text-sm mt-1`}>{t_i18n("requireAccommodation")}</p>
               </div>
 
               {/* Yes / No */}
@@ -922,7 +947,7 @@ export default function RSVPFormPage() {
                         : `${t.cardBg} ${t.borderTop} ${t.textSecondary}`
                     }`}
                   >
-                    {val ? 'Yes, I need it' : 'No, thanks'}
+                    {val ? t_i18n("yesNeedIt") : t_i18n("noThanks")}
                   </button>
                 ))}
               </div>
@@ -930,7 +955,7 @@ export default function RSVPFormPage() {
               {/* Count picker — only show if Yes */}
               {needsAccommodation === true && (
                 <div className={`mt-4 ${t.cardBg} border rounded-xl p-4 shadow-sm space-y-3`}>
-                  <p className={`${t.textSecondary} text-sm font-medium`}>How many members need accommodation?</p>
+                  <p className={`${t.textSecondary} text-sm font-medium`}>{t_i18n("howManyAccommodation")}</p>
                   <div className="flex items-center gap-4">
                     <button
                       onClick={() => setAccommodationCount(prev => Math.max(1, prev - 1))}
@@ -950,7 +975,7 @@ export default function RSVPFormPage() {
                       }}
                       className={`ml-auto px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border-2 ${t.borderTop} ${t.textAccent} ${t.cardBg} hover:opacity-80 transition-all`}
                     >
-                      All ({guests.length + additionalGuests.filter(ag => ag.name.trim()).length + globalChildrenCount})
+                      {t_i18n("all")} ({guests.length + additionalGuests.filter(ag => ag.name.trim()).length + globalChildrenCount})
                     </button>
                   </div>
                 </div>
