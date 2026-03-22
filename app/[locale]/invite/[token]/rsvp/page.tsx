@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Wedding, Guest, WeddingFunction } from "@/lib/types";
 import { toast } from "sonner";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { syncGuestWithCRM } from "@/lib/services/crm-sync";
 import QRCode from "qrcode";
 import { Great_Vibes, Pinyon_Script, Manrope, Noto_Serif } from "next/font/google";
@@ -31,6 +31,7 @@ export default function RSVPFormPage() {
   const token = params.token as string;
   const t_i18n = useTranslations("RSVP");
   const t_invite = useTranslations("Invite");
+  const locale = useLocale();
 
   const [wedding, setWedding] = useState<Wedding | null>(null);
   const [guests, setGuests] = useState<Guest[]>([]);
@@ -525,6 +526,24 @@ export default function RSVPFormPage() {
                 <span className="text-[10px] text-slate-400 font-mono uppercase tracking-tighter">{t_i18n("tokenText")} {token.slice(0, 8)}...</span>
               </div>
             </div>
+
+            {/* Language Switcher */}
+            <div className="mt-8 flex justify-center gap-6 w-full">
+              {['en', 'hi'].map((l) => (
+                <button
+                  key={l}
+                  onClick={() => router.push(`/${l}/invite/${token}/rsvp`)}
+                  className={`text-[10px] font-black uppercase tracking-widest pb-1 border-b-2 transition-all ${
+                    locale === l 
+                      ? 'border-b-inherit opacity-100' 
+                      : 'border-b-transparent opacity-40 hover:opacity-100'
+                  }`}
+                  style={locale === l ? { borderBottomColor: t.textPrimary ? undefined : "currentColor" } : {}}
+                >
+                  <span className={t.textPrimary}>{l === 'en' ? t_invite("english") : t_invite("hindi")}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           <button
@@ -895,32 +914,7 @@ export default function RSVPFormPage() {
 
             <hr className={t.borderTop} />
 
-            {/* Global Children Count */}
-            <div>
-              <div className="mb-4">
-                <h3 className={`${t.textPrimary} text-xl font-bold leading-tight`}>
-                  {t_i18n("childrenBelow12")}
-                </h3>
-              </div>
-              <div className={`flex items-center justify-between ${t.cardBg} p-4 rounded-xl border shadow-sm`}>
-                <p className={`${t.textSecondary} text-sm font-medium`}>{t_i18n("specialArrangements")}</p>
-                <div className="flex items-center gap-5">
-                  <button onClick={() => setGlobalChildrenCount(prev => Math.max(0, prev - 1))} className={`size-10 rounded-full ${t.bgSub} shadow flex items-center justify-center ${t.textAccent} font-bold border ${t.borderTop} text-xl`}>−</button>
-                  <span className={`font-black text-xl ${t.textPrimary} w-6 text-center`}>{globalChildrenCount}</span>
-                  <button onClick={() => {
-                    const validAdditionalGuestsCount = additionalGuests.filter(ag => ag.name.trim()).length;
-                    const maxChildrenAllowed = guests.length + validAdditionalGuestsCount;
-                    if (globalChildrenCount >= maxChildrenAllowed) {
-                      toast.error(`Maximum ${maxChildrenAllowed} children allowed based on RSVP members. Please add more members first.`);
-                    } else {
-                      setGlobalChildrenCount(prev => prev + 1);
-                    }
-                  }} className={`size-10 rounded-full ${t.bgSub} shadow flex items-center justify-center ${t.textAccent} font-bold border ${t.borderTop} text-xl`}>+</button>
-                </div>
-              </div>
-            </div>
 
-            <hr className={t.borderTop} />
 
             {/* Accommodation */}
             <div>
@@ -984,6 +978,24 @@ export default function RSVPFormPage() {
 
           </div>
         )}
+
+        {/* Language Switcher for RSVP Form */}
+        <div className="mt-8 flex justify-center gap-6 z-20 pb-12 w-full">
+          {['en', 'hi'].map((l) => (
+            <button
+              key={l}
+              onClick={() => router.push(`/${l}/invite/${token}/rsvp`)}
+              className={`text-[10px] font-black uppercase tracking-widest pb-1 border-b-2 transition-all ${
+                locale === l 
+                  ? 'border-b-inherit opacity-100' 
+                  : 'border-b-transparent opacity-60 hover:opacity-100'
+              }`}
+              style={locale === l ? { borderBottomColor: t.textPrimary ? undefined : "currentColor" } : {}}
+            >
+              <span className={t.textPrimary}>{l === 'en' ? t_invite("english") : t_invite("hindi")}</span>
+            </button>
+          ))}
+        </div>
       </main>
 
       {/* Fixed Bottom CTA */}

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { useTranslations, useLocale } from "next-intl";
 import QRCode from "qrcode";
 import { supabase } from "@/lib/supabase";
 import type { Wedding, Guest, WeddingFunction, RSVP } from "@/lib/types";
@@ -13,6 +14,9 @@ const greatVibes = Great_Vibes({ weight: "400", subsets: ["latin"] });
 export default function ConfirmedPage() {
   const params = useParams();
   const token = params.token as string;
+  const router = useRouter();
+  const locale = useLocale();
+  const t_invite = useTranslations("Invite");
 
   const [wedding, setWedding] = useState<Wedding | null>(null);
   const [guest, setGuest] = useState<Guest | null>(null);
@@ -372,6 +376,24 @@ export default function ConfirmedPage() {
             Share with family on WhatsApp
           </button>
         </a>
+      </div>
+
+      {/* Language Switcher */}
+      <div className="relative z-10 mt-4 mb-8 flex justify-center gap-6 w-full">
+        {['en', 'hi'].map((l) => (
+          <button
+            key={l}
+            onClick={() => router.push(`/${l}/invite/${token}/confirmed`)}
+            className={`text-[10px] font-black uppercase tracking-widest pb-1 border-b-2 transition-all ${
+              locale === l 
+                ? 'border-b-inherit opacity-100' 
+                : 'border-b-transparent opacity-60 hover:opacity-100'
+            }`}
+            style={locale === l ? { borderBottomColor: t.textPrimary ? undefined : "currentColor" } : {}}
+          >
+            <span className={t.textPrimary}>{l === 'en' ? t_invite("english") : t_invite("hindi")}</span>
+          </button>
+        ))}
       </div>
 
       {/* Footer */}

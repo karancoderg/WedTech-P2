@@ -232,6 +232,19 @@ export default function InviteLandingPage() {
               )}
             </div>
             
+            {/* Language Switcher */}
+            <div className="mt-8 flex gap-5 z-20">
+              {['en', 'hi'].map((l) => (
+                <button key={l}
+                  onClick={() => router.push(`/${l}/invite/${token}`)}
+                  className={`text-[9px] font-bold uppercase tracking-widest pb-1 transition-all ${
+                    locale === l ? 'border-b border-[#4a2e6b] text-[#4a2e6b]' : 'text-[#4a2e6b]/50 hover:text-[#4a2e6b]'
+                  }`}
+                >
+                  {l === 'en' ? t_i18n("englishUpper") : t_i18n("hindi")}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -359,6 +372,19 @@ export default function InviteLandingPage() {
               )}
             </div>
             
+            {/* Language Switcher */}
+            <div className="mt-12 flex gap-5 z-20">
+              {['en', 'hi'].map((l) => (
+                <button key={l}
+                  onClick={() => router.push(`/${l}/invite/${token}`)}
+                  className={`text-[9px] font-bold uppercase tracking-widest pb-1 transition-all ${
+                    locale === l ? 'border-b border-[#f2d080] text-[#f2d080]' : 'text-[#f2d080]/50 hover:text-[#f2d080]'
+                  }`}
+                >
+                  {l === 'en' ? t_i18n("englishUpper") : t_i18n("hindi")}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -455,8 +481,22 @@ export default function InviteLandingPage() {
                       {t_i18n("rsvpNow")}
                     </button>
                   )}
-                </div>
+                 </div>
              </div>
+
+            {/* Language Switcher */}
+            <div className="mt-8 flex gap-5 z-20">
+              {['en', 'hi'].map((l) => (
+                <button key={l}
+                  onClick={() => router.push(`/${l}/invite/${token}`)}
+                  className={`text-[9px] font-bold uppercase tracking-widest pb-1 transition-all ${
+                    locale === l ? 'border-b border-[#ebc98b] text-[#ebc98b]' : 'text-[#ebc98b]/50 hover:text-[#ebc98b]'
+                  }`}
+                >
+                  {l === 'en' ? t_i18n("englishUpper") : t_i18n("hindi")}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Bottom Lace Border */}
@@ -822,7 +862,7 @@ export default function InviteLandingPage() {
             onClick={() => router.push(`/${locale}/invite/${token}/confirmed`)}
             className={`w-full h-16 ${currentTheme.button} font-black text-sm tracking-[0.3em] uppercase shadow-2xl active:scale-[0.98] transition-all flex items-center justify-center gap-3`}
           >
-            SHOW EVENT PASS
+            {t_i18n("showEventPassUpper")}
             <span className="material-symbols-outlined">qr_code_2</span>
           </button>
         ) : (
@@ -843,11 +883,12 @@ export default function InviteLandingPage() {
               onClick={() => router.push(`/${l}/invite/${token}`)}
               className={`text-[10px] font-black uppercase tracking-widest pb-1 border-b-2 transition-all ${
                 locale === l 
-                  ? `border-b-[${currentTheme.accent}] opacity-100` 
+                  ? 'border-b-inherit opacity-100' 
                   : 'border-b-transparent opacity-30 hover:opacity-100'
               }`}
+              style={locale === l ? { borderBottomColor: currentTheme.accent } : {}}
             >
-              {l === 'en' ? 'English' : 'हिन्दी'}
+              {l === 'en' ? t_i18n("english") : t_i18n("hindi")}
             </button>
           ))}
         </div>
