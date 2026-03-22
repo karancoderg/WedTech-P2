@@ -74,7 +74,10 @@ export default function InvitesPage() {
   const fetchData = useCallback(async () => {
     const [weddingRes, guestData, groupRes, funcRes] = await Promise.all([
       supabase.from("weddings").select("*").eq("id", weddingId).single(),
-      fetch(`/api/wedding/${weddingId}/guests`).then(res => res.json()),
+      fetch(`/api/wedding/${weddingId}/guests`).then(res => {
+        if (!res.ok) { console.error("Failed to fetch guests:", res.status); return []; }
+        return res.json().catch(() => []);
+      }),
       supabase.from("guest_groups").select("*").eq("wedding_id", weddingId),
       supabase.from("wedding_functions").select("*").eq("wedding_id", weddingId).order("sort_order"),
     ]);
@@ -139,15 +142,26 @@ export default function InvitesPage() {
       const res = await fetch(`/api/wedding/${weddingId}/sync-call-rsvps`, {
         method: "POST",
       });
-      const data = await res.json();
-      if (data.success) {
+      
+      let data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        if (!res.ok) throw new Error("Server communication failed.");
+      }
+
+      if (res.ok && data?.success) {
         toast.success(data.message || "RSVPs synced successfully!");
         fetchData();
       } else {
-        toast.error(data.error || "Failed to sync RSVPs");
+        toast.error(data?.error || "Failed to sync RSVPs");
       }
-    } catch (error) {
-      toast.error("Error syncing RSVPs");
+    } catch (error: any) {
+      if (typeof window !== "undefined" && !navigator.onLine || error?.message?.includes("Failed to fetch") || error?.message?.includes("Load failed") || error?.message?.includes("NetworkError")) {
+        toast.error("No internet connection. Please check your network.");
+      } else {
+        toast.error(error?.message || "Error syncing RSVPs");
+      }
     } finally {
       setIsSyncing(false);
     }
@@ -164,15 +178,26 @@ export default function InvitesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ guestIds: idsToCall }),
       });
-      const result = await response.json();
-      if (result.success) {
+      
+      let result;
+      try {
+        result = await response.json();
+      } catch (e) {
+        if (!response.ok) throw new Error("Server communication failed.");
+      }
+
+      if (response.ok && result?.success) {
         toast.success(`🤖 Initiated ${result.successful} AI calls! ${result.failed > 0 ? `${result.failed} failed.` : ""}`, { id: toastId });
         fetchData();
       } else {
-        toast.error(`Failed to trigger calls: ${result.error}`, { id: toastId });
+        toast.error(`Error: ${result?.error || "Failed to trigger calls"}`, { id: toastId });
       }
     } catch (error: any) {
-      toast.error(error.message || "An error occurred while initiating calls", { id: toastId });
+      if (typeof window !== "undefined" && !navigator.onLine || error?.message?.includes("Failed to fetch") || error?.message?.includes("Load failed") || error?.message?.includes("NetworkError")) {
+        toast.error("No internet connection. Please check your network.", { id: toastId });
+      } else {
+        toast.error(error?.message || "An error occurred while initiating calls", { id: toastId });
+      }
     } finally {
       setCallingGuests(false);
     }

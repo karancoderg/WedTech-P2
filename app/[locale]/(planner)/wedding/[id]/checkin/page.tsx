@@ -25,15 +25,18 @@ export default function CheckInPage() {
   const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set());
 
   const fetchData = useCallback(async () => {
-    const [weddingRes, funcRes, guestRes, rsvpRes] = await Promise.all([
+    const [weddingRes, funcRes, guestData, rsvpRes] = await Promise.all([
       supabase.from("weddings").select("*").eq("id", weddingId).single(),
       supabase.from("wedding_functions").select("*").eq("wedding_id", weddingId).order("sort_order"),
-      supabase.from("guests").select("*").eq("wedding_id", weddingId),
+      fetch(`/api/wedding/${weddingId}/guests`).then(res => {
+        if (!res.ok) { console.error("Failed to fetch guests:", res.status); return []; }
+        return res.json().catch(() => []);
+      }),
       supabase.from("rsvps").select("*").eq("wedding_id", weddingId),
     ]);
     if (weddingRes.data) setWedding(weddingRes.data);
     if (funcRes.data) setFunctions(funcRes.data);
-    if (guestRes.data) setGuests(guestRes.data);
+    if (guestData) setGuests(guestData);
     if (rsvpRes.data) setRsvps(rsvpRes.data);
     setLoading(false);
   }, [weddingId]);

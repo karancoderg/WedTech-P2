@@ -248,16 +248,7 @@ The extension has **pre-configured anti-spam settings** that cannot be adjusted 
 
 # 📸 5. Screenshots
 
-```
-📷 Screenshots coming soon — will be added after first production deployment.
-```
-
-<!--
-Uncomment and add real paths after adding screenshots:
-![Extension Popup UI](./screenshots/popup-ui.png)
-![Progress Tracking](./screenshots/progress.png)
-![WhatsApp Web Automation](./screenshots/automation.png)
--->
+![WedSync WhatsApp Bulk Sender](image.png)
 
 ---
 

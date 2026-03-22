@@ -137,6 +137,13 @@ Keep the conversation natural, short, and respectful. Wait for their responses c
 
   } catch (error: any) {
     console.error("AI Calling Error:", error);
+    
+    // Check for network/DNS/internet connectivity issues
+    const errorMessage = error?.message || String(error);
+    if (errorMessage.includes("EAI_AGAIN") || errorMessage.includes("ENOTFOUND") || errorMessage.includes("fetch failed")) {
+        return NextResponse.json({ error: "Network error. Please check your internet connection." }, { status: 503 });
+    }
+    
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

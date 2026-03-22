@@ -71,13 +71,66 @@ export default function AnalyticsPage() {
     if (r.total_pax > current) paxByGuest.set(r.guest_id, r.total_pax);
   });
   const totalPax = Array.from(paxByGuest.values()).reduce((s, v) => s + v, 0);
+  let vegCount = 0;
+  let jainCount = 0;
+  let nonVegCount = 0;
+  let notSureCount = 0;
+  let accommodationHeadcount = 0;
+
+  rsvps.filter((r) => r.status === "confirmed").forEach((r) => {
+    const pref = (r.dietary_preference || "").trim();
+    let isGeminiParsed = false;
+    let geminiData: any = null;
+
+    if (pref.startsWith("{")) {
+      try {
+        const parsed = JSON.parse(pref);
+        if (parsed._isGeminiParams) {
+          isGeminiParsed = true;
+          geminiData = parsed;
+        }
+      } catch (e) {
+        // Fallback
+      }
+    }
+
+    // Accommodation
+    if (r.needs_accommodation) {
+      if (isGeminiParsed && geminiData.accommodationCount !== undefined) {
+        accommodationHeadcount += geminiData.accommodationCount;
+      } else {
+        accommodationHeadcount += r.total_pax;
+      }
+    }
+
+    // Dietary
+    if (isGeminiParsed) {
+      vegCount += geminiData.veg || 0;
+      jainCount += geminiData.jain || 0;
+      nonVegCount += geminiData.nonveg || 0;
+    } else {
+      const prefLower = pref.toLowerCase();
+      if (!prefLower) {
+        notSureCount += r.total_pax;
+      } else if (prefLower === "veg" || prefLower === "vegetarian") {
+        vegCount += r.total_pax;
+      } else if (prefLower === "jain") {
+        jainCount += r.total_pax;
+      } else if (prefLower === "non-veg" || prefLower === "nonveg") {
+        nonVegCount += r.total_pax;
+      } else {
+        notSureCount += r.total_pax;
+      }
+    }
+  });
+
   const dietaryBreakdown = {
-    veg: rsvps.filter((r) => r.dietary_preference === "veg" && r.status === "confirmed").length,
-    jain: rsvps.filter((r) => r.dietary_preference === "jain" && r.status === "confirmed").length,
-    nonveg: rsvps.filter((r) => r.dietary_preference === "non-veg" && r.status === "confirmed").length,
-    notsure: rsvps.filter((r) => !r.dietary_preference && r.status === "confirmed").length,
+    veg: vegCount,
+    jain: jainCount,
+    nonveg: nonVegCount,
+    notsure: notSureCount,
   };
-  const accommodationNeeded = rsvps.filter((r) => r.needs_accommodation && r.status === "confirmed").length;
+  const accommodationNeeded = accommodationHeadcount;
 
   return (
     <div className="space-y-12">

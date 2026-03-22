@@ -78,7 +78,10 @@ export default function GuestListPage() {
   const fetchData = useCallback(async () => {
     const [weddingRes, guestData, groupRes, funcRes, rsvpRes] = await Promise.all([
       supabase.from("weddings").select("*").eq("id", weddingId).single(),
-      fetch(`/api/wedding/${weddingId}/guests`).then(res => res.json().catch(() => [])),
+      fetch(`/api/wedding/${weddingId}/guests`).then(res => {
+        if (!res.ok) { console.error("Failed to fetch guests:", res.status); return []; }
+        return res.json().catch(() => []);
+      }),
       supabase.from("guest_groups").select("*").eq("wedding_id", weddingId),
       supabase.from("wedding_functions").select("*").eq("wedding_id", weddingId).order("sort_order"),
       supabase.from("rsvps").select("*").eq("wedding_id", weddingId),
@@ -296,20 +299,29 @@ export default function GuestListPage() {
         body: JSON.stringify({ guestIds: idsToCall }),
       });
       
-      const result = await response.json();
+      let result;
+      try {
+        result = await response.json();
+      } catch (e) {
+        if (!response.ok) throw new Error("Server communication failed.");
+      }
       
-      if (result.success) {
+      if (response.ok && result?.success) {
         toast.success(`🤖 Initiated ${result.successful} AI calls! ${result.failed > 0 ? `${result.failed} failed.` : ""}`, {
           id: toastId,
         });
         if (!targetGuestIds) setSelectedIds(new Set());
         fetchData();
       } else {
-        toast.error(`Failed to trigger calls: ${result.error}`, { id: toastId });
+        toast.error(`Error: ${result?.error || "Failed to trigger calls"}`, { id: toastId });
       }
     } catch (error: any) {
       console.error("AI Call Error:", error);
-      toast.error(error.message || "An error occurred while initiating calls", { id: toastId });
+      if (typeof window !== "undefined" && !navigator.onLine || error?.message?.includes("Failed to fetch") || error?.message?.includes("Load failed") || error?.message?.includes("NetworkError")) {
+        toast.error("No internet connection. Please check your network.", { id: toastId });
+      } else {
+        toast.error(error?.message || "An error occurred while initiating calls", { id: toastId });
+      }
     } finally {
       setCallingGuests(false);
     }
@@ -812,7 +824,7 @@ export default function GuestListPage() {
       {/* Add Guest Dialog */}
       {showAddDialog && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowAddDialog(false)}>
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <form onSubmit={(e) => { e.preventDefault(); handleAddGuest(); }} className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-xl font-black text-slate-900 mb-6">Add Guest</h3>
             <div className="space-y-4">
               <div>
@@ -821,6 +833,7 @@ export default function GuestListPage() {
                   className="w-full mt-1 px-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-primary focus:border-primary"
                   value={newName} onChange={(e) => setNewName(e.target.value)}
                   placeholder="Guest full name"
+                  autoFocus
                 />
               </div>
               <div>
@@ -861,29 +874,30 @@ export default function GuestListPage() {
             </div>
             <div className="flex gap-3 mt-6">
               <button
+                type="button"
                 onClick={() => setShowAddDialog(false)}
                 className="flex-1 py-2.5 border-2 border-slate-200 rounded-lg font-bold text-sm text-slate-600 hover:bg-slate-50"
               >
                 Cancel
               </button>
               <button
-                onClick={handleAddGuest}
+                type="submit"
                 className="flex-1 py-2.5 bg-primary text-white rounded-lg font-bold text-sm hover:bg-primary/90 shadow-md shadow-primary/20"
               >
                 Add Guest
               </button>
             </div>
-          </div>
+          </form>
         </div>
       )}
 
       {/* Edit Guest Dialog */}
       {editingGuest && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setEditingGuest(null)}>
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <form onSubmit={(e) => { e.preventDefault(); handleUpdateGuest(); }} className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-black text-slate-900">Edit Guest</h3>
-              <button onClick={() => setEditingGuest(null)} className="text-slate-400 hover:text-slate-600">
+              <button type="button" onClick={() => setEditingGuest(null)} className="text-slate-400 hover:text-slate-600">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
@@ -894,6 +908,7 @@ export default function GuestListPage() {
                   className="w-full mt-1 px-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-primary focus:border-primary"
                   value={editName} onChange={(e) => setEditName(e.target.value)}
                   placeholder="Guest full name"
+                  autoFocus
                 />
               </div>
               <div>
@@ -934,26 +949,27 @@ export default function GuestListPage() {
             </div>
             <div className="flex gap-3 mt-6">
               <button
+                type="button"
                 onClick={() => setEditingGuest(null)}
                 className="flex-1 py-2.5 border-2 border-slate-200 rounded-lg font-bold text-sm text-slate-600 hover:bg-slate-50"
               >
                 Cancel
               </button>
               <button
-                onClick={handleUpdateGuest}
+                type="submit"
                 className="flex-1 py-2.5 bg-primary text-white rounded-lg font-bold text-sm hover:bg-primary/90 shadow-md shadow-primary/20"
               >
                 Save Changes
               </button>
             </div>
-          </div>
+          </form>
         </div>
       )}
 
       {/* Group Together Dialog */}
       {showGroupDialog && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-all" onClick={() => setShowGroupDialog(false)}>
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl animate-in fade-in" onClick={(e) => e.stopPropagation()}>
+          <form onSubmit={(e) => { e.preventDefault(); handleCreateGroup(); }} className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl animate-in fade-in" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-xl font-black text-slate-900 mb-2">Group Together</h3>
             <p className="text-sm text-slate-500 mb-6">Enter Family/Group Name (e.g. The Sharma Family):</p>
             <div className="space-y-4">
@@ -968,19 +984,20 @@ export default function GuestListPage() {
             </div>
             <div className="flex gap-3 mt-6">
               <button
+                type="button"
                 onClick={() => setShowGroupDialog(false)}
                 className="flex-1 py-2.5 border-2 border-slate-200 rounded-lg font-bold text-sm text-slate-600 hover:bg-slate-50 transition-all"
               >
                 Cancel
               </button>
               <button
-                onClick={handleCreateGroup}
+                type="submit"
                 className="flex-1 py-2.5 bg-primary text-white rounded-lg font-bold text-sm hover:bg-primary/90 shadow-md shadow-primary/20 transition-all"
               >
                 Create Group
               </button>
             </div>
-          </div>
+          </form>
         </div>
       )}
 

@@ -23,11 +23,30 @@ export async function GET(
   }
 
   // Decrypt guest data server-side where ENCRYPTION_KEY is available
-  const decryptedGuests = (data || []).map((guest) => ({
-    ...guest,
-    phone: guest.phone?.includes(":") ? decrypt(guest.phone) : guest.phone,
-    email: guest.email?.includes(":") ? decrypt(guest.email) : guest.email,
-  }));
+  const decryptedGuests = (data || []).map((guest) => {
+    let phone = guest.phone;
+    let email = guest.email;
+
+    if (phone?.includes(":")) {
+      try {
+        phone = decrypt(phone);
+      } catch (err) {
+        console.error(`Failed to decrypt phone for guest ${guest.id}:`, err);
+        phone = "••••••••••"; // Masked fallback
+      }
+    }
+
+    if (email?.includes(":")) {
+      try {
+        email = decrypt(email);
+      } catch (err) {
+        console.error(`Failed to decrypt email for guest ${guest.id}:`, err);
+        email = "••••@••••";
+      }
+    }
+
+    return { ...guest, phone, email };
+  });
 
   return NextResponse.json(decryptedGuests);
 }

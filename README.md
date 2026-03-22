@@ -2,6 +2,8 @@
 
 WedSync is a full-stack, Next.js 14-powered web application designed specifically for managing Indian wedding workflows. It consolidates multiple, sprawling functions into one seamless platform for both wedding planners and guests.
 
+> ### 🌐 **[Live Demo → https://wedsync1.vercel.app/](https://wedsync1.vercel.app/)**
+
 ## 🌟 Key Features
 
 ### For Wedding Planners (The Dashboard)

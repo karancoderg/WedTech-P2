@@ -684,7 +684,7 @@ export default function SeatingPlanPage() {
           >
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-2xl font-black text-slate-900 tracking-tight">Add New Table</h3>
-              <button onClick={() => setIsAddingTable(false)} className="text-slate-400 hover:text-slate-900 transition-colors">
+              <button type="button" onClick={() => setIsAddingTable(false)} className="text-slate-400 hover:text-slate-900 transition-colors">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
@@ -698,6 +698,7 @@ export default function SeatingPlanPage() {
                   onChange={(e) => setNewTableName(e.target.value)}
                   className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 font-bold text-slate-900 outline-none focus:border-primary focus:bg-white transition-all"
                   required
+                  autoFocus
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
