@@ -32,6 +32,14 @@ function deriveFunctionsForSide(side: 'bride' | 'groom' | 'both', allFunctions: 
   }).map(f => f.id);
 }
 
+function generateInviteToken() {
+  if (typeof window !== "undefined" && window.crypto?.randomUUID) {
+    return window.crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+  }
+  // Fallback for non-secure contexts
+  return Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+}
+
 export default function GuestListPage() {
   const params = useParams();
   const weddingId = params.id as string;
@@ -138,7 +146,7 @@ export default function GuestListPage() {
   // Add Guest
   async function handleAddGuest() {
     if (!newName || !newPhone) { toast.error("Name and phone required"); return; }
-    const token = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+    const token = generateInviteToken();
     const funcIds = deriveFunctionsForSide(newSide, functions);
     const { data: newGuest, error } = await supabase.from("guests").insert({
       wedding_id: weddingId, 
@@ -425,7 +433,7 @@ export default function GuestListPage() {
         const side = allowedSides.includes(sideStr) ? sideStr : "both";
         const derivedFuncIds = deriveFunctionsForSide(side as 'bride' | 'groom' | 'both', functions);
 
-        const token = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+        const token = generateInviteToken();
         const { data: newGuest, error: guestError } = await supabase.from("guests").insert({
           wedding_id: weddingId,
           name: String(name).trim(),
@@ -497,17 +505,17 @@ export default function GuestListPage() {
   return (
     <div className="space-y-8 pb-32">
       {/* Header */}
-      <div className="flex justify-between items-start">
+      <div className="flex flex-col md:flex-row justify-between items-start gap-4">
         <div>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight">Guest List</h2>
-          <p className="text-slate-500 font-medium">
+          <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Guest List</h2>
+          <p className="text-sm md:text-base text-slate-500 font-medium">
             {wedding?.wedding_name} · <span className="text-primary">{guests.length} guests</span>
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2 md:gap-3 w-full md:w-auto">
           <button
             onClick={() => csvRef.current?.click()}
-            className="flex items-center gap-2 px-4 py-2 border-2 border-slate-200 text-slate-700 rounded-lg font-bold text-sm hover:bg-white transition-all"
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 border-2 border-slate-200 text-slate-700 rounded-lg font-bold text-sm hover:bg-white transition-all"
           >
             <span className="material-symbols-outlined text-xl">upload_file</span>
             Import List
@@ -521,7 +529,7 @@ export default function GuestListPage() {
           />
           <button
             onClick={() => setShowAddDialog(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg font-bold text-sm hover:shadow-lg hover:shadow-primary/20 transition-all"
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-primary text-white rounded-lg font-bold text-sm hover:shadow-lg hover:shadow-primary/20 transition-all"
           >
             <span className="material-symbols-outlined text-xl">person_add</span>
             Add Guest
@@ -553,8 +561,8 @@ export default function GuestListPage() {
           ))}
         </div>
 
-        <div className="p-4 flex flex-wrap gap-4 items-center justify-between">
-          <div className="flex-1 min-w-[300px]">
+        <div className="p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
+          <div className="w-full md:flex-1">
             <div className="relative">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
               <input
@@ -566,12 +574,12 @@ export default function GuestListPage() {
               />
             </div>
           </div>
-          <div className="flex gap-3 items-center">
-            <span className="text-sm font-semibold text-slate-500">Filter by:</span>
+          <div className="flex w-full md:w-auto gap-3 items-center min-w-0">
+            <span className="text-sm font-semibold text-slate-500 whitespace-nowrap">Filter by:</span>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium py-2 pl-4 pr-10"
+              className="flex-1 md:flex-none max-w-full bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium py-2 pl-4 pr-10 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
             >
               <option value="all">Status: All</option>
               <option value="confirmed">Confirmed</option>
@@ -582,8 +590,9 @@ export default function GuestListPage() {
         </div>
       </div>
 
-      {/* Guest Table */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+
+      {/* Guest Desktop Table */}
+      <div className="hidden md:block bg-white rounded-xl border border-slate-200 overflow-x-auto shadow-sm">
         <table className="w-full text-left border-collapse">
           <thead className="bg-slate-50/50 border-b border-slate-200">
             <tr>
@@ -605,10 +614,7 @@ export default function GuestListPage() {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {(() => {
-              // Build a grouped render: family sections first, then ungrouped
               const rows: React.ReactNode[] = [];
-
-              // Group the PAGINATED guests by group_id
               const grouped = new Map<string, Guest[]>();
               const ungrouped: Guest[] = [];
 
@@ -621,7 +627,6 @@ export default function GuestListPage() {
                 }
               }
 
-              // Helper: render a single guest row
               function GuestRow({ guest, indent }: { guest: Guest; indent?: boolean }) {
                 const status = statusColors[guest.overall_status] || statusColors.pending;
                 return (
@@ -676,22 +681,16 @@ export default function GuestListPage() {
                         {guest.overall_status.charAt(0).toUpperCase() + guest.overall_status.slice(1)}
                       </span>
                       {guest.invite_status && guest.invite_status !== 'none' && (
-                        <div className="mt-1.5 flex items-center gap-1.5">
-                          <span 
-                            className={`material-symbols-outlined text-[14px] ${
-                              guest.invite_status === 'sent' ? 'text-green-500' : 
-                              guest.invite_status === 'failed' ? 'text-red-500' : 'text-amber-500'
-                            }`}
-                            title={guest.invite_error || ''}
-                          >
+                        <div className="mt-1 flex items-center gap-1 opacity-70">
+                          <span className={`material-symbols-outlined text-[12px] ${
+                            guest.invite_status === 'sent' ? 'text-green-500' :
+                            guest.invite_status === 'failed' ? 'text-red-500' : 'text-amber-500'
+                          }`}>
                             {guest.invite_status === 'sent' ? 'mark_email_read' : 
                              guest.invite_status === 'failed' ? 'error' : 'schedule_send'}
                           </span>
-                          <span className="text-[10px] font-bold text-slate-400 uppercase">
-                            {guest.invite_status === 'failed' && guest.invite_error 
-                              ? guest.invite_error.split(':')[0] // Show brief error type
-                              : guest.invite_status
-                            }
+                          <span className="text-[9px] font-bold text-slate-400">
+                            {guest.invite_status.toUpperCase()}
                           </span>
                         </div>
                       )}
@@ -703,7 +702,6 @@ export default function GuestListPage() {
                             <span className="material-symbols-outlined text-[18px]">group_remove</span>
                           </button>
                         )}
-
                         <button onClick={() => openEditDialog(guest)} className="p-1.5 text-slate-400 hover:text-primary transition-colors" title="Edit">
                           <span className="material-symbols-outlined text-[18px]">edit</span>
                         </button>
@@ -716,7 +714,6 @@ export default function GuestListPage() {
                 );
               }
 
-              // Render family group sections
               for (const [groupId, members] of grouped.entries()) {
                 const group = guestGroups.find((g) => g.id === groupId);
                 const isCollapsed = collapsedGroups.has(groupId);
@@ -735,11 +732,8 @@ export default function GuestListPage() {
                         className="rounded border-slate-300 text-primary focus:ring-primary"
                       />
                     </td>
-                    <td className="py-3 px-6" colSpan={5}>
-                      <button
-                        onClick={() => toggleGroupCollapse(groupId)}
-                        className="flex items-center gap-2 w-full text-left"
-                      >
+                    <td className="py-3 px-6" colSpan={6}>
+                      <button onClick={() => toggleGroupCollapse(groupId)} className="flex items-center gap-2 w-full text-left">
                         <span className="material-symbols-outlined text-primary text-[18px]">
                           {isCollapsed ? "chevron_right" : "expand_more"}
                         </span>
@@ -752,18 +746,157 @@ export default function GuestListPage() {
                     </td>
                   </tr>
                 );
-                if (!isCollapsed) {
-                  members.forEach((guest) => rows.push(<GuestRow key={guest.id} guest={guest} indent />));
-                }
+                if (!isCollapsed) members.forEach((guest) => rows.push(<GuestRow key={guest.id} guest={guest} indent />));
               }
-
-              // Render ungrouped guests normally
               ungrouped.forEach((guest) => rows.push(<GuestRow key={guest.id} guest={guest} />));
-
               return rows;
             })()}
           </tbody>
         </table>
+      </div>
+
+      {/* Guest Mobile Cards */}
+      <div className="md:hidden space-y-4">
+        {(() => {
+          const grouped = new Map<string, Guest[]>();
+          const ungrouped: Guest[] = [];
+
+          for (const g of paginatedGuests) {
+            if (g.group_id) {
+              if (!grouped.has(g.group_id)) grouped.set(g.group_id, []);
+              grouped.get(g.group_id)!.push(g);
+            } else {
+              ungrouped.push(g);
+            }
+          }
+
+          function GuestCard({ guest, isFamilyMember }: { guest: Guest; isFamilyMember?: boolean }) {
+            const status = statusColors[guest.overall_status] || statusColors.pending;
+            return (
+              <div key={guest.id} className={`bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm ${isFamilyMember ? "border-l-4 border-l-primary/20 ml-2" : ""}`}>
+                <div className="p-2.5 flex flex-col gap-1.5">
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex gap-2 min-w-0">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(guest.id)}
+                        onChange={() => toggleSelect(guest.id)}
+                        className="mt-0.5 rounded border-slate-300 text-primary focus:ring-primary shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h4 className="font-bold text-slate-900 text-sm truncate">{guest.name}</h4>
+                          {guest.invite_status && guest.invite_status !== 'none' && (
+                            <span className={`material-symbols-outlined text-[12px] ${
+                              guest.invite_status === 'sent' ? 'text-green-500' :
+                              guest.invite_status === 'failed' ? 'text-red-500' : 'text-amber-500'
+                            }`} title={`Invite: ${guest.invite_status}`}>
+                              {guest.invite_status === 'sent' ? 'mark_email_read' : 
+                               guest.invite_status === 'failed' ? 'error' : 'schedule_send'}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                          <p className="text-[10px] text-slate-500">{guest.phone}</p>
+                          <span className={`inline-flex items-center px-1.5 py-px rounded text-[8px] font-bold ${status.bg} ${status.text}`}>
+                            {guest.overall_status.toUpperCase()}
+                          </span>
+                          <span className={`px-1.5 py-px rounded border text-[8px] font-bold capitalize ${sideColors[guest.side]?.bg} ${sideColors[guest.side]?.text}`}>
+                            {guest.side} Side
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center bg-slate-50 rounded-lg p-0.5 border border-slate-100 shrink-0">
+                      <button onClick={() => openEditDialog(guest)} className="p-1.5 text-slate-400 hover:text-primary rounded-md transition-colors" title="Edit">
+                        <span className="material-symbols-outlined text-[16px]">edit</span>
+                      </button>
+                      {guest.group_id && (
+                        <button onClick={() => handleRemoveFromGroup(guest.id)} className="p-1.5 text-slate-400 hover:text-red-500 rounded-md transition-colors" title="Ungroup">
+                          <span className="material-symbols-outlined text-[16px]">group_remove</span>
+                        </button>
+                      )}
+                      <button onClick={() => handleDelete(guest.id)} className="p-1.5 text-slate-400 hover:text-red-500 rounded-md transition-colors" title="Delete">
+                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-2 pl-6">
+                    <div className="flex flex-wrap gap-1">
+                      {guest.tags.map(tag => (
+                        <span key={tag} className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${tag.toLowerCase() === "vip" ? "bg-yellow-100 text-yellow-700" : "bg-slate-100 text-slate-600"}`}>
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                    
+                    <div className="flex gap-0.5">
+                        {functions
+                          .filter((f) => guest.function_ids.includes(f.id))
+                          .map((f, i) => {
+                            const colors = ["bg-blue-100 text-blue-700", "bg-orange-100 text-orange-700", "bg-purple-100 text-purple-700", "bg-pink-100 text-pink-700"];
+                            return (
+                              <span key={f.id} className={`size-4 flex items-center justify-center rounded-full text-[7px] font-black ${colors[i % colors.length]}`} title={f.name}>
+                                {f.name[0]}
+                              </span>
+                            );
+                        })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          const items: React.ReactNode[] = [];
+          for (const [groupId, members] of grouped.entries()) {
+            const group = guestGroups.find(g => g.id === groupId);
+            const isCollapsed = collapsedGroups.has(groupId);
+            items.push(
+              <div key={`mobile-group-${groupId}`} className="space-y-2">
+                <div className="bg-primary/5 p-3 rounded-xl border border-primary/10 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={members.every(m => selectedIds.has(m.id))}
+                      onChange={() => {
+                        const next = new Set(selectedIds);
+                        const allSelected = members.every(m => selectedIds.has(m.id));
+                        members.forEach(m => allSelected ? next.delete(m.id) : next.add(m.id));
+                        setSelectedIds(next);
+                      }}
+                      className="rounded border-slate-300 text-primary focus:ring-primary"
+                    />
+                    <div className="flex items-center gap-2" onClick={() => toggleGroupCollapse(groupId)}>
+                      <span className="material-symbols-outlined text-primary text-[20px]">family_restroom</span>
+                      <span className="font-bold text-slate-900 text-sm">{group?.name}</span>
+                      <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-bold rounded-full">{members.length}</span>
+                    </div>
+                  </div>
+                  <button onClick={() => toggleGroupCollapse(groupId)} className="text-primary">
+                    <span className="material-symbols-outlined">{isCollapsed ? "expand_more" : "expand_less"}</span>
+                  </button>
+                </div>
+                {!isCollapsed && (
+                  <div className="space-y-3">
+                    {members.map(g => <GuestCard key={g.id} guest={g} isFamilyMember />)}
+                  </div>
+                )}
+              </div>
+            );
+          }
+          ungrouped.forEach(g => items.push(<GuestCard key={g.id} guest={g} />));
+          return items.length > 0 ? items : (
+            <div className="bg-slate-50 rounded-xl p-8 text-center text-slate-400 font-medium">
+              No guests found matching your criteria
+            </div>
+          );
+        })()}
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
         <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
           <p className="text-xs font-medium text-slate-500">
             Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, filteredGuests.length)} of {filteredGuests.length} guests
@@ -789,7 +922,7 @@ export default function GuestListPage() {
 
       {/* Floating Bulk Action Bar */}
       {selectedIds.size > 0 && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-3xl px-4 z-20">
+        <div className="fixed bottom-[110px] md:bottom-8 left-1/2 -translate-x-1/2 w-full max-w-3xl px-4 z-40">
           <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-2xl shadow-slate-900/40 flex items-center justify-between border border-white/10">
             <div className="flex items-center gap-3 pl-2 shrink-0">
               <div className="bg-primary size-8 rounded-full flex items-center justify-center font-black text-sm">

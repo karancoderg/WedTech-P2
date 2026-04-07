@@ -196,7 +196,7 @@ export default function CheckInPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-28 lg:pb-8">
       {/* HEADER */}
       <header className="flex items-center justify-between">
         <h2 className="text-2xl font-black text-slate-900 tracking-tight">Master Check-In</h2>
@@ -210,22 +210,22 @@ export default function CheckInPage() {
       </header>
 
       {/* STATS CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-2xl flex flex-col gap-1">
-          <p className="text-emerald-700 font-semibold text-sm">Checked In</p>
-          <div className="flex items-end gap-2">
-            <h3 className="text-3xl font-black text-emerald-900">{checkedInCount}</h3>
+      <div className="grid grid-cols-2 gap-3 lg:gap-6">
+        <div className="bg-emerald-50 border border-emerald-100 p-4 lg:p-6 rounded-2xl flex flex-col gap-1 justify-center">
+          <p className="text-emerald-700 font-semibold text-xs lg:text-sm">Checked In</p>
+          <div className="flex flex-col lg:flex-row lg:items-end gap-1 lg:gap-2">
+            <h3 className="text-2xl lg:text-3xl font-black text-emerald-900 leading-none">{checkedInCount}</h3>
             {confirmedCount > 0 && (
-              <span className="text-emerald-600 text-sm font-bold mb-1">
+              <span className="text-emerald-600 text-[10px] lg:text-sm font-bold lg:mb-1">
                 {Math.round((checkedInCount / confirmedCount) * 100)}% of confirmed
               </span>
             )}
           </div>
         </div>
-        <div className="bg-amber-50 border border-amber-100 p-6 rounded-2xl flex flex-col gap-1">
-          <p className="text-amber-700 font-semibold text-sm">Yet to Arrive</p>
+        <div className="bg-amber-50 border border-amber-100 p-4 lg:p-6 rounded-2xl flex flex-col gap-1 justify-center">
+          <p className="text-amber-700 font-semibold text-xs lg:text-sm">Yet to Arrive</p>
           <div className="flex items-end gap-2">
-            <h3 className="text-3xl font-black text-amber-900">{confirmedCount - checkedInCount}</h3>
+            <h3 className="text-2xl lg:text-3xl font-black text-amber-900 leading-none">{confirmedCount - checkedInCount}</h3>
           </div>
         </div>
       </div>
@@ -234,7 +234,7 @@ export default function CheckInPage() {
       <div className="relative group">
         <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary">search</span>
         <input
-          className="w-full bg-white border-2 border-slate-100 focus:border-primary focus:ring-0 rounded-2xl py-4 pl-12 pr-4 text-base font-medium transition-all shadow-sm placeholder:text-slate-400"
+          className="w-full bg-white border-2 border-slate-100 focus:border-primary focus:ring-0 rounded-2xl py-3 lg:py-4 pl-12 pr-4 text-sm lg:text-base font-medium transition-all shadow-sm placeholder:text-slate-400"
           placeholder="Search guest name or phone..."
           type="text"
           value={searchQuery}
@@ -257,21 +257,21 @@ export default function CheckInPage() {
             return (
               <div
                 key={guest.id}
-                className={`bg-white p-5 rounded-2xl flex items-center justify-between group transition-all ${isJustCheckedIn
+                className={`bg-white p-3 lg:p-5 rounded-2xl flex items-center justify-between group transition-all ${isJustCheckedIn
                     ? "border border-emerald-200 shadow-[0_0_15px_rgba(16,185,129,0.1)] animate-row-highlight"
                     : isCheckedIn
                       ? "border border-emerald-200 opacity-60"
                       : "border border-slate-100 shadow-sm hover:border-primary/30"
                   }`}
               >
-                <div className="flex items-center gap-4 flex-1">
-                  <div className="size-12 bg-primary/10 rounded-full flex items-center justify-center text-primary font-black text-lg">
+                <div className="flex items-center gap-3 lg:gap-4 flex-1 min-w-0">
+                  <div className="size-10 lg:size-12 bg-primary/10 rounded-full flex items-center justify-center text-primary font-black text-base lg:text-lg shrink-0">
                     {getInitials(guest.name)}
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-4 flex-1 items-center gap-4">
-                    <div className="col-span-1">
-                      <h4 className="font-bold text-slate-900">{guest.name}</h4>
-                      <p className="text-xs text-slate-500 font-medium">{guest.phone}</p>
+                  <div className="grid grid-cols-1 md:grid-cols-4 flex-1 items-center gap-2 lg:gap-4 min-w-0">
+                    <div className="col-span-1 min-w-0">
+                      <h4 className="font-bold text-slate-900 truncate text-sm lg:text-base">{guest.name}</h4>
+                      <p className="text-[10px] lg:text-xs text-slate-500 font-medium truncate">{guest.phone}</p>
                     </div>
                     <div className="col-span-1 flex flex-col gap-1">
                       <span
@@ -308,16 +308,16 @@ export default function CheckInPage() {
                   </div>
                 </div>
 
-                <div className="ml-4">
+                <div className="ml-2 lg:ml-4 flex items-center justify-end">
                   {isCheckedIn ? (
-                    <span className="text-emerald-600 font-bold text-sm hidden md:block">
+                    <span className="text-emerald-600 font-bold text-xs lg:text-sm hidden md:block">
                       {isJustCheckedIn ? "Recently Added" : ""}
                     </span>
                   ) : (
                     <button
                       onClick={() => handleCheckIn(guest.id)}
                       disabled={!hasConfirmed}
-                      className={`px-8 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${
+                      className={`px-3 py-2 lg:px-8 lg:py-2.5 rounded-lg lg:rounded-xl font-bold text-[10px] lg:text-sm transition-all whitespace-nowrap ${
                         hasConfirmed ? "bg-emerald-600 text-white hover:bg-emerald-700" : "bg-slate-100 text-slate-400 cursor-not-allowed"
                       }`}
                     >

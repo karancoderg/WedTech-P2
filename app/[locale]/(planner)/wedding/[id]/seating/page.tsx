@@ -29,6 +29,7 @@ export default function SeatingPlanPage() {
   const [isAiAssigning, setIsAiAssigning] = useState(false);
   const [isDeletingTable, setIsDeletingTable] = useState(false);
   const [tableToDelete, setTableToDelete] = useState<SeatingTable | null>(null);
+  const [selectedGuestIds, setSelectedGuestIds] = useState<Set<string>>(new Set());
 
   // Close custom dropdown when clicking outside
   useEffect(() => {
@@ -229,25 +230,62 @@ export default function SeatingPlanPage() {
     }
   }
 
+  async function handleBulkAssign(guestIds: string[], tableId: string) {
+    const table = tables.find(t => t.id === tableId);
+    if (!table) return;
+
+    const currentSeated = table.assigned_guests?.length || 0;
+    const availableSeats = table.capacity - currentSeated;
+
+    if (availableSeats <= 0) {
+      toast.error(`Table "${table.name}" is already full!`);
+      return;
+    }
+
+    const toSeat = guestIds.slice(0, availableSeats);
+    const overflow = guestIds.length > availableSeats;
+
+    const toastId = toast.loading(`Seating ${toSeat.length} guests...`);
+
+    try {
+      // Bulk insert into guest_seating
+      const { error } = await supabase.from("guest_seating").insert(
+        toSeat.map(gid => ({ guest_id: gid, table_id: tableId }))
+      );
+
+      if (error) throw error;
+
+      if (overflow) {
+        toast.warning(`Table reached capacity. ${toSeat.length} guests seated, ${guestIds.length - toSeat.length} remained unassigned.`, { id: toastId, duration: 5000 });
+      } else {
+        toast.success(`✅ ${toSeat.length} guests successfully seated at ${table.name}!`, { id: toastId });
+      }
+      
+      setSelectedGuestIds(new Set());
+      fetchTables();
+    } catch (err: any) {
+      toast.error("Failed to seat guests. Please try again.", { id: toastId });
+    }
+  }
+
   if (loading) return <div className="p-8 animate-pulse text-slate-400">Loading seating plan...</div>;
 
   return (
-    <div className="space-y-8 pb-32 min-h-screen">
-      {/* Header */}
-      <div className="flex justify-between items-end mb-4">
+    <div className="space-y-8 pb-32 min-h-screen">      {/* Header */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-6 gap-6">
         <div>
-          <h2 className="text-4xl font-black text-slate-900 tracking-tight mb-1">Seating Plan</h2>
-          <p className="text-slate-500 font-medium text-lg">Assign confirmed guests to tables for each function</p>
+          <h2 className="text-3xl lg:text-4xl font-black text-slate-900 tracking-tight mb-1">Seating Plan</h2>
+          <p className="text-slate-500 font-medium text-base lg:text-lg">Assign confirmed guests to tables for each function</p>
         </div>
         
         {/* Controls Toolbar - Premium Pill Design */}
-        <div className="flex bg-white rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-slate-100 p-1.5 flex-nowrap items-center shrink-0 ml-4 max-w-full relative z-[50]">
+        <div className="flex bg-white rounded-2xl lg:rounded-full shadow-lg border border-slate-100 p-1.5 flex-wrap lg:flex-nowrap items-center gap-1 lg:gap-0 max-w-full relative z-[50]">
           
           {/* 1. Event Selector */}
-          <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
             <button
               onClick={() => setIsEventSelectorOpen(!isEventSelectorOpen)}
-              className="flex items-center justify-between gap-3 px-5 py-3 rounded-full hover:bg-slate-50 transition-all font-black text-[13px] text-slate-700 w-[170px] outline-none"
+              className="flex items-center justify-between gap-3 px-4 lg:px-5 py-2.5 lg:py-3 rounded-xl lg:rounded-full hover:bg-slate-50 transition-all font-black text-[12px] lg:text-[13px] text-slate-700 w-full lg:w-[170px] outline-none"
             >
               <span className="truncate">{functions.find(f => f.id === selectedFunctionId)?.name || "Select Event"}</span>
               <span className={`material-symbols-outlined text-[18px] text-slate-400 shrink-0 transition-transform duration-300 ${isEventSelectorOpen ? 'rotate-180' : ''}`}>
@@ -257,7 +295,7 @@ export default function SeatingPlanPage() {
             
             {/* Custom Dropdown Menu */}
             {isEventSelectorOpen && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-100 rounded-2xl shadow-[0_15px_40px_rgba(0,0,0,0.1)] overflow-hidden z-[100] animate-in fade-in slide-in-from-top-1 duration-200">
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-[0_15px_40px_rgba(0,0,0,0.1)] overflow-hidden z-[100] animate-in fade-in slide-in-from-top-1 duration-200">
                 <div className="p-1.5 flex flex-col gap-0.5">
                   {functions.filter(f => f.id !== selectedFunctionId).map(f => (
                     <button
@@ -276,11 +314,11 @@ export default function SeatingPlanPage() {
             )}
           </div>
 
-          <div className="w-px h-8 bg-slate-200 mx-2 shrink-0"></div>
+          <div className="hidden lg:block w-px h-8 bg-slate-200 mx-2"></div>
 
           {/* 2. Seat Target Slider */}
-          <div className="flex items-center gap-3 px-3 w-[190px] shrink-0" title="Percentage of unassigned guests to auto-seat">
-            <span className="text-[11px] font-black text-slate-400 tracking-wider shrink-0">TARGET</span>
+          <div className="flex items-center gap-3 px-3 py-1.5 lg:py-0 w-full lg:w-[190px]" title="Percentage of unassigned guests to auto-seat">
+            <span className="text-[10px] lg:text-[11px] font-black text-slate-400 tracking-wider">TARGET</span>
             <input 
               type="range" 
               min="10" 
@@ -291,33 +329,33 @@ export default function SeatingPlanPage() {
               disabled={isAiAssigning}
               className="w-full h-1.5 bg-slate-200 rounded-full appearance-none cursor-pointer accent-[#B45309] hover:accent-[#92400e] transition-all disabled:opacity-50"
             />
-            <span className="text-[12px] font-black text-[#B45309] w-8 text-right shrink-0">{targetSeatingPercent}%</span>
+            <span className="text-[12px] font-black text-[#B45309] w-8 text-right">{targetSeatingPercent}%</span>
           </div>
 
-          <div className="w-px h-8 bg-slate-200 mx-2 shrink-0"></div>
+          <div className="hidden lg:block w-px h-8 bg-slate-200 mx-2"></div>
 
           {/* 3. Action Buttons */}
-          <div className="flex items-center gap-2 pr-1 ml-1 shrink-0">
+          <div className="flex items-center gap-2 p-1 w-full lg:w-auto">
             <button
               onClick={handleAutoSeat}
               disabled={isAiAssigning}
-              className={`flex items-center gap-2 px-5 py-3 rounded-full font-black text-[13px] uppercase tracking-wide whitespace-nowrap shrink-0 transition-all ${
+              className={`flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 lg:px-5 py-2.5 lg:py-3 rounded-xl lg:rounded-full font-black text-[12px] lg:text-[13px] uppercase tracking-wide whitespace-nowrap transition-all ${
                 isAiAssigning 
                   ? "bg-slate-50 text-slate-400 cursor-not-allowed" 
                   : "bg-[#FFF4ED] text-[#B45309] hover:bg-[#FFE8D6] active:scale-95"
               }`}
             >
-              <span className={`material-symbols-outlined text-[18px] shrink-0 ${isAiAssigning ? 'animate-spin' : ''}`}>
+              <span className={`material-symbols-outlined text-[18px] ${isAiAssigning ? 'animate-spin' : ''}`}>
                 {isAiAssigning ? 'sync' : 'magic_button'}
               </span>
-              <span>Auto-Seat (AI)</span>
+              <span>Auto-Seat</span>
             </button>
             <button
               onClick={() => setIsAddingTable(true)}
               disabled={isAiAssigning}
-              className="flex items-center gap-2 px-5 py-3 bg-[#B45309] text-white rounded-full font-black text-[13px] uppercase tracking-wide whitespace-nowrap shrink-0 hover:shadow-[0_8px_16px_rgb(180,83,9,0.3)] hover:-translate-y-0.5 transition-all active:scale-95 active:translate-y-0 disabled:opacity-50 border border-transparent"
+              className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 lg:px-5 py-2.5 lg:py-3 bg-[#B45309] text-white rounded-xl lg:rounded-full font-black text-[12px] lg:text-[13px] uppercase tracking-wide whitespace-nowrap hover:bg-[#92400e] transition-all active:scale-95 disabled:opacity-50"
             >
-              <span className="material-symbols-outlined text-[18px] shrink-0">add_circle</span>
+              <span className="material-symbols-outlined text-[18px]">add_circle</span>
               <span>Add Table</span>
             </button>
           </div>
@@ -325,17 +363,27 @@ export default function SeatingPlanPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-8 relative z-10 items-stretch">
+      <div className="grid grid-cols-12 gap-6 lg:gap-10 relative z-10 items-stretch">
         {/* Guest Sidebar */}
         <div className="col-span-12 lg:col-span-4 flex flex-col">
-          <div className="sticky top-8 bg-white/80 backdrop-blur-xl rounded-[3rem] border border-white shadow-2xl flex flex-col h-[calc(100vh-12rem)] overflow-hidden">
+          <div className="relative lg:sticky lg:top-8 bg-white/80 backdrop-blur-xl rounded-3xl lg:rounded-[3rem] border border-white shadow-2xl flex flex-col h-auto lg:h-[calc(100vh-12rem)] overflow-hidden">
             {/* Search and Filters Section */}
             <div className="p-6 border-b border-slate-50 space-y-4 bg-slate-50/30">
               <div className="flex justify-between items-center">
                 <h3 className="font-black text-slate-900 uppercase tracking-tight text-sm">Guests</h3>
-                <span className="bg-slate-900 text-white text-[10px] px-2.5 py-1 rounded-full font-black">
-                  {filteredGuests.length} Remaining
-                </span>
+                <div className="flex items-center gap-2">
+                  {selectedGuestIds.size > 0 && (
+                    <button 
+                      onClick={() => setSelectedGuestIds(new Set())}
+                      className="text-[10px] font-black text-[#B45309] hover:underline uppercase tracking-wider"
+                    >
+                      Clear ({selectedGuestIds.size})
+                    </button>
+                  )}
+                  <span className="bg-slate-900 text-white text-[10px] px-2.5 py-1 rounded-full font-black">
+                    {filteredGuests.length} Remaining
+                  </span>
+                </div>
               </div>
               
               <div className="relative">
@@ -398,12 +446,20 @@ export default function SeatingPlanPage() {
                           setTimeout(() => {
                             tableElement?.classList.remove('ring-4', 'ring-[#B45309]', 'ring-offset-4');
                           }, 2000);
+                        } else {
+                          // Toggle selection for unassigned guests (Bulk Select)
+                          const next = new Set(selectedGuestIds);
+                          if (next.has(g.id)) next.delete(g.id);
+                          else next.add(g.id);
+                          setSelectedGuestIds(next);
                         }
                       }}
                       className={`p-3.5 bg-white border transition-all ${
                         assignedTable 
                           ? 'border-[#F8F9FA] opacity-70 cursor-pointer hover:opacity-100 hover:border-[#B45309]/20 rounded-[1.5rem]' 
-                          : 'border-slate-100 rounded-[1.5rem] cursor-grab active:cursor-grabbing hover:border-[#B45309]/30 hover:shadow-[0_8px_30px_rgb(180,83,9,0.04)] shadow-sm shadow-slate-200/50'
+                          : `rounded-[1.5rem] cursor-grab active:cursor-grabbing hover:border-[#B45309]/30 hover:shadow-[0_8px_30px_rgb(180,83,9,0.04)] shadow-sm shadow-slate-200/50 ${
+                              selectedGuestIds.has(g.id) ? 'border-[#B45309] bg-[#B45309]/5 ring-2 ring-[#B45309]/20 font-bold' : 'border-slate-100'
+                            }`
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -433,9 +489,10 @@ export default function SeatingPlanPage() {
                           </div>
                         </div>
                         <span className={`material-symbols-outlined transition-colors ${
-                          assignedTable ? 'text-[#B45309] opacity-40 group-hover:opacity-100' : 'text-slate-200 group-hover:text-[#B45309]/40'
+                          assignedTable ? 'text-[#B45309] opacity-40 group-hover:opacity-100' : 
+                          selectedGuestIds.has(g.id) ? 'text-[#B45309]' : 'text-slate-200 group-hover:text-[#B45309]/40'
                         }`}>
-                          {assignedTable ? 'location_on' : 'drag_indicator'}
+                          {assignedTable ? 'location_on' : selectedGuestIds.has(g.id) ? 'check_circle' : 'drag_indicator'}
                         </span>
                       </div>
                     </div>
@@ -448,7 +505,7 @@ export default function SeatingPlanPage() {
 
         {/* Tables Canvas Area */}
         <div className="col-span-12 lg:col-span-8 flex flex-col">
-          <div className="relative flex-1 bg-white/60 backdrop-blur-xl rounded-[3rem] border border-white shadow-2xl p-10 overflow-y-auto h-[calc(100vh-12rem)] overflow-hidden">
+          <div className="relative flex-1 bg-white/60 backdrop-blur-xl rounded-3xl lg:rounded-[3rem] border border-white shadow-2xl p-6 lg:p-10 lg:overflow-y-auto h-auto lg:h-[calc(100vh-12rem)] overflow-hidden">
             {/* Grid Background */}
             <div className="absolute inset-0 opacity-[0.05] pointer-events-none" style={{ 
               backgroundImage: `radial-gradient(#B45309 1.5px, transparent 1.5px)`,
@@ -492,10 +549,16 @@ export default function SeatingPlanPage() {
                         handleAssignGuest(guestId, table.id);
                       }}
                       className={`relative bg-white/90 backdrop-blur-md rounded-[2.5rem] border-2 transition-all p-8 group overflow-hidden ${
-                        isDragOver ? "border-[#B45309] bg-white scale-[1.03] shadow-2xl shadow-[#B45309]/10" : 
+                        isDragOver || (selectedGuestIds.size > 0 && dragOverTableId === table.id) ? "border-[#B45309] bg-white scale-[1.03] shadow-2xl shadow-[#B45309]/10" : 
                         activeTableId === table.id ? "border-[#B45309]/50 shadow-xl" : "border-slate-100 hover:border-slate-200 shadow-sm"
-                      }`}
-                      onClick={() => setActiveTableId(table.id)}
+                      } ${selectedGuestIds.size > 0 ? "cursor-pointer ring-4 ring-[#B45309]/5" : ""}`}
+                      onClick={() => {
+                        if (selectedGuestIds.size > 0) {
+                          handleBulkAssign(Array.from(selectedGuestIds), table.id);
+                        } else {
+                          setActiveTableId(table.id);
+                        }
+                      }}
                     >
                       {/* Table Header */}
                       <div className="flex justify-between items-start mb-10 relative z-10">
@@ -515,8 +578,8 @@ export default function SeatingPlanPage() {
                         </button>
                       </div>
 
-                      {/* Visual Table Representation */}
-                      <div className="relative w-72 h-72 mx-auto mb-10 flex items-center justify-center translate-y-2">
+                      {/* Visual Table Representation - Scaled for mobile */}
+                      <div className="relative w-full aspect-square max-w-[280px] lg:max-w-none lg:w-72 lg:h-72 mx-auto mb-10 flex items-center justify-center translate-y-2 scale-[0.85] lg:scale-100 origin-center">
                         {table.shape === 'round' ? (
                           <>
                             {/* Round Table UI */}
@@ -780,6 +843,34 @@ export default function SeatingPlanPage() {
                 Go Back
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Selection Floating Indicator */}
+      {selectedGuestIds.size > 0 && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[60] animate-in slide-in-from-bottom-10 duration-300 w-full max-w-sm px-4">
+          <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between border border-white/10">
+            <div className="flex items-center gap-3">
+              <div className="bg-primary size-8 rounded-full flex items-center justify-center font-black text-sm">
+                {selectedGuestIds.size}
+              </div>
+              <div>
+                <p className="text-sm font-bold">
+                  {selectedGuestIds.size === 1 
+                    ? guests.find(g => g.id === Array.from(selectedGuestIds)[0])?.name
+                    : `${selectedGuestIds.size} Guests selected`
+                  }
+                </p>
+                <p className="text-[10px] text-slate-400 font-medium">Tap a table to seat all together</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setSelectedGuestIds(new Set())}
+              className="px-3 py-2 hover:bg-white/10 text-slate-400 rounded-lg font-bold text-xs transition-colors"
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}

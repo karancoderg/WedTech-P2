@@ -137,58 +137,68 @@ export default function VendorBriefingPage() {
   if (loading) return <div className="p-8 animate-pulse text-slate-400">Loading briefings...</div>;
 
   return (
-    <div className="space-y-16 pb-32">
-      <div className="text-center">
-        <h2 className={`text-3xl md:text-4xl uppercase tracking-widest text-[#5C4033] mb-4 ${playfair.className}`}>Vendor Briefing Generator</h2>
-        <p className="text-[11px] font-medium tracking-widest uppercase text-[#8C7A6B]">Export operational reports for your catering, logistics, and decor teams.</p>
+    <div className="space-y-10 lg:space-y-16 pb-32">
+      <div className="text-center px-4">
+        <h2 className={`text-2xl lg:text-4xl uppercase tracking-widest text-[#5C4033] mb-3 lg:mb-4 ${playfair.className}`}>Vendor Briefings</h2>
+        <p className="text-[10px] lg:text-[11px] font-medium tracking-widest uppercase text-[#8C7A6B] max-w-lg mx-auto">Export operational reports for your catering, logistics, and decor teams.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-end max-w-5xl mx-auto pt-8">
+      <div className="flex flex-col md:grid md:grid-cols-3 gap-4 lg:gap-10 max-w-6xl mx-auto px-4">
         {/* Catering Card */}
-        <div className="bg-white rounded-t-[150px] rounded-b-md border border-[#EBE3D5] p-10 pt-16 hover:shadow-xl transition-all flex flex-col items-center text-center group h-full shadow-lg">
-          <div className="text-[#8C7A6B] flex items-center justify-center mb-8 opacity-60">
-            <span className="material-symbols-outlined text-4xl">restaurant</span>
+        <div className="bg-white rounded-2xl md:rounded-t-[150px] md:rounded-b-md border border-[#EBE3D5] p-4 md:p-10 md:pt-16 hover:shadow-xl transition-all flex flex-row md:flex-col items-center md:text-center group h-full shadow-md gap-4 min-h-[90px]">
+          <div className="w-12 h-12 lg:w-14 lg:h-14 bg-[#F2ECE4] rounded-xl lg:rounded-2xl flex items-center justify-center text-[#8C7A6B] shrink-0 transition-transform group-hover:scale-110 md:mb-6">
+            <span className="material-symbols-outlined text-2xl lg:text-3xl">restaurant</span>
           </div>
-          <h3 className={`text-xl uppercase tracking-widest text-[#5C4033] mb-6 ${playfair.className}`}>Catering Briefing</h3>
-          <p className="text-[#8C7A6B] text-[10px] tracking-wider leading-relaxed mb-auto pb-12">Headcounts for Veg, Jain, and Non-Veg per function based on real confirmed RSVPs.</p>
+          <div className="flex-1 min-w-0 md:contents">
+            <h3 className={`text-sm lg:text-xl uppercase tracking-[0.15em] text-[#5C4033] mb-0 md:mb-4 font-bold truncate ${playfair.className}`}>Catering</h3>
+            <p className="hidden md:block text-[#8C7A6B] text-[11px] lg:text-xs tracking-wider leading-relaxed mb-8">Headcounts for Veg, Jain, and Non-Veg per function based on real confirmed RSVPs.</p>
+          </div>
           <button
             onClick={downloadCateringBriefing}
-            className="w-full py-4 bg-[#5C4033] text-white font-bold hover:bg-[#4A3228] transition-all flex items-center justify-center gap-2 tracking-[0.2em] uppercase text-[9px]"
+            className="md:mt-auto px-4 md:w-full py-3 md:py-4 bg-[#5C4033] text-white font-bold hover:bg-[#4A3228] transition-all flex items-center justify-center gap-2 tracking-[0.2em] uppercase text-[8px] lg:text-[10px] rounded-xl shadow-lg shadow-[#5C4033]/20 shrink-0"
           >
-            <span className="material-symbols-outlined text-sm">download</span>
-            Download Excel
+            <span className="material-symbols-outlined text-sm hidden md:inline">download</span>
+            {/* Short text for mobile */}
+            <span className="md:hidden">XLSX</span>
+            <span className="hidden md:inline">Download Excel</span>
           </button>
         </div>
 
         {/* Guest Logistics Card */}
-        <div className="bg-[#5C4033] shadow-2xl transform md:scale-110 z-10 rounded-t-[150px] rounded-b-md border border-[#5C4033] p-10 pt-20 hover:shadow-2xl transition-all flex flex-col items-center text-center group h-full">
-          <div className="text-white flex items-center justify-center mb-8 opacity-80">
-            <span className="material-symbols-outlined text-4xl">hotel</span>
+        <div className="bg-[#5C4033] text-white rounded-2xl md:rounded-t-[150px] md:rounded-b-md p-4 md:p-10 md:pt-20 hover:shadow-2xl transition-all flex flex-row md:flex-col items-center md:text-center group h-full shadow-xl md:scale-105 z-10 gap-4 min-h-[90px]">
+          <div className="w-12 h-12 lg:w-16 lg:h-16 bg-white/10 rounded-xl lg:rounded-2xl flex items-center justify-center text-white shrink-0 transition-transform group-hover:scale-110 md:mb-6">
+            <span className="material-symbols-outlined text-2xl lg:text-3xl">hotel</span>
           </div>
-          <h3 className={`text-xl uppercase tracking-widest !text-white mb-6 ${playfair.className}`}>Logistics &<br/>Accommodation</h3>
-          <p className="!text-white/80 text-[10px] tracking-wider leading-relaxed mb-auto pb-12">Detailed list of guests requiring accommodation and travel assistance.</p>
+          <div className="flex-1 min-w-0 md:contents text-left md:text-center">
+            <h3 className={`text-sm lg:text-xl uppercase tracking-[0.15em] !text-white mb-0 md:mb-4 font-bold truncate ${playfair.className}`}>Logistics</h3>
+            <p className="hidden md:block text-white/80 text-[11px] lg:text-xs tracking-wider leading-relaxed mb-8 font-medium">Detailed list of guests requiring accommodation and travel assistance.</p>
+          </div>
           <button
             onClick={downloadGuestBriefing}
-            className="w-full py-4 bg-white text-[#5C4033] font-bold hover:bg-[#F2ECE4] transition-all flex items-center justify-center gap-2 tracking-[0.2em] uppercase text-[9px]"
+            className="md:mt-auto px-4 md:w-full py-3 md:py-4 bg-white text-[#5C4033] font-bold hover:bg-[#F2ECE4] transition-all flex items-center justify-center gap-2 tracking-[0.2em] uppercase text-[8px] lg:text-[10px] rounded-xl shadow-lg shadow-white/10 shrink-0"
           >
-            <span className="material-symbols-outlined text-sm">download</span>
-            Download Excel
+            <span className="material-symbols-outlined text-sm hidden md:inline">download</span>
+            <span className="md:hidden">XLSX</span>
+            <span className="hidden md:inline">Download Excel</span>
           </button>
         </div>
 
         {/* Decor/Seating Card */}
-        <div className="bg-white rounded-t-[150px] rounded-b-md border border-[#EBE3D5] p-10 pt-16 hover:shadow-xl transition-all flex flex-col items-center text-center group h-full shadow-lg">
-          <div className="text-[#8C7A6B] flex items-center justify-center mb-8 opacity-60">
-            <span className="material-symbols-outlined text-4xl">table_chart</span>
+        <div className="bg-white rounded-2xl md:rounded-t-[150px] md:rounded-b-md border border-[#EBE3D5] p-4 md:p-10 md:pt-16 hover:shadow-xl transition-all flex flex-row md:flex-col items-center md:text-center group h-full shadow-md gap-4 min-h-[90px]">
+          <div className="w-12 h-12 lg:w-14 lg:h-14 bg-[#F2ECE4] rounded-xl lg:rounded-2xl flex items-center justify-center text-[#8C7A6B] shrink-0 transition-transform group-hover:scale-110 md:mb-6">
+            <span className="material-symbols-outlined text-2xl lg:text-3xl">table_chart</span>
           </div>
-          <h3 className={`text-xl uppercase tracking-widest text-[#5C4033] mb-6 ${playfair.className}`}>Seating Briefing</h3>
-          <p className="text-[#8C7A6B] text-[10px] tracking-wider leading-relaxed mb-auto pb-12">Complete table assignments per function for the decor team and coordinators.</p>
+          <div className="flex-1 min-w-0 md:contents">
+            <h3 className={`text-sm lg:text-xl uppercase tracking-[0.15em] text-[#5C4033] mb-0 md:mb-4 font-bold truncate ${playfair.className}`}>Seating</h3>
+            <p className="hidden md:block text-[#8C7A6B] text-[11px] lg:text-xs tracking-wider leading-relaxed mb-8">Complete table assignments per function for the decor team and coordinators.</p>
+          </div>
           <button
             onClick={downloadSeatingBriefing}
-            className="w-full py-4 bg-[#5C4033] text-white font-bold hover:bg-[#4A3228] transition-all flex items-center justify-center gap-2 tracking-[0.2em] uppercase text-[9px]"
+            className="md:mt-auto px-4 md:w-full py-3 md:py-4 bg-[#5C4033] text-white font-bold hover:bg-[#4A3228] transition-all flex items-center justify-center gap-2 tracking-[0.2em] uppercase text-[8px] lg:text-[10px] rounded-xl shadow-lg shadow-[#5C4033]/20 shrink-0"
           >
-            <span className="material-symbols-outlined text-sm">download</span>
-            Download Report
+            <span className="material-symbols-outlined text-sm hidden md:inline">download</span>
+            <span className="md:hidden">XLSX</span>
+            <span className="hidden md:inline">Download Report</span>
           </button>
         </div>
       </div>

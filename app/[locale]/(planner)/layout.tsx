@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { usePathname } from "next/navigation";
-import Link from "next/link";
+import { Link, usePathname } from "@/i18n/routing";
 import { UserButton, UserProfile, useUser } from "@clerk/nextjs";
 import { toast } from "sonner";
 import { Playfair_Display, Inter } from "next/font/google";
@@ -25,6 +24,7 @@ export default function PlannerLayout({ children }: { children: React.ReactNode 
   const { user } = useUser();
   const [showSettings, setShowSettings] = useState(false);
   const [settingsTab, setSettingsTab] = useState<"profile" | "email">("profile");
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Email Settings State
   const [smtpEmail, setSmtpEmail] = useState("");
@@ -119,7 +119,7 @@ export default function PlannerLayout({ children }: { children: React.ReactNode 
   const firstName = user?.firstName || "Planner";
 
   return (
-    <div className={`flex min-h-screen bg-[#f8f7f5] ${inter.className} ${playfair.variable}`}>
+    <div className={`flex min-h-screen w-full overflow-x-hidden bg-[#f8f7f5] ${inter.className} ${playfair.variable}`}>
       {/* ===== DESKTOP SIDEBAR ===== */}
       <aside className="hidden lg:flex w-64 bg-white border-r border-primary/10 flex-col fixed h-full z-10">
         {/* Logo */}
@@ -189,27 +189,35 @@ export default function PlannerLayout({ children }: { children: React.ReactNode 
       </aside>
 
       {/* ===== MAIN CONTENT ===== */}
-      <main className="flex-1 lg:ml-64 flex flex-col min-w-0 relative planner-dash">
+      <main className="flex-1 lg:ml-64 flex flex-col min-w-0 relative planner-dash max-w-full overflow-x-hidden">
         {/* Top Header */}
-        <header className="h-16 flex items-center justify-between px-8 bg-white border-b border-slate-200 lg:border-primary/10">
-          <h1 className={`text-3xl font-bold text-slate-800 ${playfair.className}`}>
-            Welcome back, {firstName}
-          </h1>
-          <div className="flex items-center gap-4">
-            <button onClick={() => toast.info("No new notifications")} className="p-2 text-slate-500 hover:text-primary transition-colors">
-              <span className="material-symbols-outlined">notifications</span>
+        <header className="h-16 flex items-center justify-between px-4 md:px-8 bg-white border-b border-slate-200 lg:border-primary/10 sticky top-0 z-30">
+          <div className="flex items-center gap-3 min-w-0">
+            <button 
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="lg:hidden p-2 -ml-2 text-slate-500 hover:text-primary transition-colors shrink-0"
+            >
+              <span className="material-symbols-outlined text-[24px]">menu</span>
             </button>
-            <button onClick={openSettings} className="p-2 text-slate-500 hover:text-primary transition-colors">
-              <span className="material-symbols-outlined">settings</span>
+            <h1 className={`text-xl md:text-3xl font-bold text-slate-800 truncate pr-2 ${playfair.className}`}>
+              Welcome back, {firstName}
+            </h1>
+          </div>
+          <div className="flex items-center gap-2 md:gap-3 shrink-0 pl-2">
+            <button onClick={() => toast.info("No new notifications")} className="p-1.5 md:p-2 text-slate-500 hover:text-primary transition-colors">
+              <span className="material-symbols-outlined text-[22px] md:text-[24px]">notifications</span>
             </button>
-            <div className="lg:hidden">
+            <button onClick={openSettings} className="p-1.5 md:p-2 text-slate-500 hover:text-primary transition-colors">
+              <span className="material-symbols-outlined text-[22px] md:text-[24px]">settings</span>
+            </button>
+            <div className="lg:hidden flex items-center">
               <UserButton />
             </div>
           </div>
         </header>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-8">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 pb-24">
           {children}
         </div>
 
@@ -251,7 +259,7 @@ export default function PlannerLayout({ children }: { children: React.ReactNode 
               {/* Tab Content */}
               <div className="overflow-y-auto max-h-[60vh] flex justify-center w-full">
                 {settingsTab === "profile" && (
-                  <div className="p-6">
+                  <div className="p-2 sm:p-6 w-full max-w-full overflow-x-auto flex justify-center">
                     <UserProfile routing="hash" />
                   </div>
                 )}
@@ -360,6 +368,80 @@ export default function PlannerLayout({ children }: { children: React.ReactNode 
             </div>
           </div>
         )}
+        {/* Mobile Drawer Overlay */}
+        {isMobileMenuOpen && (
+          <div 
+            className="lg:hidden fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm transition-opacity" 
+            onClick={() => setIsMobileMenuOpen(false)} 
+          />
+        )}
+
+        {/* Mobile Sidebar (Drawer) */}
+        <aside className={`lg:hidden fixed top-0 left-0 bottom-0 z-[70] w-[280px] bg-white flex flex-col shadow-2xl transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}`}>
+          {/* Logo & Close */}
+          <div className="p-6 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white">
+                <span className="material-symbols-outlined text-[20px]">favorite</span>
+              </div>
+              <h1 className={`text-slate-900 text-xl font-bold ${playfair.className}`}>WedSync</h1>
+            </div>
+            <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 -mr-2 text-slate-400 hover:text-slate-900 transition-colors">
+              <span className="material-symbols-outlined">close</span>
+            </button>
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
+            {NAV_ITEMS.map((item) => {
+              const href = getHref(item);
+              const active = isActive(item);
+              const disabled = href === "#";
+
+              return (
+                <Link
+                  key={item.label}
+                  href={disabled ? "#" : href}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${active
+                    ? "bg-primary/10 text-primary font-bold shadow-sm"
+                    : disabled
+                      ? "text-slate-300 cursor-not-allowed opacity-50"
+                      : "text-slate-600 hover:bg-slate-50"
+                    }`}
+                >
+                  <span className="material-symbols-outlined text-[22px]">{item.icon}</span>
+                  <span className="text-[15px]">{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* New Wedding Button */}
+          <div className="px-4 py-4">
+            <Link href="/wedding/new" onClick={() => setIsMobileMenuOpen(false)}>
+              <button className="w-full flex items-center justify-center gap-2 bg-on-surface text-surface py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-lg active:scale-[0.98] transition-all">
+                <span className="material-symbols-outlined text-[18px]">add</span>
+                New Wedding
+              </button>
+            </Link>
+          </div>
+
+          {/* User Profile */}
+          <div className="p-4 border-t border-slate-100 bg-slate-50/50">
+            <div className="flex items-center gap-3 px-2">
+              <UserButton />
+              <div className="flex flex-col overflow-hidden">
+                <p className="text-xs font-bold text-slate-900 truncate">
+                  {user?.fullName || firstName}
+                </p>
+                <p className="text-[10px] text-slate-500 truncate">
+                  {user?.primaryEmailAddress?.emailAddress}
+                </p>
+              </div>
+            </div>
+          </div>
+        </aside>
       </main>
 
       {/* ===== MOBILE BOTTOM NAV ===== */}

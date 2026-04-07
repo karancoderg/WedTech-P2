@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/routing";
 import { useUser } from "@clerk/nextjs";
 import { supabase } from "@/lib/supabase";
 import type { Wedding, RSVP, Guest } from "@/lib/types";
@@ -127,19 +127,19 @@ export default function DashboardPage() {
 
       <div className="relative z-10 space-y-8">
       {/* Planner Header */}
-      <div className="flex items-end justify-between border-b border-slate-100 pb-4">
+      <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-slate-100 pb-4 gap-2">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Overview</h1>
-          <p className="text-slate-500 font-medium">You have {weddings.length} active weddings in your pipeline</p>
+          <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Overview</h1>
+          <p className="text-sm md:text-base text-slate-500 font-medium">You have {weddings.length} active weddings in your pipeline</p>
         </div>
       </div>
 
       {/* My Weddings */}
       <div>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold tracking-tight text-slate-900 uppercase">My Weddings</h2>
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+          <h2 className="text-base md:text-lg font-bold tracking-tight text-slate-900 uppercase">My Weddings</h2>
           <Link href="/wedding/new">
-            <button className="bg-luxury-gradient text-white px-6 py-2.5 rounded-2xl text-sm font-bold shadow-lg premium-shadow transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:brightness-110 flex items-center gap-2 group relative overflow-hidden">
+            <button className="w-full md:w-auto bg-luxury-gradient text-white px-6 py-2.5 rounded-2xl text-sm font-bold shadow-lg premium-shadow transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:brightness-110 flex items-center justify-center gap-2 group relative overflow-hidden">
               <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
               <span className="material-symbols-outlined text-[22px] group-hover:rotate-90 transition-transform duration-500">add</span>
               <span className="tracking-wide">New Wedding</span>
@@ -196,7 +196,7 @@ export default function DashboardPage() {
                     const photoUrl = wedding.cover_photo_url || dashboardImages[index % dashboardImages.length];
                     return (
                       <div
-                        className="relative w-full md:w-44 h-44 md:h-auto flex-shrink-0 overflow-hidden"
+                        className="relative w-full md:w-44 h-28 md:h-auto flex-shrink-0 overflow-hidden"
                         style={{ background: panelColors[index % panelColors.length] }}
                       >
                         <img 
@@ -210,36 +210,36 @@ export default function DashboardPage() {
 
 
 
-                  <div className="flex-1 p-6 flex flex-col">
+                  <div className="flex-1 p-4 md:p-6 flex flex-col">
                     <div className="flex justify-between items-start mb-2 pr-16">
                       <div>
-                        <h3 className="text-xl font-bold text-slate-900">{wedding.wedding_name}</h3>
-                        <p className="text-slate-500 font-medium">{wedding.bride_name} &amp; {wedding.groom_name}</p>
+                        <h3 className="text-lg md:text-xl font-bold text-slate-900 line-clamp-1">{wedding.wedding_name}</h3>
+                        <p className="text-xs md:text-sm text-slate-500 font-medium line-clamp-1">{wedding.bride_name} &amp; {wedding.groom_name}</p>
                       </div>
-                      <span className={`px-3 py-1 text-xs font-bold rounded-full whitespace-nowrap self-start ${daysColor}`}>
+                      <span className={`px-2 md:px-3 py-1 text-[10px] md:text-xs font-bold rounded-full whitespace-nowrap self-start ${daysColor}`}>
                         {days > 0 ? `${days} Days to go` : days === 0 ? "Today!" : "Past"}
                       </span>
                     </div>
 
                     {/* Per-Wedding Quick Stats */}
-                    <div className="grid grid-cols-3 gap-2 mb-4 p-3 bg-slate-50/50 rounded-xl border border-slate-100/50">
+                    <div className="grid grid-cols-3 gap-2 mb-3 md:mb-4 p-2 bg-slate-50/50 rounded-xl border border-slate-100/50">
                       <div className="text-center">
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Total</p>
-                        <p className="text-sm font-black text-slate-700">{wTotal}</p>
+                        <p className="text-xs md:text-sm font-black text-slate-700">{wTotal}</p>
                       </div>
                       <div className="text-center border-x border-slate-200/50">
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Confirmed</p>
-                        <p className="text-sm font-black text-emerald-600">{wConfirmed}</p>
+                        <p className="text-xs md:text-sm font-black text-emerald-600">{wConfirmed}</p>
                       </div>
                       <div className="text-center">
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Pending</p>
-                        <p className="text-sm font-black text-amber-600">{wGuests.filter(g => g.overall_status === "pending").length}</p>
+                        <p className="text-xs md:text-sm font-black text-amber-600">{wGuests.filter(g => g.overall_status === "pending").length}</p>
                       </div>
                     </div>
 
-                    <div className="mt-auto space-y-4">
+                    <div className="mt-auto space-y-3 md:space-y-4">
                       <Link href={`/wedding/${wedding.id}/guests`}>
-                        <button className="w-full py-2.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-lg transition-all shadow-md shadow-primary/20">
+                        <button className="w-full py-2 md:py-2.5 bg-primary hover:bg-primary/90 text-white text-sm md:text-base font-bold rounded-lg transition-all shadow-md shadow-primary/20">
                           Manage Wedding
                         </button>
                       </Link>

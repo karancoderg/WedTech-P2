@@ -133,7 +133,7 @@ export default function AnalyticsPage() {
   const accommodationNeeded = accommodationHeadcount;
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-6 lg:space-y-12 pb-24">
       {/* HEADER */}
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -156,36 +156,36 @@ export default function AnalyticsPage() {
       </header>
 
       {/* TOP METRICS */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6">
         {[
           { label: "Total Guests", value: totalGuestCount, color: "" },
           { label: "Confirmed", value: confirmed, color: "text-green-600" },
           { label: "Pending", value: pending, color: "text-amber-500" },
           { label: "Declined", value: declined, color: "text-red-500" },
         ].map((stat) => (
-          <div key={stat.label} className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-            <p className="text-slate-500 text-sm font-medium mb-1">{stat.label}</p>
-            <h3 className={`text-2xl font-bold ${stat.color}`}>{stat.value}</h3>
+          <div key={stat.label} className="bg-white p-4 lg:p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-center">
+            <p className="text-slate-500 text-xs lg:text-sm font-medium mb-1 truncate">{stat.label}</p>
+            <h3 className={`text-xl lg:text-2xl font-bold ${stat.color}`}>{stat.value}</h3>
           </div>
         ))}
       </section>
 
       {/* HERO STAT */}
-      <section className="text-center py-10 bg-primary/5 rounded-3xl border border-primary/10">
-        <p className="text-primary/70 text-sm font-bold uppercase tracking-[0.2em] mb-2">Confirmed Attendance</p>
-        <h1 className="text-6xl md:text-8xl font-black text-primary leading-none">{totalPax} Total PAX</h1>
-        <p className="text-slate-600 mt-4 max-w-md mx-auto">
+      <section className="text-center py-6 lg:py-10 bg-primary/5 rounded-2xl lg:rounded-3xl border border-primary/10 px-4">
+        <p className="text-primary/70 text-xs lg:text-sm font-bold uppercase tracking-[0.1em] lg:tracking-[0.2em] mb-2">Confirmed Attendance</p>
+        <h1 className="text-4xl md:text-6xl lg:text-8xl font-black text-primary leading-tight lg:leading-none">{totalPax} Total PAX</h1>
+        <p className="text-slate-600 mt-2 lg:mt-4 max-w-md mx-auto text-[11px] lg:text-base">
           Estimated guest count across all functions based on latest RSVP responses.
         </p>
       </section>
 
       {/* FUNCTION BREAKDOWN */}
       <section>
-        <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-          <span className="material-symbols-outlined text-primary">calendar_today</span>
+        <h3 className="text-lg lg:text-xl font-bold mb-4 lg:mb-6 flex items-center gap-2">
+          <span className="material-symbols-outlined text-primary text-xl lg:text-2xl">calendar_today</span>
           Function Breakdown
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 lg:gap-6">
           {functions.map((func) => {
             const fr = rsvps.filter((r) => r.function_id === func.id);
             const c = fr.filter((r) => r.status === "confirmed").length;
@@ -193,20 +193,20 @@ export default function AnalyticsPage() {
             const p = fr.filter((r) => r.status === "pending").length;
             const t = c + d + p || 1;
             return (
-              <div key={func.id} className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-                <div className="flex justify-between items-start mb-4">
+              <div key={func.id} className="bg-white p-4 lg:p-6 rounded-xl shadow-sm border border-slate-100">
+                <div className="flex justify-between items-start mb-3 lg:mb-4">
                   <div>
-                    <h4 className="font-bold text-lg">{func.name}</h4>
-                    <p className="text-slate-500 text-xs">{func.venue_name}</p>
+                    <h4 className="font-bold text-base lg:text-lg">{func.name}</h4>
+                    <p className="text-slate-500 text-[10px] lg:text-xs truncate">{func.venue_name}</p>
                   </div>
                 </div>
-                <div className="space-y-4">
-                  <div className="flex h-3 w-full rounded-full bg-slate-100 overflow-hidden">
+                <div className="space-y-3 lg:space-y-4">
+                  <div className="flex h-2 lg:h-3 w-full rounded-full bg-slate-100 overflow-hidden">
                     <div className="h-full bg-green-500" style={{ width: `${(c / t) * 100}%` }} />
                     <div className="h-full bg-red-500" style={{ width: `${(d / t) * 100}%` }} />
                     <div className="h-full bg-slate-300" style={{ width: `${(p / t) * 100}%` }} />
                   </div>
-                  <div className="grid grid-cols-3 text-[10px] font-bold uppercase tracking-wider">
+                  <div className="grid grid-cols-3 text-[9px] lg:text-[10px] font-bold uppercase tracking-wider">
                     <div className="text-green-600 text-center">{Math.round((c / t) * 100)}% Conf</div>
                     <div className="text-red-500 text-center">{Math.round((d / t) * 100)}% Decl</div>
                     <div className="text-slate-400 text-center">{Math.round((p / t) * 100)}% Pend</div>
@@ -219,60 +219,60 @@ export default function AnalyticsPage() {
       </section>
 
       {/* DATA INSIGHTS */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
         {/* Dietary Breakdown */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-          <h4 className="font-bold text-lg mb-6 flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary">restaurant_menu</span>
+        <div className="bg-white p-4 lg:p-6 rounded-xl shadow-sm border border-slate-100">
+          <h4 className="font-bold text-base lg:text-lg mb-4 lg:mb-6 flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary text-xl lg:text-2xl">restaurant_menu</span>
             Dietary Breakdown
           </h4>
-          <div className="space-y-4">
+          <div className="space-y-2 lg:space-y-4">
             {[
               { label: "Vegetarian", count: dietaryBreakdown.veg, color: "bg-green-500" },
               { label: "Jain", count: dietaryBreakdown.jain, color: "bg-blue-500" },
               { label: "Non-Veg", count: dietaryBreakdown.nonveg, color: "bg-amber-500" },
               { label: "Not Sure", count: dietaryBreakdown.notsure, color: "bg-slate-300" },
             ].map((d) => (
-              <div key={d.label} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className={`w-3 h-3 rounded-full ${d.color}`} />
-                  <span className="font-medium">{d.label}</span>
+              <div key={d.label} className="flex items-center justify-between p-2 lg:p-3 bg-slate-50 rounded-lg">
+                <div className="flex items-center gap-2 lg:gap-3">
+                  <div className={`w-2 h-2 lg:w-3 lg:h-3 rounded-full ${d.color}`} />
+                  <span className="font-medium text-[11px] lg:text-base">{d.label}</span>
                 </div>
-                <span className="font-bold">{d.count}</span>
+                <span className="font-bold text-sm lg:text-base">{d.count}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Accommodation */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-center text-center">
-          <h4 className="font-bold text-lg mb-6 text-left flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary">hotel</span>
+        <div className="bg-white p-4 lg:p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-center text-center">
+          <h4 className="font-bold text-base lg:text-lg mb-4 lg:mb-6 text-left flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary text-xl lg:text-2xl">hotel</span>
             Accommodation
           </h4>
-          <div className="py-4">
-            <h2 className="text-5xl font-black text-slate-900 mb-2">{accommodationNeeded}</h2>
-            <p className="text-xl font-semibold text-primary">Guests need accommodation</p>
+          <div className="py-2 lg:py-4">
+            <h2 className="text-4xl lg:text-5xl font-black text-slate-900 mb-1 lg:mb-2">{accommodationNeeded}</h2>
+            <p className="text-sm lg:text-xl font-semibold text-primary">Guests need accommodation</p>
           </div>
         </div>
       </section>
 
       {/* STRATEGIC ACTIONS */}
-      <section className="bg-slate-900 rounded-3xl p-8 text-white">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+      <section className="bg-slate-900 rounded-2xl lg:rounded-3xl p-5 lg:p-8 text-white">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 lg:gap-8">
           <div className="text-center md:text-left">
-            <h3 className="text-2xl font-black mb-2">Strategic Operations</h3>
-            <p className="text-slate-400 font-medium">Sync data with your CRM and follow up with pending guests.</p>
+            <h3 className="text-xl lg:text-2xl font-black mb-1 lg:mb-2">Strategic Operations</h3>
+            <p className="text-slate-400 font-medium text-[11px] lg:text-base">Sync data with your CRM and follow up with pending guests.</p>
           </div>
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-col sm:flex-row w-full md:w-auto gap-3 lg:gap-4">
             <button
               onClick={async () => {
                 const res = await bulkSyncWithCRM(weddingId);
                 toast.success(`📤 Synced ${res.synced}/${res.total} guests to CRM (Product 1)`);
               }}
-              className="px-8 py-4 bg-white text-slate-900 rounded-2xl font-bold hover:bg-slate-100 transition-all flex items-center gap-2"
+              className="w-full sm:w-auto px-5 py-3 lg:px-8 lg:py-4 bg-white text-slate-900 rounded-xl lg:rounded-2xl font-bold hover:bg-slate-100 transition-all flex items-center justify-center gap-2 text-xs lg:text-base"
             >
-              <span className="material-symbols-outlined">sync</span>
+              <span className="material-symbols-outlined text-lg">sync</span>
               Sync with CRM
             </button>
             <button
@@ -280,9 +280,9 @@ export default function AnalyticsPage() {
                 const res = await sendRSVPReminders(weddingId);
                 if (res.success) toast.success(res.message);
               }}
-              className="px-8 py-4 bg-primary text-white rounded-2xl font-bold hover:bg-primary/90 transition-all flex items-center gap-2"
+              className="w-full sm:w-auto px-5 py-3 lg:px-8 lg:py-4 bg-primary text-white rounded-xl lg:rounded-2xl font-bold hover:bg-primary/90 transition-all flex items-center justify-center gap-2 text-xs lg:text-base"
             >
-              <span className="material-symbols-outlined">notifications_active</span>
+              <span className="material-symbols-outlined text-lg">notifications_active</span>
               Send Reminders
             </button>
           </div>

@@ -33,6 +33,40 @@ import { generateWhatsAppLink, generateReminderLink, generateWhatsAppMessage, no
 import { generateEmailLink } from "@/lib/email";
 import { toast } from "sonner";
 
+function copyToClipboard(text: string) {
+  if (typeof window === "undefined") return;
+  
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).catch(err => {
+      console.error("Clipboard API failed, using fallback", err);
+      fallbackCopyTextToClipboard(text);
+    });
+  } else {
+    fallbackCopyTextToClipboard(text);
+  }
+}
+
+function fallbackCopyTextToClipboard(text: string) {
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  
+  // Ensure the textarea is not visible
+  textArea.style.position = "fixed";
+  textArea.style.left = "-9999px";
+  textArea.style.top = "0";
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+
+  try {
+    const successful = document.execCommand("copy");
+    if (!successful) console.error("Fallback copy failed");
+  } catch (err) {
+    console.error("Fallback copy error", err);
+  }
+
+  document.body.removeChild(textArea);
+}
 
 export default function InvitesPage() {
   const params = useParams();
@@ -96,6 +130,7 @@ export default function InvitesPage() {
   const pendingGuests = guests.filter((g: Guest) => !g.invite_sent_at);
   const sentGuests = guests.filter((g: Guest) => g.invite_sent_at);
   const pendingRsvpGuests = guests.filter((g: Guest) => g.invite_sent_at && g.overall_status === "pending");
+  const confirmedGuests = guests.filter((g: Guest) => g.overall_status === "confirmed");
 
   const filteredGuests = (filter === "all" ? guests : filter === "pending" ? pendingGuests : sentGuests)
     .filter((g: Guest) => searchQuery
@@ -132,7 +167,7 @@ export default function InvitesPage() {
   }
 
   function copyInviteLink(token: string) {
-    navigator.clipboard.writeText(`${baseUrl}/invite/${token}`);
+    copyToClipboard(`${baseUrl}/invite/${token}`);
     toast.success("🔗 Invite link copied!");
   }
 
@@ -279,7 +314,7 @@ export default function InvitesPage() {
       message: generateWhatsAppMessage(guest, wedding, functions),
     }));
 
-    navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+    copyToClipboard(JSON.stringify(data, null, 2));
     toast.success("📋 JSON copied to clipboard for extension!");
   }
 
@@ -294,12 +329,12 @@ export default function InvitesPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-16 pb-16">
+    <div className="max-w-7xl mx-auto space-y-6 lg:space-y-12 pb-16 px-1 lg:px-4">
       {/* HEADER */}
-      <header className="flex justify-between items-end">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-5xl font-serif font-bold tracking-tight text-on-surface">Invitations</h1>
-          <p className="text-primary font-body text-lg opacity-80">{wedding?.wedding_name || "Sharma-Kapoor Weddings"}</p>
+      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4 lg:gap-6">
+        <div className="flex flex-col gap-1 lg:gap-2">
+          <h1 className="text-3xl lg:text-5xl font-serif font-bold tracking-tight text-on-surface">Invitations</h1>
+          <p className="text-primary font-body text-base lg:text-lg opacity-80">{wedding?.wedding_name || "Sharma-Kapoor Weddings"}</p>
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
           <button
@@ -320,123 +355,134 @@ export default function InvitesPage() {
         </div>
       </header>
 
-      {/* STAT CARDS */}
-      <section className="grid grid-cols-1 md:grid-cols-5 gap-6">
-        <div className="bg-surface-container-lowest p-6 rounded-xl premium-shadow border-l-[3px] border-primary-container relative overflow-hidden">
-          <p className="text-outline text-xs font-label uppercase tracking-wider mb-2">Total Invites</p>
-          <h3 className="text-3xl font-serif font-bold text-on-surface">{guests.length} <span className="text-sm font-body font-normal text-outline">Guests</span></h3>
+      {/* STAT CARDS - Compact Mobile Grid */}
+      <section className="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-6">
+        <div className="col-span-2 lg:col-span-1 bg-surface-container-lowest p-3 lg:p-6 rounded-xl lg:rounded-2xl premium-shadow border-l-[3px] border-primary-container relative overflow-hidden transition-all hover:shadow-md">
+          <p className="text-outline text-[9px] lg:text-xs font-black uppercase tracking-wider mb-0.5 lg:mb-2 leading-none">Total Invites</p>
+          <h3 className="text-xl lg:text-3xl font-serif font-bold text-on-surface leading-tight">{guests.length} <span className="text-[10px] lg:text-sm font-body font-normal text-outline">Guests</span></h3>
         </div>
-        <div className="bg-surface-container-lowest p-6 rounded-xl premium-shadow border-l-[3px] border-emerald-500">
-          <p className="text-outline text-xs font-label uppercase tracking-wider mb-2">Sent</p>
-          <div className="flex items-center justify-between">
-            <h3 className="text-3xl font-serif font-bold text-on-surface">{sentGuests.length}</h3>
+        <div className="bg-surface-container-lowest p-3 lg:p-6 rounded-xl lg:rounded-2xl premium-shadow border-l-[3px] border-emerald-500 transition-all hover:shadow-md">
+          <p className="text-outline text-[9px] lg:text-xs font-black uppercase tracking-wider mb-0.5 lg:mb-2 leading-none">Sent</p>
+          <div className="flex items-center justify-between gap-1">
+            <h3 className="text-xl lg:text-3xl font-serif font-bold text-on-surface leading-tight">{sentGuests.length}</h3>
             {guests.length > 0 && (
-              <span className="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded-full border border-emerald-100 uppercase tracking-tighter">
-                {Math.round((sentGuests.length / guests.length) * 100)}% Done
+              <span className="bg-emerald-50 text-emerald-700 text-[8px] lg:text-[10px] font-black px-1.5 py-0.5 rounded-full border border-emerald-100 uppercase tracking-tighter shadow-sm whitespace-nowrap">
+                {Math.round((sentGuests.length / guests.length) * 100)}%
               </span>
             )}
           </div>
         </div>
-        <div className="bg-surface-container-lowest p-6 rounded-xl premium-shadow border-l-[3px] border-amber-400">
-          <p className="text-outline text-xs font-label uppercase tracking-wider mb-2">Not Sent</p>
-          <div className="flex items-center justify-between">
-            <h3 className="text-3xl font-serif font-bold text-on-surface">{pendingGuests.length}</h3>
+        <div className="bg-surface-container-lowest p-3 lg:p-6 rounded-xl lg:rounded-2xl premium-shadow border-l-[3px] border-amber-400 transition-all hover:shadow-md">
+          <p className="text-outline text-[9px] lg:text-xs font-black uppercase tracking-wider mb-0.5 lg:mb-2 leading-none">Not Sent</p>
+          <div className="flex items-center justify-between gap-1">
+            <h3 className="text-xl lg:text-3xl font-serif font-bold text-on-surface leading-tight">{pendingGuests.length}</h3>
             {pendingGuests.length > 0 && (
-              <span className="bg-amber-50 text-amber-700 text-[10px] font-bold px-2 py-1 rounded-full border border-amber-100 uppercase tracking-tighter">Pending</span>
+              <span className="bg-amber-50 text-amber-700 text-[8px] lg:text-[10px] font-black px-1.5 py-0.5 rounded-full border border-amber-100 uppercase tracking-tighter shadow-sm">Pend</span>
             )}
           </div>
         </div>
-        <div className="bg-surface-container-lowest p-6 rounded-xl premium-shadow border-l-[3px] border-blue-400">
-          <p className="text-outline text-xs font-label uppercase tracking-wider mb-2">Awaiting RSVP</p>
-          <div className="flex items-center justify-between">
-            <h3 className="text-3xl font-serif font-bold text-on-surface">{pendingRsvpGuests.length}</h3>
+        <div className="bg-surface-container-lowest p-3 lg:p-6 rounded-xl lg:rounded-2xl premium-shadow border-l-[3px] border-blue-400 transition-all hover:shadow-md">
+          <p className="text-outline text-[9px] lg:text-xs font-black uppercase tracking-wider mb-0.5 lg:mb-2 leading-none">Await RSVP</p>
+          <div className="flex items-center justify-between gap-1">
+            <h3 className="text-xl lg:text-3xl font-serif font-bold text-on-surface leading-tight">{pendingRsvpGuests.length}</h3>
             {pendingRsvpGuests.length > 0 && (
-              <span className="bg-blue-50 text-blue-700 text-[10px] font-bold px-2 py-1 rounded-full border border-blue-100 uppercase tracking-tighter">Follow Up</span>
+              <span className="bg-blue-50 text-blue-700 text-[8px] lg:text-[10px] font-black px-1.5 py-0.5 rounded-full border border-blue-100 uppercase tracking-tighter shadow-sm whitespace-nowrap hidden sm:block">Chaser</span>
             )}
           </div>
         </div>
-        <div className="bg-surface-container-lowest p-6 rounded-xl premium-shadow border-l-[3px] border-emerald-500">
-          <p className="text-outline text-xs font-label uppercase tracking-wider mb-2">Confirmed</p>
-          <div className="flex items-center justify-between">
-            <h3 className="text-3xl font-serif font-bold text-on-surface">{guests.filter(g => g.overall_status === 'confirmed').length}</h3>
-            <div className="bg-emerald-500 text-white w-6 h-6 flex items-center justify-center rounded-full">
-              <span className="material-symbols-outlined text-sm">check</span>
-            </div>
+        <div className="bg-surface-container-lowest p-3 lg:p-6 rounded-xl lg:rounded-2xl premium-shadow border-l-[3px] border-emerald-500 transition-all hover:shadow-md">
+          <p className="text-outline text-[9px] lg:text-xs font-black uppercase tracking-wider mb-0.5 lg:mb-2 leading-none">Confirmed</p>
+          <div className="flex items-center justify-between gap-1">
+            <h3 className="text-xl lg:text-3xl font-serif font-bold text-on-surface leading-tight">{confirmedGuests.length}</h3>
+            {confirmedGuests.length > 0 && (
+              <span className="material-symbols-outlined text-emerald-500 text-sm lg:text-xl">check_circle</span>
+            )}
           </div>
         </div>
       </section>
 
-      {/* ACTION CARDS */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="bg-[#FFF9E6] p-8 rounded-xl flex flex-col gap-6 relative overflow-hidden">
-          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-amber-600 premium-shadow">
-            <span className="material-symbols-outlined text-3xl">notifications_active</span>
-          </div>
-          <div>
-            <h4 className="text-xl font-serif font-bold text-on-surface mb-1">Send Reminders</h4>
-            <p className="text-on-surface-variant text-sm">{pendingRsvpGuests.length} guests haven't RSVPed yet</p>
-          </div>
-          <button 
-            onClick={() => {
+      {/* ACTION CARDS - Optimized for mobile space */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-3 lg:gap-8">
+        {[
+          {
+            id: 'reminders',
+            title: 'Send Reminders',
+            desc: `${pendingRsvpGuests.length} guests pending`,
+            icon: 'notifications_active',
+            color: 'text-amber-600',
+            bg: 'bg-[#FFF9E6]',
+            btnText: 'Copy Links',
+            action: () => {
               const links = pendingRsvpGuests.map((g) => (wedding ? generateReminderLink(g, wedding) : "")).join("\n");
-              navigator.clipboard.writeText(links);
+              copyToClipboard(links);
               toast.success("Reminder links copied!");
-            }}
-            disabled={pendingRsvpGuests.length === 0}
-            className="mt-auto w-full py-3 bg-on-surface text-surface text-xs font-label uppercase tracking-widest font-bold rounded-lg transition-transform hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
-          >
-            Copy Reminder Links
-          </button>
-        </div>
-
-        <div className="bg-[#F3E8FF] p-8 rounded-xl flex flex-col gap-6 relative overflow-hidden">
-          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-purple-600 premium-shadow">
-            <span className="material-symbols-outlined text-3xl">record_voice_over</span>
+            },
+            disabled: pendingRsvpGuests.length === 0
+          },
+          {
+            id: 'calls',
+            title: 'AI Voice Calls',
+            desc: 'Auto-collect RSVPs',
+            icon: 'record_voice_over',
+            color: 'text-purple-600',
+            bg: 'bg-[#F3E8FF]',
+            btnText: `Call ${pendingRsvpGuests.length}`,
+            action: () => handleAICall(pendingRsvpGuests.map((g) => g.id)),
+            disabled: callingGuests || pendingRsvpGuests.length === 0,
+            isLoading: callingGuests
+          },
+          {
+            id: 'emails',
+            title: 'Email Invites',
+            desc: 'Send to email addresses',
+            icon: 'mail',
+            color: 'text-blue-600',
+            bg: 'bg-[#E0F2FE]',
+            btnText: 'Email Pending',
+            action: () => handleBulkEmail(pendingGuests.filter((g) => !!g.email)),
+            disabled: sendingEmails || pendingGuests.length === 0,
+            isLoading: sendingEmails
+          }
+        ].map((item) => (
+          <div key={item.id} className={`${item.bg} p-3 lg:p-8 rounded-xl lg:rounded-2xl flex md:flex-col items-center md:items-start gap-3 lg:gap-6 relative overflow-hidden transition-all hover:shadow-md border border-white/50`}>
+            <div className={`w-10 h-10 lg:w-14 lg:h-14 bg-white rounded-xl lg:rounded-2xl flex items-center justify-center ${item.color} shadow-sm shrink-0`}>
+              <span className="material-symbols-outlined text-xl lg:text-3xl">{item.icon}</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-sm lg:text-xl font-serif font-bold text-on-surface leading-tight truncate">{item.title}</h4>
+              <p className="text-on-surface-variant text-[10px] lg:text-sm font-medium mt-0.5 truncate">{item.desc}</p>
+              <button 
+                onClick={item.action}
+                disabled={item.disabled}
+                className="hidden md:block mt-6 w-full py-3 bg-on-surface text-surface text-[11px] font-black uppercase tracking-widest rounded-xl transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-30"
+              >
+                {item.isLoading ? "Loading..." : item.btnText}
+              </button>
+            </div>
+            <button 
+              onClick={item.action}
+              disabled={item.disabled}
+              className="md:hidden px-3 py-1.5 bg-on-surface text-surface text-[10px] font-black uppercase tracking-widest rounded-lg shadow-sm active:scale-95 disabled:opacity-30 shrink-0"
+            >
+              {item.isLoading ? "..." : "GO"}
+            </button>
           </div>
-          <div>
-            <h4 className="text-xl font-serif font-bold text-on-surface mb-1">AI Voice Calls</h4>
-            <p className="text-on-surface-variant text-sm">Auto-call pending guests to collect RSVPs</p>
-          </div>
-          <button 
-            onClick={() => handleAICall(pendingRsvpGuests.map((g) => g.id))}
-            disabled={callingGuests || pendingRsvpGuests.length === 0}
-            className="mt-auto w-full py-3 bg-purple-600 text-white text-xs font-label uppercase tracking-widest font-bold rounded-lg transition-transform hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
-          >
-            {callingGuests ? "Calling..." : `Call ${pendingRsvpGuests.length} Guests`}
-          </button>
-        </div>
-
-        <div className="bg-[#E0F2FE] p-8 rounded-xl flex flex-col gap-6 relative overflow-hidden">
-          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-blue-600 premium-shadow">
-            <span className="material-symbols-outlined text-3xl">mail</span>
-          </div>
-          <div>
-            <h4 className="text-xl font-serif font-bold text-on-surface mb-1">Email Invitations</h4>
-            <p className="text-on-surface-variant text-sm">Send invite emails to guests with email addresses</p>
-          </div>
-          <button 
-            onClick={() => handleBulkEmail(pendingGuests.filter((g) => !!g.email))}
-            disabled={sendingEmails || pendingGuests.length === 0}
-            className="mt-auto w-full py-3 bg-blue-600 text-white text-xs font-label uppercase tracking-widest font-bold rounded-lg transition-transform hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
-          >
-            {sendingEmails ? "Sending..." : "Email Pending"}
-          </button>
-        </div>
+        ))}
       </section>
 
       {/* TABLE */}
       <div className="bg-surface-container-lowest rounded-xl premium-shadow overflow-hidden">
-        {/* Filter Tabs + Search */}
-        <div className="px-8 py-6 border-b border-surface-container flex flex-wrap items-center gap-4 justify-between">
-          <div className="flex items-center gap-4">
-            <h3 className="text-xl font-serif font-bold text-on-surface">Guest List</h3>
-            <div className="flex gap-1 p-1 bg-surface-container-low rounded-lg">
+        {/* Filter Tabs + Search - Responsive Stack */}
+        <div className="px-4 lg:px-8 py-4 lg:py-6 border-b border-surface-container flex flex-col lg:flex-row items-start lg:items-center gap-4 justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto">
+            <h3 className="text-lg lg:text-xl font-serif font-bold text-on-surface">Guest List</h3>
+            <div className="flex gap-1 p-1 bg-slate-100 rounded-xl w-full sm:w-auto overflow-x-auto">
               {(["all", "pending", "sent"] as const).map((f) => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-md capitalize transition-colors ${
-                    filter === f ? "bg-white shadow-sm text-primary" : "text-outline hover:text-on-surface"
+                  className={`flex-1 sm:flex-none px-3 py-1.5 text-[11px] font-black uppercase tracking-wider rounded-lg transition-all whitespace-nowrap ${
+                    filter === f ? "bg-white shadow-sm text-primary" : "text-slate-400 hover:text-slate-600"
                   }`}
                 >
                   {f} ({f === "all" ? guests.length : f === "pending" ? pendingGuests.length : sentGuests.length})
@@ -444,234 +490,322 @@ export default function InvitesPage() {
               ))}
             </div>
           </div>
-          {/* Search bar */}
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
+          
+          <div className="flex items-center gap-2 w-full lg:w-auto">
+            <div className="relative flex-1 lg:flex-none">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search guests..."
-                className="pl-10 pr-4 py-2 bg-surface-container rounded-lg border-none focus:ring-1 focus:ring-primary text-sm w-64 font-body outline-none transition-all"
+                className="pl-10 pr-10 py-2.5 bg-slate-50 rounded-xl border border-slate-100 focus:border-primary/50 focus:ring-4 focus:ring-primary/5 text-sm w-full lg:w-64 font-medium outline-none transition-all"
               />
               {searchQuery && (
-                <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface">
+                <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                   <span className="material-symbols-outlined text-[16px]">close</span>
                 </button>
               )}
             </div>
-            <button className="material-symbols-outlined text-outline hover:text-primary transition-colors">filter_list</button>
+            <button className="flex items-center justify-center size-10 bg-slate-50 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-all">
+              <span className="material-symbols-outlined">filter_list</span>
+            </button>
           </div>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[800px]">
-            <thead>
-              <tr className="bg-surface-container-low">
-                <th className="px-8 py-4 w-12">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.size === filteredGuests.length && filteredGuests.length > 0}
-                    onChange={toggleSelectAll}
-                    style={{ accentColor: "var(--color-primary)" }}
-                    className="w-4 h-4 rounded cursor-pointer"
-                    title="Select all"
-                  />
-                </th>
-                <th className="px-4 py-4 text-xs font-label uppercase tracking-widest text-outline font-bold">Name</th>
-                <th className="px-4 py-4 text-xs font-label uppercase tracking-widest text-outline font-bold">Status</th>
-                <th className="px-4 py-4 text-xs font-label uppercase tracking-widest text-outline font-bold">Contact</th>
-                <th className="px-4 py-4 text-xs font-label uppercase tracking-widest text-outline font-bold">Side</th>
-                <th className="px-8 py-4 text-xs font-label uppercase tracking-widest text-outline font-bold text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-surface-container">
-              {(() => {
-                const rows: React.ReactNode[] = [];
-
-                // Separate grouped and ungrouped guests (from paginated list)
-                const grouped = new Map<string, Guest[]>();
-                const ungrouped: Guest[] = [];
-
-                for (const g of paginatedGuests) {
-                  if (g.group_id) {
-                    if (!grouped.has(g.group_id)) grouped.set(g.group_id, []);
-                    grouped.get(g.group_id)!.push(g);
-                  } else {
-                    ungrouped.push(g);
-                  }
-                }
-
-                // Helper: render one invite row
-                function InviteRow({ guest, indent }: { guest: Guest; indent?: boolean }) {
-                  return (
-                    <tr key={guest.id} className={`hover:bg-surface-container transition-colors ${selectedIds.has(guest.id) ? "bg-primary-fixed/20" : ""}`}>
-                      <td className="px-8 py-5">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(guest.id)}
-                          onChange={() => toggleSelect(guest.id)}
-                          style={{ accentColor: "var(--color-primary)" }}
-                          className="w-4 h-4 rounded cursor-pointer"
-                        />
-                      </td>
-                      <td className={`px-4 py-5 flex items-center gap-3 ${indent ? "ml-6" : ""}`}>
-                        {indent && <span className="text-outline text-sm">└</span>}
-                        <div className="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container font-bold text-xs shrink-0">
-                          {getInitials(guest.name)}
-                        </div>
-                        <div>
-                          <p className="font-body font-bold text-sm text-on-surface">{guest.name}</p>
-                          {guest.email && <p className="text-xs text-outline">{guest.email}</p>}
-                        </div>
-                      </td>
-                      <td className="px-4 py-5 font-body">
+        {/* Table/Cards Container */}
+        <div className="relative">
+          {/* Mobile Card View */}
+          <div className="md:hidden divide-y divide-surface-container">
+            {paginatedGuests.length === 0 ? (
+              <div className="px-8 py-12 text-center text-outline font-body">
+                No guests found
+              </div>
+            ) : (
+              paginatedGuests.map((guest) => (
+                <div key={guest.id} className={`px-3 py-2.5 flex items-center justify-between gap-2 bg-white transition-colors border-b border-slate-50 ${selectedIds.has(guest.id) ? "bg-primary/5" : ""}`}>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="shrink-0 flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(guest.id)}
+                        onChange={() => toggleSelect(guest.id)}
+                        style={{ accentColor: "var(--color-primary)" }}
+                        className="w-4 h-4 rounded cursor-pointer"
+                      />
+                      <div className="w-9 h-9 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container font-bold text-xs shrink-0">
+                        {getInitials(guest.name)}
+                      </div>
+                    </div>
+                    
+                    <div className="min-w-0 flex flex-col gap-0.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="font-body font-bold text-[13px] text-on-surface truncate leading-tight">{guest.name}</p>
                         {guest.overall_status === "confirmed" ? (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-full border border-emerald-100">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                            Confirmed
-                          </span>
+                          <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 text-[8px] font-black rounded border border-emerald-100 uppercase tracking-tighter">Confirmed</span>
                         ) : guest.overall_status === "declined" ? (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 text-xs font-bold rounded-full border border-red-100">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
-                            Declined
-                          </span>
+                          <span className="px-1.5 py-0.5 bg-red-50 text-red-700 text-[8px] font-black rounded border border-red-100 uppercase tracking-tighter">Declined</span>
                         ) : !guest.invite_sent_at ? (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 text-xs font-bold rounded-full border border-amber-100">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                            Not Sent
-                          </span>
+                          <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[8px] font-black rounded border border-amber-100 uppercase tracking-tighter">Not Sent</span>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full border border-blue-100">
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                            Awaiting
-                          </span>
+                          <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 text-[8px] font-black rounded border border-blue-100 uppercase tracking-tighter">Awaiting</span>
                         )}
-                      </td>
-                      <td className="px-4 py-5 text-sm text-on-surface-variant font-medium">
-                        {guest.phone || "—"}
-                      </td>
-                      <td className="px-4 py-5">
-                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold capitalize ${sideColors[guest.side]?.bg || "bg-slate-50 border-slate-200"} ${sideColors[guest.side]?.text || "text-slate-600"}`}>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-[10px] text-outline font-medium truncate">{guest.phone || "No phone"}</p>
+                        <span className={`px-1 py-0.5 rounded-[4px] text-[7px] font-black uppercase tracking-widest border border-current opacity-60 ${sideColors[guest.side]?.bg || "bg-slate-50 border-slate-200"} ${sideColors[guest.side]?.text || "text-slate-600"}`}>
                           {guest.side}
                         </span>
-                      </td>
-                      <td className="px-8 py-5 text-right font-body">
-                        <div className="flex justify-end gap-2">
-                          <button onClick={() => copyInviteLink(guest.invite_token)} className="p-2 hover:bg-surface-container rounded-lg text-outline hover:text-primary transition-colors" title="Copy Link">
-                            <span className="material-symbols-outlined text-lg">content_copy</span>
-                          </button>
-                          {wedding && (
-                            <a
-                              href={generateWhatsAppLink(guest, wedding, functions)}
-                              target="_blank"
-                              rel="noopener"
-                              onClick={() => markAsSent(guest.id)}
-                              className={`p-2 rounded-lg transition-all ${
-                                guest.invite_sent_at
-                                  ? "hover:bg-emerald-50 text-outline hover:text-emerald-600"
-                                  : "bg-emerald-500 text-white active:scale-95 shadow-sm"
-                              }`}
-                              title="Send WhatsApp"
-                            >
-                              <span className="material-symbols-outlined text-lg">chat</span>
-                            </a>
-                          )}
-                          <button
-                            onClick={() => handleAICall([guest.id])}
-                            disabled={callingGuests}
-                            className="p-2 hover:bg-purple-50 rounded-lg text-outline hover:text-purple-600 transition-colors"
-                            title="AI Voice Call"
-                          >
-                            <span className="material-symbols-outlined text-lg">call</span>
-                          </button>
-                          {wedding && guest.email && (
-                            <button
-                              onClick={() => handleBulkEmail([guest])}
-                              className="p-2 hover:bg-blue-50 rounded-lg text-outline hover:text-blue-600 transition-colors"
-                              title="Send Email"
-                            >
-                              <span className="material-symbols-outlined text-lg">mail</span>
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                }
+                        {guest.group_id && (
+                          <span className="material-symbols-outlined text-[10px] text-primary/50">family_restroom</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
 
-                for (const [groupId, members] of grouped.entries()) {
-                  const group = guestGroups.find((g) => g.id === groupId);
-                  const isCollapsed = collapsedGroups.has(groupId);
-                  const allSent = members.every((m) => m.invite_sent_at);
-                  const noneSent = members.every((m) => !m.invite_sent_at);
-                  
-                  rows.push(
-                    <tr key={`group-header-${groupId}`} className="bg-surface-container-low border-b border-surface-container">
-                      <td className="px-8 py-4">
-                        <input
-                          type="checkbox"
-                          checked={members.every((m) => selectedIds.has(m.id))}
-                          onChange={() => {
-                            const next = new Set(selectedIds);
-                            const allSelected = members.every((m) => selectedIds.has(m.id));
-                            members.forEach((m) => allSelected ? next.delete(m.id) : next.add(m.id));
-                            setSelectedIds(next);
-                          }}
-                          style={{ accentColor: "var(--color-primary)" }}
-                          className="w-4 h-4 rounded cursor-pointer"
-                        />
-                      </td>
-                      <td className="px-4 py-4" colSpan={5}>
-                        <div className="flex items-center gap-3">
-                          <button onClick={() => toggleGroupCollapse(groupId)} className="flex items-center gap-2 flex-1 text-left">
-                            <span className="material-symbols-outlined text-primary text-[18px]">
-                              {isCollapsed ? "chevron_right" : "expand_more"}
-                            </span>
-                            <span className="material-symbols-outlined text-primary text-[16px]">family_restroom</span>
-                            <span className="font-bold text-primary text-sm">{group?.name || "Unknown Family"}</span>
-                            <span className="ml-1 px-2 py-0.5 bg-primary/10 text-primary text-[11px] font-bold rounded-full">
-                              {members.length} {members.length === 1 ? "member" : "members"}
-                            </span>
-                          </button>
-                          {!allSent && wedding && (
-                            <button
-                              onClick={() => markAllAsSent(members.filter((m) => !m.invite_sent_at).map((m) => m.id))}
-                              className="ml-auto text-[11px] font-bold text-primary hover:underline whitespace-nowrap flex items-center gap-1"
-                            >
-                              <span className="material-symbols-outlined text-[14px]">mark_email_read</span>
-                              {noneSent ? "Mark all sent" : "Mark remaining sent"}
-                            </button>
-                          )}
-                          {allSent && (
-                            <span className="ml-auto text-[11px] font-bold text-emerald-600 flex items-center gap-1">
-                              <span className="material-symbols-outlined text-[14px]">check_circle</span>
-                              All sent
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                  if (!isCollapsed) {
-                    members.forEach((guest) => rows.push(<InviteRow key={guest.id} guest={guest} indent />));
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button 
+                      onClick={() => copyInviteLink(guest.invite_token)} 
+                      className="p-1.5 text-slate-400 hover:text-primary transition-all active:scale-90"
+                      title="Copy Link"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">content_copy</span>
+                    </button>
+                    
+                    {wedding && (
+                      <a
+                        href={generateWhatsAppLink(guest, wedding, functions)}
+                        target="_blank"
+                        rel="noopener"
+                        onClick={() => markAsSent(guest.id)}
+                        className={`p-1.5 rounded-lg transition-all active:scale-90 ${
+                          guest.invite_sent_at
+                            ? "text-emerald-600/50"
+                            : "text-emerald-500"
+                        }`}
+                        title="Send WhatsApp"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">chat</span>
+                      </a>
+                    )}
+
+                    <button
+                      onClick={() => handleAICall([guest.id])}
+                      disabled={callingGuests}
+                      className="p-1.5 text-purple-600/60 hover:text-purple-600 transition-all active:scale-90"
+                      title="AI Voice Call"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">call</span>
+                    </button>
+
+                    {wedding && guest.email && (
+                      <button
+                        onClick={() => handleBulkEmail([guest])}
+                        className="p-1.5 text-blue-600/60 hover:text-blue-600 transition-all active:scale-90"
+                        title="Send Email"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">mail</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[800px]">
+              <thead>
+                <tr className="bg-surface-container-low">
+                  <th className="px-8 py-4 w-12">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.size === filteredGuests.length && filteredGuests.length > 0}
+                      onChange={toggleSelectAll}
+                      style={{ accentColor: "var(--color-primary)" }}
+                      className="w-4 h-4 rounded cursor-pointer"
+                      title="Select all"
+                    />
+                  </th>
+                  <th className="px-4 py-4 text-xs font-label uppercase tracking-widest text-outline font-bold">Name</th>
+                  <th className="px-4 py-4 text-xs font-label uppercase tracking-widest text-outline font-bold">Status</th>
+                  <th className="px-4 py-4 text-xs font-label uppercase tracking-widest text-outline font-bold">Contact</th>
+                  <th className="px-4 py-4 text-xs font-label uppercase tracking-widest text-outline font-bold">Side</th>
+                  <th className="px-8 py-4 text-xs font-label uppercase tracking-widest text-outline font-bold text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-surface-container">
+                {(() => {
+                  const rows: React.ReactNode[] = [];
+                  const grouped = new Map<string, Guest[]>();
+                  const ungrouped: Guest[] = [];
+
+                  for (const g of paginatedGuests) {
+                    if (g.group_id) {
+                      if (!grouped.has(g.group_id)) grouped.set(g.group_id, []);
+                      grouped.get(g.group_id)!.push(g);
+                    } else {
+                      ungrouped.push(g);
+                    }
                   }
-                }
 
-                ungrouped.forEach((guest) => rows.push(<InviteRow key={guest.id} guest={guest} />));
+                  function InviteRow({ guest, indent }: { guest: Guest; indent?: boolean }) {
+                    return (
+                      <tr key={guest.id} className={`hover:bg-surface-container transition-colors ${selectedIds.has(guest.id) ? "bg-primary-fixed/20" : ""}`}>
+                        <td className="px-8 py-5">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(guest.id)}
+                            onChange={() => toggleSelect(guest.id)}
+                            style={{ accentColor: "var(--color-primary)" }}
+                            className="w-4 h-4 rounded cursor-pointer"
+                          />
+                        </td>
+                        <td className={`px-4 py-5 flex items-center gap-3 ${indent ? "ml-6" : ""}`}>
+                          {indent && <span className="text-outline text-sm">└</span>}
+                          <div className="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container font-bold text-xs shrink-0">
+                            {getInitials(guest.name)}
+                          </div>
+                          <div>
+                            <p className="font-body font-bold text-sm text-on-surface">{guest.name}</p>
+                            {guest.email && <p className="text-xs text-outline">{guest.email}</p>}
+                          </div>
+                        </td>
+                        <td className="px-4 py-5 font-body">
+                          {guest.overall_status === "confirmed" ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-full border border-emerald-100 uppercase tracking-tighter">Confirmed</span>
+                          ) : guest.overall_status === "declined" ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 text-xs font-bold rounded-full border border-red-100 uppercase tracking-tighter">Declined</span>
+                          ) : !guest.invite_sent_at ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 text-xs font-bold rounded-full border border-amber-100 uppercase tracking-tighter">Not Sent</span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full border border-blue-100 uppercase tracking-tighter">Awaiting</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-5 text-sm text-on-surface-variant font-medium">
+                          {guest.phone || "—"}
+                        </td>
+                        <td className="px-4 py-5">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold capitalize ${sideColors[guest.side]?.bg || "bg-slate-50 border-slate-200"} ${sideColors[guest.side]?.text || "text-slate-600"}`}>
+                            {guest.side}
+                          </span>
+                        </td>
+                        <td className="px-8 py-5 text-right font-body">
+                          <div className="flex justify-end gap-2">
+                            <button onClick={() => copyInviteLink(guest.invite_token)} className="p-2 hover:bg-surface-container rounded-lg text-outline hover:text-primary transition-colors" title="Copy Link">
+                              <span className="material-symbols-outlined text-lg">content_copy</span>
+                            </button>
+                            {wedding && (
+                              <a
+                                href={generateWhatsAppLink(guest, wedding, functions)}
+                                target="_blank"
+                                rel="noopener"
+                                onClick={() => markAsSent(guest.id)}
+                                className={`p-2 rounded-lg transition-all ${
+                                  guest.invite_sent_at
+                                    ? "hover:bg-emerald-50 text-outline hover:text-emerald-600"
+                                    : "bg-emerald-500 text-white active:scale-95 shadow-sm"
+                                }`}
+                                title="Send WhatsApp"
+                              >
+                                <span className="material-symbols-outlined text-lg">chat</span>
+                              </a>
+                            )}
+                            <button
+                              onClick={() => handleAICall([guest.id])}
+                              disabled={callingGuests}
+                              className="p-2 hover:bg-purple-50 rounded-lg text-outline hover:text-purple-600 transition-colors"
+                              title="AI Voice Call"
+                            >
+                              <span className="material-symbols-outlined text-lg">call</span>
+                            </button>
+                            {wedding && guest.email && (
+                              <button
+                                onClick={() => handleBulkEmail([guest])}
+                                className="p-2 hover:bg-blue-50 rounded-lg text-outline hover:text-blue-600 transition-colors"
+                                title="Send Email"
+                              >
+                                <span className="material-symbols-outlined text-lg">mail</span>
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
 
-                return rows.length > 0 ? rows : (
-                  <tr>
-                    <td colSpan={6} className="px-8 py-8 text-center text-outline font-body">
-                      No guests found
-                    </td>
-                  </tr>
-                );
-              })()}
-            </tbody>
-          </table>
+                  for (const [groupId, members] of grouped.entries()) {
+                    const group = guestGroups.find((g) => g.id === groupId);
+                    const isCollapsed = collapsedGroups.has(groupId);
+                    const allSent = members.every((m) => m.invite_sent_at);
+                    const noneSent = members.every((m) => !m.invite_sent_at);
+                    
+                    rows.push(
+                      <tr key={`group-header-${groupId}`} className="bg-surface-container-low border-b border-surface-container">
+                        <td className="px-8 py-4">
+                          <input
+                            type="checkbox"
+                            checked={members.every((m) => selectedIds.has(m.id))}
+                            onChange={() => {
+                              const next = new Set(selectedIds);
+                              const allSelected = members.every((m) => selectedIds.has(m.id));
+                              members.forEach((m) => allSelected ? next.delete(m.id) : next.add(m.id));
+                              setSelectedIds(next);
+                            }}
+                            style={{ accentColor: "var(--color-primary)" }}
+                            className="w-4 h-4 rounded cursor-pointer"
+                          />
+                        </td>
+                        <td className="px-4 py-4" colSpan={5}>
+                          <div className="flex items-center gap-3">
+                            <button onClick={() => toggleGroupCollapse(groupId)} className="flex items-center gap-2 flex-1 text-left">
+                              <span className="material-symbols-outlined text-primary text-[18px]">
+                                {isCollapsed ? "chevron_right" : "expand_more"}
+                              </span>
+                              <span className="material-symbols-outlined text-primary text-[16px]">family_restroom</span>
+                              <span className="font-bold text-primary text-sm">{group?.name || "Unknown Family"}</span>
+                              <span className="ml-1 px-2 py-0.5 bg-primary/10 text-primary text-[11px] font-bold rounded-full">
+                                {members.length} {members.length === 1 ? "member" : "members"}
+                              </span>
+                            </button>
+                            {!allSent && wedding && (
+                              <button
+                                onClick={() => markAllAsSent(members.filter((m) => !m.invite_sent_at).map((m) => m.id))}
+                                className="ml-auto text-[11px] font-bold text-primary hover:underline whitespace-nowrap flex items-center gap-1"
+                              >
+                                <span className="material-symbols-outlined text-[14px]">mark_email_read</span>
+                                {noneSent ? "Mark all sent" : "Mark remaining sent"}
+                              </button>
+                            )}
+                            {allSent && (
+                              <span className="ml-auto text-[11px] font-bold text-emerald-600 flex items-center gap-1">
+                                <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                                All sent
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                    if (!isCollapsed) {
+                      members.forEach((guest) => rows.push(<InviteRow key={guest.id} guest={guest} indent />));
+                    }
+                  }
+
+                  ungrouped.forEach((guest) => rows.push(<InviteRow key={guest.id} guest={guest} />));
+
+                  return rows.length > 0 ? rows : (
+                    <tr>
+                      <td colSpan={6} className="px-8 py-8 text-center text-outline font-body">
+                        No guests found
+                      </td>
+                    </tr>
+                  );
+                })()}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <div className="px-8 py-6 bg-surface-container-low flex items-center justify-between">
@@ -698,59 +832,67 @@ export default function InvitesPage() {
       </div>
 
       {/* Floating Bulk Action Bar */}
+            {/* Floating Bulk Action Bar - Polished for mobile */}
       {selectedIds.size > 0 && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-4xl px-4 z-20">
-          <div className="bg-inverse-surface text-inverse-on-surface p-4 rounded-2xl shadow-2xl flex items-center justify-between border border-white/10">
-            <div className="flex items-center gap-3 pl-2 shrink-0">
-              <div className="bg-primary size-8 rounded-full flex items-center justify-center font-black text-sm text-on-primary">
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[92%] lg:w-full lg:max-w-4xl px-0 lg:px-4 z-[100]">
+          <div className="bg-slate-900 text-white p-3 lg:p-4 rounded-2xl shadow-2xl flex flex-col lg:flex-row items-center justify-between border border-white/10 gap-3">
+            <div className="flex items-center gap-3 pl-2 w-full lg:w-auto border-b lg:border-b-0 border-white/10 pb-2 lg:pb-0">
+              <div className="bg-primary size-7 lg:size-8 rounded-full flex items-center justify-center font-black text-xs lg:text-sm text-on-primary shrink-0">
                 {selectedIds.size}
               </div>
               <div>
-                <p className="text-sm font-bold font-body">{selectedIds.size} selected</p>
-                <p className="text-[10px] text-outline font-medium font-body">Bulk actions</p>
+                <p className="text-xs lg:text-sm font-bold font-body">{selectedIds.size} selected</p>
+                <p className="text-[9px] lg:text-[10px] text-slate-400 font-medium font-body uppercase tracking-wider">Bulk actions</p>
               </div>
-            </div>
-            <div className="flex gap-2">
               <button
                 onClick={() => setSelectedIds(new Set())}
-                className="px-3 py-2 hover:bg-white/10 text-inverse-on-surface rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all font-body"
+                className="ml-auto lg:hidden p-1 text-slate-400"
               >
-                <span className="material-symbols-outlined text-lg">close</span>
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+            
+            <div className="flex flex-wrap lg:flex-nowrap justify-center gap-1.5 lg:gap-2 w-full lg:w-auto">
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="hidden lg:flex px-3 py-2 hover:bg-white/10 text-white rounded-lg font-bold text-xs items-center gap-1.5 transition-all font-body"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
                 Clear
               </button>
               <button
                 onClick={() => handleAICall(Array.from(selectedIds))}
                 disabled={callingGuests}
-                className="px-3 py-2 bg-purple-600 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 hover:bg-purple-700 transition-all disabled:opacity-50 font-body"
+                className="flex-1 lg:flex-none px-2 lg:px-3 py-2 bg-purple-600 text-white rounded-lg font-bold text-[10px] lg:text-xs flex items-center justify-center gap-1 lg:gap-1.5 hover:bg-purple-700 transition-all disabled:opacity-50 font-body"
               >
-                <span className="material-symbols-outlined text-lg">
+                <span className="material-symbols-outlined text-[16px] lg:text-[18px]">
                   {callingGuests ? "sync" : "call"}
                 </span>
-                {callingGuests ? "Calling..." : `AI Call ${selectedIds.size}`}
+                <span className="truncate">{callingGuests ? "Calling" : `AI Call`}</span>
               </button>
               <button
                 onClick={() => handleBulkEmail(guests.filter((g) => selectedIds.has(g.id)))}
                 disabled={sendingEmails}
-                className="px-3 py-2 bg-blue-600 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 hover:bg-blue-700 transition-all disabled:opacity-50 font-body"
+                className="flex-1 lg:flex-none px-2 lg:px-3 py-2 bg-blue-600 text-white rounded-lg font-bold text-[10px] lg:text-xs flex items-center justify-center gap-1 lg:gap-1.5 hover:bg-blue-700 transition-all disabled:opacity-50 font-body"
               >
-                <span className="material-symbols-outlined text-lg">
+                <span className="material-symbols-outlined text-[16px] lg:text-[18px]">
                   {sendingEmails ? "sync" : "mail"}
                 </span>
-                {sendingEmails ? "Sending..." : `Email ${selectedIds.size}`}
+                <span className="truncate">{sendingEmails ? "Sending" : `Email`}</span>
               </button>
               <button
                 onClick={handleExportForExtension}
-                className="px-3 py-2 bg-amber-500 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 hover:bg-amber-600 transition-all font-body"
+                className="flex-1 lg:flex-none px-2 lg:px-3 py-2 bg-amber-500 text-white rounded-lg font-bold text-[10px] lg:text-xs flex items-center justify-center gap-1 lg:gap-1.5 hover:bg-amber-600 transition-all font-body"
               >
-                <span className="material-symbols-outlined text-lg">content_paste_go</span>
-                Export for Extension
+                <span className="material-symbols-outlined text-[16px] lg:text-[18px]">content_paste_go</span>
+                <span className="truncate">Export</span>
               </button>
               <button
                 onClick={() => markAllAsSent(Array.from(selectedIds))}
-                className="px-3 py-2 bg-primary text-on-primary rounded-lg font-bold text-xs flex items-center gap-1.5 hover:bg-primary/90 transition-all font-body"
+                className="flex-1 lg:flex-none px-2 lg:px-3 py-2 bg-primary text-white rounded-lg font-bold text-[10px] lg:text-xs flex items-center justify-center gap-1 lg:gap-1.5 hover:bg-primary/90 transition-all font-body"
               >
-                <span className="material-symbols-outlined text-lg">mark_email_read</span>
-                Mark Sent
+                <span className="material-symbols-outlined text-[16px] lg:text-[18px]">mark_email_read</span>
+                <span className="truncate">Mark Sent</span>
               </button>
             </div>
           </div>

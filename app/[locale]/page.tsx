@@ -1,6 +1,6 @@
 "use client";
 
-import Link from 'next/link';
+import { Link } from "@/i18n/routing";
 import { Playfair_Display, Inter } from 'next/font/google';
 import { useAuth } from "@clerk/nextjs";
 
@@ -12,16 +12,15 @@ export default function HomePage() {
 
   return (
     <div className={`min-h-screen bg-[#FAF8F5] text-[#5C4033] ${inter.className} overflow-x-hidden`}>
-      {/* Navigation */}
-      <nav className="absolute top-0 w-full z-10 flex flex-col md:flex-row justify-between items-center px-8 md:px-16 py-8 text-white font-bold text-[10px] tracking-[0.2em] uppercase gap-4 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-        <div className="flex gap-12">
+      <nav className="absolute top-0 w-full z-10 flex flex-col md:flex-row justify-between items-center px-4 md:px-16 py-6 md:py-8 text-white font-bold text-[9px] md:text-[10px] tracking-[0.2em] uppercase gap-4 md:gap-4 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+        <div className="flex gap-6 md:gap-12 order-2 md:order-1">
           <a href="#about" className="hover:opacity-70 transition-opacity">About</a>
           <a href="#services" className="hover:opacity-70 transition-opacity">Features</a>
         </div>
-        <div className={`text-3xl tracking-[0.3em] uppercase ${playfair.className} font-light`}>
+        <div className={`text-2xl md:text-3xl tracking-[0.3em] uppercase ${playfair.className} font-light order-1 md:order-2 mb-2 md:mb-0`}>
           WedSync
         </div>
-        <div className="flex gap-12">
+        <div className="flex gap-6 md:gap-12 order-3">
           {isSignedIn ? (
             <Link href="/dashboard" className="hover:opacity-70 transition-opacity">Dashboard</Link>
           ) : (
@@ -31,7 +30,7 @@ export default function HomePage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative h-screen w-full flex flex-col items-center justify-center pt-20 overflow-hidden">
+      <section className="relative h-[85vh] min-h-[500px] w-full flex flex-col items-center justify-center pt-28 md:pt-20 overflow-hidden">
         <div className="absolute inset-0 z-0">
           <img
             src="/image.png"
@@ -40,7 +39,7 @@ export default function HomePage() {
           />
           <div className="absolute inset-0 bg-[#5C4033]/20 mix-blend-color-burn" />
           <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/30 to-transparent" />
-          <div className="absolute bottom-[-100px] left-[-10%] w-[120%] h-[200px] bg-[#FAF8F5] rounded-t-[50%] blur-[2px]" />
+          <div className="absolute bottom-[-100px] lg:bottom-[-150px] left-[-10%] w-[120%] h-[200px] bg-[#FAF8F5] rounded-t-[50%] blur-[2px]" />
         </div>
 
         <div className="relative z-10 text-center px-4 max-w-5xl mx-auto flex flex-col items-center">
@@ -79,17 +78,17 @@ export default function HomePage() {
         </div>
 
         {/* Intro Image Layout */}
-        <div className="mt-24 w-full relative h-[600px] flex justify-center items-center">
-          <div className="absolute left-[10%] top-0 z-10 w-64 h-96 p-4 bg-white shadow-xl">
-            <img src="https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?q=80&w=2070&auto=format&fit=crop" className="w-full h-full object-cover" alt="Wedding planning" />
-            <div className="absolute -bottom-10 -left-10 size-32 rounded-full border border-[#5C4033] flex items-center justify-center p-2 bg-[#FAF8F5]">
-              <span className="text-[#5C4033] text-center text-[8px] tracking-widest uppercase">Smart<br />Planning<br />Tools</span>
+        <div className="mt-16 md:mt-24 w-full relative h-auto md:h-[600px] flex flex-col md:flex-row justify-center items-center gap-16 md:gap-0">
+          <div className="md:absolute md:left-[10%] md:top-0 z-10 w-64 h-96 p-4 bg-white shadow-xl relative order-2 md:order-1 mt-8 md:mt-0 mx-auto">
+            <img src="/about-wedding-planning.jpg" className="w-full h-full object-cover" alt="Wedding planning" />
+            <div className="absolute -bottom-6 -left-6 md:-bottom-10 md:-left-10 size-24 md:size-32 rounded-full border border-[#5C4033] flex items-center justify-center p-2 bg-[#FAF8F5]">
+              <span className="text-[#5C4033] text-center text-[7px] md:text-[8px] tracking-widest uppercase">Smart<br />Planning<br />Tools</span>
             </div>
           </div>
           {/* Right side heading */}
-          <div className="absolute right-[8%] top-[20%] text-right z-20">
-            <p className="text-[10px] tracking-[0.3em] font-bold uppercase text-[#8C7A6B] mb-4">For Professionals</p>
-            <h3 className={`text-5xl md:text-6xl uppercase tracking-widest leading-tight text-[#5C4033] ${playfair.className}`}>
+          <div className="md:absolute md:right-[8%] md:top-[20%] text-center md:text-right z-20 order-1 md:order-2">
+            <p className="text-[9px] md:text-[10px] tracking-[0.3em] font-bold uppercase text-[#8C7A6B] mb-4">For Professionals</p>
+            <h3 className={`text-4xl md:text-6xl uppercase tracking-widest leading-tight text-[#5C4033] ${playfair.className}`}>
               Every<br />Detail.<br />Perfected.
             </h3>
           </div>
@@ -105,7 +104,7 @@ export default function HomePage() {
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="group relative overflow-hidden rounded-t-full h-[450px] shadow-lg border-4 border-white/50">
+            <div className="group relative overflow-hidden rounded-t-full h-[320px] lg:h-[450px] shadow-lg border-4 border-white/50">
               <img src="/guest-management.jpg" alt="Guest Management" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
               <div className="absolute inset-0 bg-black/25 group-hover:bg-black/45 transition-colors duration-500" />
               <div className="absolute bottom-12 left-0 right-0 text-center px-6">
@@ -114,7 +113,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="relative h-[450px] rounded-t-full overflow-hidden shadow-lg bg-[#5C4033] border-4 border-white/50 flex flex-col items-center justify-center p-12 text-center text-white">
+            <div className="relative h-[320px] lg:h-[450px] rounded-t-full overflow-hidden shadow-lg bg-[#5C4033] border-4 border-white/50 flex flex-col items-center justify-center p-12 text-center text-white">
               <span className="material-symbols-outlined text-4xl mb-6 opacity-80">mark_email_read</span>
               <h4 className={`text-2xl tracking-widest uppercase mb-6 ${playfair.className}`}>Digital Invitations & RSVPs</h4>
               <p className="text-[11px] leading-relaxed tracking-wider mb-8 opacity-80">
@@ -131,8 +130,8 @@ export default function HomePage() {
               )}
             </div>
 
-            <div className="group relative overflow-hidden rounded-t-full h-[450px] shadow-lg border-4 border-white/50">
-              <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop" alt="Analytics" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+            <div className="group relative overflow-hidden rounded-t-full h-[320px] lg:h-[450px] shadow-lg border-4 border-white/50">
+              <img src="/analytics-dashboard.jpg" alt="Analytics" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
               <div className="absolute inset-0 bg-black/25 group-hover:bg-black/45 transition-colors duration-500" />
               <div className="absolute bottom-12 left-0 right-0 text-center px-6">
                 <h4 className={`text-white text-2xl tracking-widest uppercase ${playfair.className}`}>Live Analytics</h4>
@@ -142,7 +141,7 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">
-            <div className="group relative overflow-hidden rounded-t-full h-[450px] shadow-lg border-4 border-white/50">
+            <div className="group relative overflow-hidden rounded-t-full h-[320px] lg:h-[450px] shadow-lg border-4 border-white/50">
               <img src="/seating-plan.jpg" alt="Seating Plan" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
               {/* White circle to cover watermark */}
               <div className="absolute bottom-3 right-3 w-10 h-10 rounded-full bg-white/90" />
@@ -153,7 +152,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="relative h-[450px] rounded-t-full overflow-hidden shadow-lg bg-[#8C7A6B] border-4 border-white/50 flex flex-col items-center justify-center p-12 text-center text-white">
+            <div className="relative h-[320px] lg:h-[450px] rounded-t-full overflow-hidden shadow-lg bg-[#8C7A6B] border-4 border-white/50 flex flex-col items-center justify-center p-12 text-center text-white">
               <span className="material-symbols-outlined text-4xl mb-6 opacity-80">description</span>
               <h4 className={`text-2xl tracking-widest uppercase mb-6 ${playfair.className}`}>Vendor Briefings</h4>
               <p className="text-[11px] leading-relaxed tracking-wider opacity-80">
@@ -161,8 +160,8 @@ export default function HomePage() {
               </p>
             </div>
 
-            <div className="group relative overflow-hidden rounded-t-full h-[450px] shadow-lg border-4 border-white/50">
-              <img src="https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=2069&auto=format&fit=crop" alt="Check-in" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+            <div className="group relative overflow-hidden rounded-t-full h-[320px] lg:h-[450px] shadow-lg border-4 border-white/50">
+              <img src="/checkin-ceremony.jpg" alt="Check-in" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
               <div className="absolute inset-0 bg-black/25 group-hover:bg-black/45 transition-colors duration-500" />
               <div className="absolute bottom-12 left-0 right-0 text-center px-6">
                 <h4 className={`text-white text-2xl tracking-widest uppercase ${playfair.className}`}>Day-of Check-In</h4>
@@ -174,15 +173,15 @@ export default function HomePage() {
       </section>
 
       {/* Why WedSync Section */}
-      <section className="py-32 relative">
-        <div className="absolute left-0 top-0 w-1/3 h-full bg-[#EBE3D5]" />
-        <div className="relative max-w-6xl mx-auto px-6 h-[500px]">
-          <div className="absolute top-0 right-[20%] w-[300px] h-[400px] shadow-2xl z-20 border-[12px] border-white">
-            <img src="https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=2070&auto=format&fit=crop" className="w-full h-full object-cover" alt="Wedding Details" />
+      <section className="py-20 md:py-32 relative">
+        <div className="absolute left-0 top-0 w-full md:w-1/3 h-full bg-[#EBE3D5] opacity-50 md:opacity-100" />
+        <div className="relative max-w-6xl mx-auto px-6 h-auto md:h-[500px] flex flex-col md:block items-center text-center md:text-left gap-12">
+          <div className="md:absolute md:top-0 md:right-[20%] w-[260px] md:w-[300px] h-[340px] md:h-[400px] shadow-2xl z-20 border-8 md:border-[12px] border-white order-1 md:order-2 mx-auto">
+            <img src="/why-wedsync.jpg" className="w-full h-full object-cover" alt="Wedding Details" />
           </div>
-          <div className="absolute top-16 left-[10%] text-[#5C4033] z-30 max-w-[280px]">
+          <div className="md:absolute md:top-16 md:left-[10%] text-[#5C4033] z-30 max-w-[320px] md:max-w-[280px] order-2 md:order-1">
             <p className="text-[10px] tracking-[0.3em] font-bold uppercase mb-4 text-[#8C7A6B]">Why WedSync</p>
-            <h3 className={`text-5xl uppercase tracking-widest leading-tight ${playfair.className}`}>Built for<br />Planners</h3>
+            <h3 className={`text-4xl md:text-5xl uppercase tracking-widest leading-tight ${playfair.className}`}>Built for<br />Planners</h3>
             <p className="mt-6 text-[11px] text-[#8C7A6B] leading-loose tracking-wide">
               WedSync is the only platform designed exclusively for professional wedding planners. Every feature is crafted to reduce stress and multiply efficiency on your most important days.
             </p>
@@ -200,8 +199,8 @@ export default function HomePage() {
               "WedSync transformed the way I run my events. The RSVP tracking alone saved me hours, and the vendor briefing generator is a game-changer. I won't plan a wedding without it."
             </h3>
           </div>
-          <div className="flex-1 h-[500px] w-full border-[12px] border-white shadow-xl relative z-20">
-            <img src="https://images.unsplash.com/photo-1606800052052-a08af7148866?q=80" alt="Happy Planner" className="w-full h-full object-cover" />
+          <div className="flex-1 h-[320px] md:h-[500px] w-full max-w-[320px] md:max-w-none mx-auto border-8 md:border-[12px] border-white shadow-xl relative z-20 order-1 md:order-2">
+            <img src="/testimonial-planner.jpg" alt="Happy Planner" className="w-full h-full object-cover" />
           </div>
         </div>
       </section>
@@ -210,17 +209,20 @@ export default function HomePage() {
       <footer className="bg-[#FAF8F5] pt-24 pb-8 px-8 border-t border-[#EBE3D5]">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col items-center text-center mb-24">
+            <h4 className={`text-xl md:text-2xl uppercase tracking-[0.3em] text-[#5C4033] mb-8 ${playfair.className}`}>
+              Subscribe to our Newsletter
+            </h4>
             <div className="flex w-full justify-center max-w-sm">
               <input suppressHydrationWarning type="email" placeholder="ENTER YOUR EMAIL ADDRESS..." className="w-full border-b border-[#CBA88A] bg-transparent pb-3 text-[9px] tracking-[0.2em] outline-none text-[#5C4033] placeholder-[#CBA88A]" />
               <button suppressHydrationWarning className="bg-[#5C4033] text-white px-8 py-3 text-[9px] tracking-[0.2em] font-bold hover:bg-[#4A3228] transition-colors ml-4 uppercase">Submit</button>
             </div>
           </div>
 
-          <div className="flex flex-col md:flex-row justify-between items-end pb-8 border-b border-[#EBE3D5]">
-            <h3 className={`text-3xl md:text-5xl uppercase text-[#5C4033] leading-tight max-w-2xl ${playfair.className}`}>
+          <div className="flex flex-col md:flex-row justify-between items-center md:items-end pb-8 border-b border-[#EBE3D5] text-center md:text-left gap-8">
+            <h3 className={`text-2xl md:text-5xl uppercase text-[#5C4033] leading-tight max-w-2xl ${playfair.className}`}>
               The platform that makes every wedding seamless.
             </h3>
-            <div className="flex gap-16 text-[9px] tracking-[0.2em] font-bold uppercase text-[#5C4033] mt-12 md:mt-0">
+            <div className="flex flex-wrap justify-center md:justify-end gap-8 md:gap-16 text-[9px] tracking-[0.2em] font-bold uppercase text-[#5C4033] mt-4 md:mt-0">
               <div className="flex flex-col gap-4">
                 <span className="text-[#8C7A6B] mb-2">Platform</span>
                 <a href="#about" className="hover:text-[#8C7A6B]">About</a>
