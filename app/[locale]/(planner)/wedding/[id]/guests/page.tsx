@@ -7,8 +7,12 @@ import { supabase } from "@/lib/supabase";
 import type { Wedding, Guest, WeddingFunction, RSVP } from "@/lib/types";
 
 import { toast } from "sonner";
-import { encryptValue } from "@/lib/client-encryption";
+import { encryptValue } from "@/lib/client-encryption"; // still used by add/edit guest
 
+// TODO: `deriveFunctionsForSide` is duplicated here (for add/edit guest) and in
+// app/api/wedding/[id]/import-guests/route.ts (for batch import, server-side).
+// Consolidate into lib/guest-utils.ts when the import flow no longer needs
+// the client copy (i.e., after all import work moves fully server-side).
 function deriveFunctionsForSide(side: 'bride' | 'groom' | 'both', allFunctions: WeddingFunction[]) {
   if (side === 'both') return allFunctions.map(f => f.id);
 
@@ -404,68 +408,109 @@ export default function GuestListPage() {
     }
   }
 
-  // Import Guests (CSV/Excel)
+  // Import Guests (CSV/Excel) — batch mode
+  // All encryption + DB writes happen server-side in /api/wedding/[id]/import-guests
+  // so this function only parses the file and chunks the rows.
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
+      // ── 1. Parse file client-side (must stay in browser) ──────────────────
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: "buffer" });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      const data = XLSX.utils.sheet_to_json(worksheet) as any[];
+      const rawData = XLSX.utils.sheet_to_json(worksheet) as any[];
 
-      let count = 0;
+      if (rawData.length === 0) {
+        toast.error("The file appears to be empty.");
+        return;
+      }
 
-      for (const row of data) {
-        // Handle various header variations
-        const name = row.Name || row.name || row.Guest || row.guest;
-        const phone = row.Phone || row.phone || row.Mobile || row.mobile || row.Number || row.number;
-        const email = row.Email || row.email || row.Mail || row.mail;
-        const sideStr = String(row.Side || row.side || "both").toLowerCase().trim();
+      // ── 2. Normalise column names ──────────────────────────────────────────
+      const rows = rawData.map((row) => {
+        const name  = row.Name  || row.name  || row.Guest  || row.guest  || "";
+        const phone = row.Phone || row.phone || row.Mobile || row.mobile || row.Number || row.number || "";
+        const email = row.Email || row.email || row.Mail   || row.mail   || "";
+        const side  = String(row.Side || row.side || "both");
         const tagsStr = row.Tags || row.tags || "";
+        const tags  = tagsStr
+          ? String(tagsStr).split(/[;,]/).map((t: string) => t.trim()).filter(Boolean)
+          : [];
+        return { name: String(name).trim(), phone: String(phone).trim(), email: email ? String(email).trim() : "", side, tags };
+      }).filter((r) => r.name && r.phone);
 
-        if (!name || !phone) continue;
+      if (rows.length === 0) {
+        toast.error("No valid rows found. Make sure the file has Name and Phone columns.");
+        return;
+      }
 
-        // DB constraints check
-        const allowedSides = ["bride", "groom", "both"];
-        const side = allowedSides.includes(sideStr) ? sideStr : "both";
-        const derivedFuncIds = deriveFunctionsForSide(side as 'bride' | 'groom' | 'both', functions);
+      // ── 3. Chunked batch POST — 250 rows per request ───────────────────────
+      const CHUNK_SIZE = 250;
+      const chunks: typeof rows[] = [];
+      for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+        chunks.push(rows.slice(i, i + CHUNK_SIZE));
+      }
 
-        const token = generateInviteToken();
-        const { data: newGuest, error: guestError } = await supabase.from("guests").insert({
-          wedding_id: weddingId,
-          name: String(name).trim(),
-          phone: await encryptValue(String(phone).trim()),
-          email: email ? await encryptValue(String(email).trim()) : null,
-          side: side as "bride" | "groom" | "both",
-          tags: tagsStr ? String(tagsStr).split(/[;,]/).map((t: string) => t.trim()).filter(Boolean) : [],
-          function_ids: derivedFuncIds,
-          invite_token: token,
-          overall_status: "pending",
-          imported_via: file.name.endsWith(".csv") ? "csv" : "excel",
-        }).select().single();
+      let totalImported = 0;
+      let totalFailed   = 0;
+      const allInvalid: { index: number; name: string; reason: string }[] = [];
+      const toastId = toast.loading(`📥 Importing guests... (0 / ${rows.length})`);
 
-        if (guestError) {
-          console.error("Supabase insert error:", guestError);
+      for (let i = 0; i < chunks.length; i++) {
+        const res = await fetch(`/api/wedding/${weddingId}/import-guests`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rows: chunks[i], fileName: file.name }),
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          console.error("Import chunk error:", errData);
+          totalFailed += chunks[i].length;
+          toast.loading(
+            `📥 Importing guests... (${totalImported} / ${rows.length}) — chunk ${i + 1} failed`,
+            { id: toastId }
+          );
           continue;
         }
 
-        if (newGuest) {
-          const { error: tokenError } = await supabase.from("invite_tokens").insert({
-            token,
-            wedding_id: weddingId,
-            guest_id: newGuest.id,
-            function_ids: derivedFuncIds,
-            used: false,
-          });
-          if (tokenError) console.error("Token insert error:", tokenError);
-          count++;
+        const result = await res.json();
+        totalImported += result.imported ?? 0;
+        totalFailed   += result.failed   ?? 0;
+
+        // Collect per-row validation failures from the server
+        if (Array.isArray(result.invalid) && result.invalid.length > 0) {
+          allInvalid.push(...result.invalid);
+          console.warn(
+            `Import: ${result.invalid.length} row(s) skipped in chunk ${i + 1}:`,
+            result.invalid
+          );
         }
+
+        toast.loading(
+          `📥 Importing guests... (${totalImported} / ${rows.length})`,
+          { id: toastId }
+        );
       }
 
-      toast.success(`📥 Imported ${count} guests from ${file.name}`);
+      // ── 4. Final result ────────────────────────────────────────────────────
+      if (allInvalid.length > 0) {
+        // Surface first few skipped names so the user knows what to fix
+        const skippedNames = allInvalid
+          .slice(0, 3)
+          .map((r) => r.name)
+          .join(", ");
+        const more = allInvalid.length > 3 ? ` +${allInvalid.length - 3} more` : "";
+        toast.warning(
+          `📥 Imported ${totalImported} guests — ${allInvalid.length} row(s) skipped (${skippedNames}${more}). Check console for details.`,
+          { id: toastId, duration: 8000 }
+        );
+      } else {
+        toast.success(`📥 Imported ${totalImported} guests from ${file.name}`, { id: toastId });
+      }
+
       fetchData();
     } catch (error) {
       console.error("Import error:", error);
