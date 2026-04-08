@@ -58,6 +58,8 @@ export default function GuestListPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // true = user explicitly chose "Select all N matching guests" (all filtered, not just page)
+  const [selectAllFiltered, setSelectAllFiltered] = useState(false);
   const [showBulkEmailDialog, setShowBulkEmailDialog] = useState(false);
   const [guestsWithEmail, setGuestsWithEmail] = useState<Guest[]>([]);
   const [guestsWithInvalidEmail, setGuestsWithInvalidEmail] = useState<Guest[]>([]);
@@ -137,14 +139,38 @@ export default function GuestListPage() {
   function toggleSelect(id: string) {
     const newSet = new Set(selectedIds);
     newSet.has(id) ? newSet.delete(id) : newSet.add(id);
+    setSelectAllFiltered(false); // individual toggle exits select-all-filtered mode
     setSelectedIds(newSet);
   }
+
+  // Selects / deselects the CURRENT PAGE only (not all filtered guests).
+  // If you want to act on all filtered guests, use the banner link below the table header.
   function toggleSelectAll() {
-    if (selectedIds.size === filteredGuests.length) {
-      setSelectedIds(new Set());
+    const pageIds = new Set(paginatedGuests.map((g) => g.id));
+    const allPageSelected = paginatedGuests.every((g) => selectedIds.has(g.id));
+    if (allPageSelected) {
+      // Deselect page — also exit select-all-filtered mode
+      const next = new Set(selectedIds);
+      pageIds.forEach((id) => next.delete(id));
+      setSelectedIds(next);
+      setSelectAllFiltered(false);
     } else {
-      setSelectedIds(new Set(filteredGuests.map((g) => g.id)));
+      // Select all on current page
+      const next = new Set(selectedIds);
+      pageIds.forEach((id) => next.add(id));
+      setSelectedIds(next);
     }
+  }
+
+  // Selects ALL filtered guests across all pages (triggered by banner link).
+  function selectAllFilteredGuests() {
+    setSelectedIds(new Set(filteredGuests.map((g) => g.id)));
+    setSelectAllFiltered(true);
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+    setSelectAllFiltered(false);
   }
 
   // Add Guest
@@ -206,11 +232,36 @@ export default function GuestListPage() {
     fetchData();
   }
 
-  // Delete Guest
-  async function handleDelete(id: string) {
-    await supabase.from("guests").delete().eq("id", id);
-    toast.success("Guest removed");
-    fetchData();
+  // Single-guest delete state
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+
+  function confirmDeleteGuest(id: string) {
+    setPendingDeleteId(id);
+    setShowDeleteConfirm(true);
+  }
+
+  // Delete Guest — routes through server-side API so CASCADE + counter recalc happen
+  async function handleDelete() {
+    if (!pendingDeleteId) return;
+    setShowDeleteConfirm(false);
+    const toastId = toast.loading("Removing guest...");
+    try {
+      const res = await fetch(`/api/wedding/${weddingId}/delete-guests`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ guestIds: [pendingDeleteId] }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || err.error || "Delete failed");
+      }
+      toast.success("Guest removed", { id: toastId });
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to remove guest", { id: toastId });
+    } finally {
+      setPendingDeleteId(null);
+    }
   }
   
   // Grouping Actions
@@ -274,21 +325,25 @@ export default function GuestListPage() {
     }
   }
 
-  // Bulk Deletion
+  // Bulk Deletion — server-side API handles CASCADE cleanup + counter recalc
   async function handleBulkDelete() {
     setShowDeleteConfirm(false);
-    const toastId = toast.loading(`Removing ${selectedIds.size} guests...`);
-    
+    const count = selectedIds.size;
+    const toastId = toast.loading(`Removing ${count} guests...`);
+
     try {
-      const { error } = await supabase
-        .from("guests")
-        .delete()
-        .in("id", Array.from(selectedIds));
-
-      if (error) throw error;
-
-      toast.success(`✅ Successfully removed ${selectedIds.size} guests`, { id: toastId });
-      setSelectedIds(new Set());
+      const res = await fetch(`/api/wedding/${weddingId}/delete-guests`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ guestIds: Array.from(selectedIds) }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || err.error || "Delete failed");
+      }
+      const result = await res.json();
+      toast.success(`✅ Removed ${result.deleted ?? count} guests`, { id: toastId });
+      clearSelection();
       fetchData();
     } catch (error: any) {
       toast.error(error.message || "Failed to delete guests", { id: toastId });
@@ -644,7 +699,8 @@ export default function GuestListPage() {
               <th className="py-4 px-6 w-12">
                 <input
                   type="checkbox"
-                  checked={selectedIds.size === filteredGuests.length && filteredGuests.length > 0}
+                  // Checked only when every guest on the CURRENT PAGE is selected
+                  checked={paginatedGuests.length > 0 && paginatedGuests.every((g) => selectedIds.has(g.id))}
                   onChange={toggleSelectAll}
                   className="rounded border-slate-300 text-primary focus:ring-primary"
                 />
@@ -750,7 +806,7 @@ export default function GuestListPage() {
                         <button onClick={() => openEditDialog(guest)} className="p-1.5 text-slate-400 hover:text-primary transition-colors" title="Edit">
                           <span className="material-symbols-outlined text-[18px]">edit</span>
                         </button>
-                        <button onClick={() => handleDelete(guest.id)} className="p-1.5 text-slate-400 hover:text-red-500 transition-colors" title="Delete">
+                        <button onClick={() => confirmDeleteGuest(guest.id)} className="p-1.5 text-slate-400 hover:text-red-500 transition-colors" title="Delete">
                           <span className="material-symbols-outlined text-[18px]">delete</span>
                         </button>
                       </div>
@@ -798,6 +854,39 @@ export default function GuestListPage() {
             })()}
           </tbody>
         </table>
+
+        {/* Gmail-style select-all banner — appears when entire page is selected */}
+        {paginatedGuests.length > 0 && paginatedGuests.every((g) => selectedIds.has(g.id)) && (
+          <div className="bg-primary/5 border-t border-primary/10 px-6 py-3 flex items-center justify-center gap-3 text-sm">
+            {selectAllFiltered ? (
+              <>
+                <span className="font-semibold text-slate-700">
+                  All <strong>{filteredGuests.length}</strong> matching guests are selected.
+                </span>
+                <button
+                  onClick={clearSelection}
+                  className="text-primary font-bold hover:underline"
+                >
+                  Clear selection
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="font-semibold text-slate-700">
+                  All <strong>{paginatedGuests.length}</strong> guests on this page are selected.
+                </span>
+                {filteredGuests.length > paginatedGuests.length && (
+                  <button
+                    onClick={selectAllFilteredGuests}
+                    className="text-primary font-bold hover:underline"
+                  >
+                    Select all {filteredGuests.length} matching guests
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Guest Mobile Cards */}
@@ -862,7 +951,7 @@ export default function GuestListPage() {
                           <span className="material-symbols-outlined text-[16px]">group_remove</span>
                         </button>
                       )}
-                      <button onClick={() => handleDelete(guest.id)} className="p-1.5 text-slate-400 hover:text-red-500 rounded-md transition-colors" title="Delete">
+                      <button onClick={() => confirmDeleteGuest(guest.id)} className="p-1.5 text-slate-400 hover:text-red-500 rounded-md transition-colors" title="Delete">
                         <span className="material-symbols-outlined text-[16px]">delete</span>
                       </button>
                     </div>
@@ -974,8 +1063,8 @@ export default function GuestListPage() {
                 {selectedIds.size}
               </div>
               <div>
-                <p className="text-sm font-bold">{selectedIds.size} selected</p>
-                <p className="text-[10px] text-slate-400 font-medium">Bulk actions</p>
+                <p className="text-sm font-bold">{selectedIds.size} selected{selectAllFiltered ? " (all matching)" : ""}</p>
+                <button onClick={clearSelection} className="text-[10px] text-slate-400 font-medium hover:text-white transition-colors">Clear selection</button>
               </div>
             </div>
             <div className="flex gap-2">
@@ -1270,7 +1359,7 @@ export default function GuestListPage() {
         </div>
       )}
 
-      {/* Bulk Delete Confirmation Dialog */}
+      {/* Delete Confirmation Dialog — used for both single and bulk delete */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200">
@@ -1279,26 +1368,29 @@ export default function GuestListPage() {
                 <span className="material-symbols-outlined text-3xl text-red-500">delete_forever</span>
               </div>
               <div>
-                <h3 className="text-xl font-black text-slate-900">Remove Guests?</h3>
+                <h3 className="text-xl font-black text-slate-900">Remove Guest{pendingDeleteId ? "" : "s"}?</h3>
                 <p className="text-slate-500 font-medium">This action cannot be undone.</p>
               </div>
             </div>
-            
+
             <div className="p-4 bg-red-50 rounded-2xl border border-red-100 mb-8">
               <p className="text-sm text-red-600 font-medium">
-                You are about to permanently remove <strong>{selectedIds.size}</strong> selected guests from the guest list.
+                {pendingDeleteId
+                  ? "This guest and all their RSVPs, invite tokens, and seating assignments will be permanently removed."
+                  : <>You are about to permanently remove <strong>{selectedIds.size}</strong> guest{selectedIds.size !== 1 ? "s" : ""}{selectAllFiltered ? " (all matching current filters)" : ""} along with their RSVPs, invite tokens, and seating assignments.</>
+                }
               </p>
             </div>
 
             <div className="flex gap-3">
               <button
-                onClick={() => setShowDeleteConfirm(false)}
+                onClick={() => { setShowDeleteConfirm(false); setPendingDeleteId(null); }}
                 className="flex-1 px-6 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors"
               >
                 Keep them
               </button>
               <button
-                onClick={handleBulkDelete}
+                onClick={pendingDeleteId ? handleDelete : handleBulkDelete}
                 className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors shadow-lg shadow-red-600/20"
               >
                 Yes, Delete
