@@ -515,6 +515,22 @@ export default function InvitesPage() {
 
         {/* Table/Cards Container */}
         <div className="relative">
+          {/* Mobile Select All Header */}
+          <div className="md:hidden flex items-center justify-between bg-slate-50 border-y border-slate-200 px-4 py-3 shadow-sm">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={selectedIds.size === filteredGuests.length && filteredGuests.length > 0}
+                onChange={toggleSelectAll}
+                className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary shadow-sm"
+              />
+              <span className="text-sm font-bold text-slate-700">Select All ({filteredGuests.length})</span>
+            </label>
+            <span className="text-xs font-semibold text-slate-500 bg-white px-2 py-1 rounded-md border border-slate-200 shadow-sm">
+              {selectedIds.size} selected
+            </span>
+          </div>
+
           {/* Mobile Card View */}
           <div className="md:hidden divide-y divide-surface-container">
             {paginatedGuests.length === 0 ? (
@@ -831,8 +847,7 @@ export default function InvitesPage() {
         </div>
       </div>
 
-      {/* Floating Bulk Action Bar */}
-            {/* Floating Bulk Action Bar - Polished for mobile */}
+      {/* Floating Bulk Action Bar - Polished for mobile */}
       {selectedIds.size > 0 && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[92%] lg:w-full lg:max-w-4xl px-0 lg:px-4 z-[100]">
           <div className="bg-slate-900 text-white p-3 lg:p-4 rounded-2xl shadow-2xl flex flex-col lg:flex-row items-center justify-between border border-white/10 gap-3">

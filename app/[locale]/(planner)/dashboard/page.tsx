@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "@/i18n/routing";
 import { useUser } from "@clerk/nextjs";
 import { supabase } from "@/lib/supabase";
@@ -21,6 +22,11 @@ export default function DashboardPage() {
   const [editBride, setEditBride] = useState("");
   const [editGroom, setEditGroom] = useState("");
   const [editDate, setEditDate] = useState("");
+
+  // Delete Modal State
+  const [pendingDeleteWeddingId, setPendingDeleteWeddingId] = useState<string | null>(null);
+  const showDeleteWeddingConfirm = pendingDeleteWeddingId !== null;
+  const weddingToDelete = weddings.find((w) => w.id === pendingDeleteWeddingId) ?? null;
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -50,10 +56,15 @@ export default function DashboardPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  async function handleDeleteWedding(id: string) {
-    if (!confirm("Are you sure you want to delete this wedding? This will delete all guests, functions, and RSVPs. This action cannot be undone.")) return;
+  function handleDeleteWedding(id: string) {
+    setPendingDeleteWeddingId(id);
+  }
+
+  async function confirmDeleteWedding() {
+    if (!pendingDeleteWeddingId) return;
+    setPendingDeleteWeddingId(null);
     setLoading(true);
-    await supabase.from("weddings").delete().eq("id", id);
+    await supabase.from("weddings").delete().eq("id", pendingDeleteWeddingId);
     toast.success("Wedding deleted successfully");
     fetchData();
   }
@@ -330,6 +341,46 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Delete Wedding Confirmation Modal — rendered via portal to escape all stacking contexts */}
+      {showDeleteWeddingConfirm && typeof window !== "undefined" && createPortal(
+        <div className="fixed inset-0 bg-slate-900/75 backdrop-blur-md z-[999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="size-14 bg-red-50 rounded-2xl flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-3xl text-red-500">delete_forever</span>
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-slate-900">Delete Wedding?</h3>
+                <p className="text-slate-500 font-medium">This action cannot be undone.</p>
+              </div>
+            </div>
+
+            <div className="p-4 bg-red-50 rounded-2xl border border-red-100 mb-8 space-y-1">
+              <p className="text-sm font-black text-red-700">{weddingToDelete?.wedding_name}</p>
+              <p className="text-sm text-red-600 font-medium">
+                All guests, RSVPs, functions, invite tokens, and seating data for this wedding will be permanently removed.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setPendingDeleteWeddingId(null)}
+                className="flex-1 px-6 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors"
+              >
+                Keep it
+              </button>
+              <button
+                onClick={confirmDeleteWedding}
+                className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors shadow-lg shadow-red-600/20"
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
       </div>
     </div>

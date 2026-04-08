@@ -189,7 +189,7 @@ export default function PlannerLayout({ children }: { children: React.ReactNode 
       </aside>
 
       {/* ===== MAIN CONTENT ===== */}
-      <main className="flex-1 lg:ml-64 flex flex-col min-w-0 relative planner-dash max-w-full overflow-x-hidden">
+      <main className="flex-1 lg:ml-64 flex flex-col min-w-0 max-w-full">
         {/* Top Header */}
         <header className="h-16 flex items-center justify-between px-4 md:px-8 bg-white border-b border-slate-200 lg:border-primary/10 sticky top-0 z-30">
           <div className="flex items-center gap-3 min-w-0">
@@ -217,7 +217,7 @@ export default function PlannerLayout({ children }: { children: React.ReactNode 
         </header>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 pb-24">
+        <div className="relative flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 pb-24 planner-dash">
           {children}
         </div>
 

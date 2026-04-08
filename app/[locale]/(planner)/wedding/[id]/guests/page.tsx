@@ -602,6 +602,9 @@ export default function GuestListPage() {
     );
   }
 
+  // Determine if all guests on the current page are selected
+  const allCurrentPageSelected = paginatedGuests.length > 0 && paginatedGuests.every((g) => selectedIds.has(g.id));
+
   return (
     <div className="space-y-8 pb-32">
       {/* Header */}
@@ -690,6 +693,21 @@ export default function GuestListPage() {
         </div>
       </div>
 
+      {/* Mobile Select All Header */}
+      <div className="md:hidden flex items-center justify-between bg-slate-50 border-y border-slate-200 px-4 py-3 shadow-sm mt-4">
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={allCurrentPageSelected}
+            onChange={toggleSelectAll}
+            className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary shadow-sm"
+          />
+          <span className="text-sm font-bold text-slate-700">Select All (Page {currentPage})</span>
+        </label>
+        <span className="text-xs font-semibold text-slate-500 bg-white px-2 py-1 rounded-md border border-slate-200 shadow-sm">
+          {paginatedGuests.length} guests
+        </span>
+      </div>
 
       {/* Guest Desktop Table */}
       <div className="hidden md:block bg-white rounded-xl border border-slate-200 overflow-x-auto shadow-sm">
@@ -700,7 +718,7 @@ export default function GuestListPage() {
                 <input
                   type="checkbox"
                   // Checked only when every guest on the CURRENT PAGE is selected
-                  checked={paginatedGuests.length > 0 && paginatedGuests.every((g) => selectedIds.has(g.id))}
+                  checked={allCurrentPageSelected}
                   onChange={toggleSelectAll}
                   className="rounded border-slate-300 text-primary focus:ring-primary"
                 />
