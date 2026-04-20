@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 
 const translations = {
@@ -79,9 +79,6 @@ export default function InvitesPage() {
   const [loading, setLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [callingGuests, setCallingGuests] = useState(false);
-  const [autoSyncCountdown, setAutoSyncCountdown] = useState<number | null>(null);
-  const autoSyncTimersRef = useRef<NodeJS.Timeout[]>([]);
-  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [sendingEmails, setSendingEmails] = useState(false);
   const [showBulkEmailDialog, setShowBulkEmailDialog] = useState(false);
   const [guestsWithEmail, setGuestsWithEmail] = useState<Guest[]>([]);
@@ -129,67 +126,8 @@ export default function InvitesPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Cleanup auto-sync timers on unmount
-  useEffect(() => {
-    return () => {
-      autoSyncTimersRef.current.forEach(t => clearTimeout(t));
-      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-    };
-  }, []);
-
-  // Start auto-sync polling after AI calls
-  function startAutoSyncPolling() {
-    // Clear any existing timers
-    autoSyncTimersRef.current.forEach(t => clearTimeout(t));
-    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-
-    const syncSchedule = [
-      { delay: 60000, label: "1 min" },   // 1 min
-      { delay: 120000, label: "2 min" },  // 2 min
-      { delay: 180000, label: "3 min" },  // 3 min
-    ];
-    const startTime = Date.now();
-    const lastDelay = syncSchedule[syncSchedule.length - 1].delay;
-
-    // Set countdown timer
-    setAutoSyncCountdown(Math.ceil(lastDelay / 1000));
-    countdownIntervalRef.current = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const remaining = Math.ceil((lastDelay - elapsed) / 1000);
-      if (remaining <= 0) {
-        setAutoSyncCountdown(null);
-        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-      } else {
-        setAutoSyncCountdown(remaining);
-      }
-    }, 1000);
-
-    // Schedule sync calls
-    for (const { delay, label } of syncSchedule) {
-      const timer = setTimeout(async () => {
-        try {
-          const res = await fetch(`/api/wedding/${weddingId}/sync-call-rsvps`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ limit: 15 }),
-          });
-          const data = await res.json().catch(() => null);
-          if (res.ok && data?.success) {
-            toast.success(`🔄 Auto-synced at ${label}: ${data.message}`, { duration: 4000 });
-            fetchData(); // Refresh UI without page reload
-          }
-        } catch {
-          // Silent fail — server-side sync is also running
-        }
-      }, delay);
-      autoSyncTimersRef.current.push(timer);
-    }
-
-    toast.info("⏱️ RSVP auto-sync scheduled: will check at 1, 2, and 3 minutes", { duration: 5000 });
-  }
-
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-  const pendingGuests = guests.filter((g: Guest) => !g.invite_sent_at && g.call_status !== "responded");
+  const pendingGuests = guests.filter((g: Guest) => !g.invite_sent_at);
   const sentGuests = guests.filter((g: Guest) => g.invite_sent_at);
   const pendingRsvpGuests = guests.filter((g: Guest) => g.invite_sent_at && g.overall_status === "pending");
   const confirmedGuests = guests.filter((g: Guest) => g.overall_status === "confirmed");
@@ -264,22 +202,9 @@ export default function InvitesPage() {
     }
   }
 
-  // Guests eligible for AI calling (not already responded)
-  const callableGuests = guests.filter((g: Guest) => g.call_status !== "responded");
-  const callablePendingRsvp = pendingRsvpGuests.filter((g: Guest) => g.call_status !== "responded");
-
   async function handleAICall(targetGuestIds?: string[]) {
-    // Filter out responded guests on the client side too (server also guards)
-    const rawIds = targetGuestIds || pendingGuests.map((g) => g.id);
-    const idsToCall = rawIds.filter(id => {
-      const guest = guests.find(g => g.id === id);
-      return guest?.call_status !== "responded";
-    });
-    if (idsToCall.length === 0) {
-      toast.info("All selected guests have already responded. No calls needed.");
-      return;
-    }
-    if (callingGuests) return; // Prevent double-clicks
+    const idsToCall = targetGuestIds || pendingGuests.map((g) => g.id);
+    if (idsToCall.length === 0) return;
     setCallingGuests(true);
     const toastId = toast.loading(`Initiating AI call${idsToCall.length > 1 ? "s" : ""} to ${idsToCall.length} guest${idsToCall.length > 1 ? "s" : ""}...`);
     try {
@@ -297,15 +222,8 @@ export default function InvitesPage() {
       }
 
       if (response.ok && result?.success) {
-        const parts = [`🤖 Initiated ${result.successful} AI calls!`];
-        if (result.failed > 0) parts.push(`${result.failed} failed.`);
-        if (result.skipped > 0) parts.push(`${result.skipped} skipped (already responded).`);
-        toast.success(parts.join(" "), { id: toastId });
+        toast.success(`🤖 Initiated ${result.successful} AI calls! ${result.failed > 0 ? `${result.failed} failed.` : ""}`, { id: toastId });
         fetchData();
-        // Start auto-sync polling to capture RSVP data without page refresh
-        if (result.successful > 0) {
-          startAutoSyncPolling();
-        }
       } else {
         toast.error(`Error: ${result?.error || "Failed to trigger calls"}`, { id: toastId });
       }
@@ -434,12 +352,6 @@ export default function InvitesPage() {
             <span className={`material-symbols-outlined text-[20px] ${isSyncing ? 'animate-spin' : ''}`}>sync</span>
             {isSyncing ? "Syncing..." : "Sync RSVPs"}
           </button>
-          {autoSyncCountdown !== null && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 text-amber-700 rounded-lg text-xs font-semibold border border-amber-200 animate-pulse">
-              <span className="material-symbols-outlined text-[16px]">schedule</span>
-              Auto-sync in {Math.floor(autoSyncCountdown / 60)}:{String(autoSyncCountdown % 60).padStart(2, '0')}
-            </div>
-          )}
         </div>
       </header>
 
@@ -510,13 +422,13 @@ export default function InvitesPage() {
           {
             id: 'calls',
             title: 'AI Voice Calls',
-            desc: `${callableGuests.length} callable${guests.length - callableGuests.length > 0 ? ` · ${guests.length - callableGuests.length} responded` : ''}`,
+            desc: 'Auto-collect RSVPs',
             icon: 'record_voice_over',
             color: 'text-purple-600',
             bg: 'bg-[#F3E8FF]',
-            btnText: `Call ${callableGuests.length}`,
-            action: () => handleAICall(callableGuests.map((g) => g.id)),
-            disabled: callingGuests || callableGuests.length === 0,
+            btnText: `Call ${pendingRsvpGuests.length}`,
+            action: () => handleAICall(pendingRsvpGuests.map((g) => g.id)),
+            disabled: callingGuests || pendingRsvpGuests.length === 0,
             isLoading: callingGuests
           },
           {
@@ -603,22 +515,6 @@ export default function InvitesPage() {
 
         {/* Table/Cards Container */}
         <div className="relative">
-          {/* Mobile Select All Header */}
-          <div className="md:hidden flex items-center justify-between bg-slate-50 border-y border-slate-200 px-4 py-3 shadow-sm">
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={selectedIds.size === filteredGuests.length && filteredGuests.length > 0}
-                onChange={toggleSelectAll}
-                className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary shadow-sm"
-              />
-              <span className="text-sm font-bold text-slate-700">Select All ({filteredGuests.length})</span>
-            </label>
-            <span className="text-xs font-semibold text-slate-500 bg-white px-2 py-1 rounded-md border border-slate-200 shadow-sm">
-              {selectedIds.size} selected
-            </span>
-          </div>
-
           {/* Mobile Card View */}
           <div className="md:hidden divide-y divide-surface-container">
             {paginatedGuests.length === 0 ? (
@@ -693,29 +589,14 @@ export default function InvitesPage() {
                       </a>
                     )}
 
-                    {guest.call_status === "responded" ? (
-                      <span
-                        className="p-1.5 text-emerald-500 cursor-default"
-                        title="Already responded via call"
-                      >
-                        <span className="material-symbols-outlined text-[18px]">call</span>
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => handleAICall([guest.id])}
-                        disabled={callingGuests}
-                        className={`p-1.5 transition-all active:scale-90 ${
-                          guest.call_status === "not_responded"
-                            ? "text-amber-500 hover:text-amber-600"
-                            : "text-purple-600/60 hover:text-purple-600"
-                        }`}
-                        title={guest.call_status === "not_responded" ? "Retry call (no answer last time)" : "AI Voice Call"}
-                      >
-                        <span className="material-symbols-outlined text-[18px]">
-                          {guest.call_status === "not_responded" ? "call_missed" : "call"}
-                        </span>
-                      </button>
-                    )}
+                    <button
+                      onClick={() => handleAICall([guest.id])}
+                      disabled={callingGuests}
+                      className="p-1.5 text-purple-600/60 hover:text-purple-600 transition-all active:scale-90"
+                      title="AI Voice Call"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">call</span>
+                    </button>
 
                     {wedding && guest.email && (
                       <button
@@ -831,29 +712,14 @@ export default function InvitesPage() {
                                 <span className="material-symbols-outlined text-lg">chat</span>
                               </a>
                             )}
-                            {guest.call_status === "responded" ? (
-                              <span
-                                className="p-2 rounded-lg text-emerald-500 cursor-default"
-                                title="Already responded via call"
-                              >
-                                <span className="material-symbols-outlined text-lg">call</span>
-                              </span>
-                            ) : (
-                              <button
-                                onClick={() => handleAICall([guest.id])}
-                                disabled={callingGuests}
-                                className={`p-2 rounded-lg transition-colors ${
-                                  guest.call_status === "not_responded"
-                                    ? "hover:bg-amber-50 text-amber-500 hover:text-amber-600"
-                                    : "hover:bg-purple-50 text-outline hover:text-purple-600"
-                                }`}
-                                title={guest.call_status === "not_responded" ? "Retry call (no answer last time)" : "AI Voice Call"}
-                              >
-                                <span className="material-symbols-outlined text-lg">
-                                  {guest.call_status === "not_responded" ? "call_missed" : "call"}
-                                </span>
-                              </button>
-                            )}
+                            <button
+                              onClick={() => handleAICall([guest.id])}
+                              disabled={callingGuests}
+                              className="p-2 hover:bg-purple-50 rounded-lg text-outline hover:text-purple-600 transition-colors"
+                              title="AI Voice Call"
+                            >
+                              <span className="material-symbols-outlined text-lg">call</span>
+                            </button>
                             {wedding && guest.email && (
                               <button
                                 onClick={() => handleBulkEmail([guest])}
@@ -965,7 +831,8 @@ export default function InvitesPage() {
         </div>
       </div>
 
-      {/* Floating Bulk Action Bar - Polished for mobile */}
+      {/* Floating Bulk Action Bar */}
+            {/* Floating Bulk Action Bar - Polished for mobile */}
       {selectedIds.size > 0 && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[92%] lg:w-full lg:max-w-4xl px-0 lg:px-4 z-[100]">
           <div className="bg-slate-900 text-white p-3 lg:p-4 rounded-2xl shadow-2xl flex flex-col lg:flex-row items-center justify-between border border-white/10 gap-3">
@@ -995,7 +862,7 @@ export default function InvitesPage() {
               </button>
               <button
                 onClick={() => handleAICall(Array.from(selectedIds))}
-                disabled={callingGuests || Array.from(selectedIds).every(id => guests.find(g => g.id === id)?.call_status === "responded")}
+                disabled={callingGuests}
                 className="flex-1 lg:flex-none px-2 lg:px-3 py-2 bg-purple-600 text-white rounded-lg font-bold text-[10px] lg:text-xs flex items-center justify-center gap-1 lg:gap-1.5 hover:bg-purple-700 transition-all disabled:opacity-50 font-body"
               >
                 <span className="material-symbols-outlined text-[16px] lg:text-[18px]">
@@ -1036,17 +903,17 @@ export default function InvitesPage() {
       {isDesignModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl scale-in-95 animate-in">
-            <div className="p-4 lg:p-6 border-b border-slate-100 flex items-center justify-between">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
               <div>
-                <h2 className="text-lg lg:text-xl font-bold text-slate-900">Choose Invitation Design</h2>
-                <p className="text-xs lg:text-sm text-slate-500 mt-1">Select a premium template for your wedding invitation & RSVP</p>
+                <h2 className="text-xl font-bold text-slate-900">Choose Invitation Design</h2>
+                <p className="text-sm text-slate-500 mt-1">Select a premium template for your wedding invitation & RSVP</p>
               </div>
-              <button onClick={() => setIsDesignModalOpen(false)} className="size-8 lg:size-10 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all">
-                <span className="material-symbols-outlined text-lg lg:text-base">close</span>
+              <button onClick={() => setIsDesignModalOpen(false)} className="size-10 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all">
+                <span className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <div className="p-3 lg:p-8 overflow-y-auto grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-6 bg-slate-50/50">
+            <div className="p-8 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-slate-50/50">
               {[
                 { id: 'royal', name: 'Royal Traditional', desc: 'Deep maroon & gold, mandala patterns', preview: '/images/templates/royal.png' },
                 { id: 'minimal', name: 'Lavender Elegance', desc: 'Soft purple, wisteria flowers, eucalyptus', preview: '/images/templates/minimal.png' },
@@ -1061,26 +928,26 @@ export default function InvitesPage() {
                     wedding?.template_id === tpl.id ? 'border-primary ring-4 ring-primary/10' : 'border-white hover:border-primary/20'
                   }`}
                 >
-                  <div className="aspect-square overflow-hidden bg-slate-100">
+                  <div className="aspect-[4/5] overflow-hidden bg-slate-100">
                     <div className="w-full h-full bg-cover bg-center transition-transform duration-500 group-hover:scale-105" style={{ backgroundImage: `url(${tpl.preview})` }} />
                     {wedding?.template_id === tpl.id && (
-                      <div className="absolute top-2 right-2 bg-primary text-white size-6 lg:size-8 rounded-full flex items-center justify-center shadow-lg animate-in zoom-in">
-                        <span className="material-symbols-outlined text-[14px] lg:text-base">check</span>
+                      <div className="absolute top-3 right-3 bg-primary text-white size-8 rounded-full flex items-center justify-center shadow-lg animate-in zoom-in">
+                        <span className="material-symbols-outlined text-base">check</span>
                       </div>
                     )}
                   </div>
-                  <div className="p-2 lg:p-4 border-t border-slate-50">
-                    <h3 className="font-bold text-slate-800 text-[11px] lg:text-sm truncate">{tpl.name}</h3>
-                    <p className="text-[9px] lg:text-xs text-slate-500 mt-0.5 lg:mt-1 line-clamp-1">{tpl.desc}</p>
+                  <div className="p-4 border-t border-slate-50">
+                    <h3 className="font-bold text-slate-800">{tpl.name}</h3>
+                    <p className="text-xs text-slate-500 mt-1">{tpl.desc}</p>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="p-4 lg:p-6 border-t border-slate-100 bg-white flex justify-end gap-3">
+            <div className="p-6 border-t border-slate-100 bg-white flex justify-end gap-3">
               <button 
                 onClick={() => setIsDesignModalOpen(false)}
-                className="px-6 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                className="px-6 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
               >
                 Close
               </button>
