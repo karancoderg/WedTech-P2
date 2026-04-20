@@ -56,6 +56,8 @@ export interface Guest {
   invite_status: 'none' | 'pending' | 'sent' | 'failed';
   invite_error: string | null;
   overall_status: 'pending' | 'confirmed' | 'declined' | 'partial';
+  call_status: 'not_called' | 'responded' | 'not_responded';
+  call_initiated_at: string | null;
   imported_via: 'csv' | 'excel' | 'manual';
   created_at: string;
 }

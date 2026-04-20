@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { encrypt, decrypt } from "@/lib/encryption";
 
 // Using Tabbly.io - Specific provider for Indian numbers
@@ -12,6 +12,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   try {
     const { id: weddingId } = await params;
     const { guestIds } = await req.json();
+
+    // Use service role client to bypass RLS for server-side operations
+    const supabase = createServerSupabaseClient();
 
     if (!guestIds || !Array.isArray(guestIds) || guestIds.length === 0) {
       return NextResponse.json({ error: "Invalid guest IDs" }, { status: 400 });
@@ -43,6 +46,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ error: "No guests found" }, { status: 404 });
     }
 
+    // Filter out guests who have already responded — never re-call them
+    const callableGuests = guests.filter(g => g.call_status !== "responded");
+    const skipped = guests.length - callableGuests.length;
+
+    if (callableGuests.length === 0) {
+      return NextResponse.json({
+        success: true,
+        successful: 0,
+        failed: 0,
+        skipped,
+        message: "All selected guests have already responded."
+      });
+    }
+
     const { data: functions } = await supabase
       .from("wedding_functions")
       .select("*")
@@ -52,11 +69,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     let successful = 0;
     let failed = 0;
 
-    for (const guest of guests) {
+    for (const guest of callableGuests) {
       const phone = guest.phone?.includes(':') ? decrypt(guest.phone) : guest.phone;
       if (!phone) {
         failed++;
         continue;
+      }
+
+      // Debounce: skip if a call was initiated less than 60 seconds ago
+      if (guest.call_initiated_at) {
+        const lastCall = new Date(guest.call_initiated_at).getTime();
+        const now = Date.now();
+        if (now - lastCall < 60000) {
+          // Too soon — skip this guest silently
+          failed++;
+          continue;
+        }
       }
 
       // Format phone numbers carefully to E.164 required by Tabbly
@@ -78,15 +106,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const customInstruction = `You are a warm, polite Indian wedding invitation assistant calling on behalf of ${wedding.bride_name} and ${wedding.groom_name}.
 You are speaking to ${guest.name}. 
 
-Phase 1: Cordially invite them to the upcoming wedding functions (${functionNames}) starting around ${new Date(wedding.wedding_date).toDateString()}. Briefly congratulate them.
+Phase 1 - Invitation: Cordially invite them to the upcoming wedding functions (${functionNames}) starting around ${new Date(wedding.wedding_date).toDateString()}. Briefly congratulate them.
 
-Phase 2: After they acknowledge the invitation, politely ask for their RSVP details:
+Phase 2 - Collect RSVP: After they acknowledge the invitation, politely ask for their RSVP details one by one:
 1. Ask if they will be able to attend.
 2. If attending, ask how many people (total pax) will be joining.
 3. Ask if they have any dietary preferences (Veg, Non-Veg, or Jain).
 4. Ask if they will need accommodation or hotel arrangements for the wedding.
+If they say they cannot attend (declined), skip questions 2-4 and move to Phase 3.
 
-Phase 3: Wrap up by letting them know they will also receive a WhatsApp link with detailed RSVP forms and directions. 
+Phase 3 - Confirmation: Once you have all the details, repeat them back clearly and ask for confirmation. For example:
+"Just to confirm — you'll be attending with [X] guests, dietary preference is [preference], and you [will/won't] need accommodation. Is that correct?"
+Wait for their confirmation. If they want to correct anything, update accordingly and re-confirm.
+
+Phase 4 - Wrap Up: Thank them and let them know they will also receive a WhatsApp link with detailed RSVP forms and directions. Wish them well.
 
 Keep the conversation natural, short, and respectful. Wait for their responses carefully. Do not sound like a robot.`;
 
@@ -113,8 +146,15 @@ Keep the conversation natural, short, and respectful. Wait for their responses c
         if (!tabblyReq.ok) {
           console.error("Tabbly AI Error:", await tabblyReq.text());
           failed++;
+          // Do NOT change call_status on API error
           continue;
         }
+
+        // Call was successfully initiated — set timestamp for debounce only.
+        // Actual call_status change happens in sync-call-rsvps after we know the outcome.
+        await supabase.from("guests").update({
+          call_initiated_at: new Date().toISOString()
+        }).eq("id", guest.id);
 
         successful++;
 
@@ -130,10 +170,29 @@ Keep the conversation natural, short, and respectful. Wait for their responses c
       } catch (e) {
         console.error("Calling error for guest " + guest.id, e);
         failed++;
+        // Do NOT change call_status on error
       }
     }
 
-    return NextResponse.json({ success: true, successful, failed });
+    // Auto-sync: trigger sync of last 5 call logs after a delay
+    // Fire-and-forget — give Tabbly ~30s to process the calls before syncing
+    if (successful > 0) {
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+      setTimeout(async () => {
+        try {
+          await fetch(`${baseUrl}/api/wedding/${weddingId}/sync-call-rsvps`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ limit: 5 }),
+          });
+          console.log(`Auto-sync triggered for wedding ${weddingId} (last 5 calls)`);
+        } catch (e) {
+          console.error("Auto-sync failed (non-critical):", e);
+        }
+      }, 30000); // 30 second delay
+    }
+
+    return NextResponse.json({ success: true, successful, failed, skipped });
 
   } catch (error: any) {
     console.error("AI Calling Error:", error);

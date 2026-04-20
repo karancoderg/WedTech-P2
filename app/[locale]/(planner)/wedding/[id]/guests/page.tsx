@@ -353,8 +353,17 @@ export default function GuestListPage() {
   // AI Calling
   const [callingGuests, setCallingGuests] = useState(false);
   async function handleAICall(targetGuestIds?: string[]) {
-    const idsToCall = targetGuestIds || Array.from(selectedIds);
-    if (idsToCall.length === 0) return;
+    const rawIds = targetGuestIds || Array.from(selectedIds);
+    // Filter out guests who already responded — never re-call them
+    const idsToCall = rawIds.filter(id => {
+      const guest = guests.find(g => g.id === id);
+      return guest?.call_status !== "responded";
+    });
+    if (idsToCall.length === 0) {
+      toast.info("All selected guests have already responded. No calls needed.");
+      return;
+    }
+    if (callingGuests) return; // Prevent double-clicks
     
     setCallingGuests(true);
     const toastId = toast.loading(`Initiating AI call${idsToCall.length > 1 ? 's' : ''} to ${idsToCall.length} guest${idsToCall.length > 1 ? 's' : ''}...`);
@@ -374,9 +383,10 @@ export default function GuestListPage() {
       }
       
       if (response.ok && result?.success) {
-        toast.success(`🤖 Initiated ${result.successful} AI calls! ${result.failed > 0 ? `${result.failed} failed.` : ""}`, {
-          id: toastId,
-        });
+        const parts = [`🤖 Initiated ${result.successful} AI calls!`];
+        if (result.failed > 0) parts.push(`${result.failed} failed.`);
+        if (result.skipped > 0) parts.push(`${result.skipped} skipped (already responded).`);
+        toast.success(parts.join(" "), { id: toastId });
         if (!targetGuestIds) setSelectedIds(new Set());
         fetchData();
       } else {

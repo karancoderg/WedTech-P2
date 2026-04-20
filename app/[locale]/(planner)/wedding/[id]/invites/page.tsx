@@ -127,7 +127,7 @@ export default function InvitesPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-  const pendingGuests = guests.filter((g: Guest) => !g.invite_sent_at);
+  const pendingGuests = guests.filter((g: Guest) => !g.invite_sent_at && g.call_status !== "responded");
   const sentGuests = guests.filter((g: Guest) => g.invite_sent_at);
   const pendingRsvpGuests = guests.filter((g: Guest) => g.invite_sent_at && g.overall_status === "pending");
   const confirmedGuests = guests.filter((g: Guest) => g.overall_status === "confirmed");
@@ -202,9 +202,22 @@ export default function InvitesPage() {
     }
   }
 
+  // Guests eligible for AI calling (not already responded)
+  const callableGuests = guests.filter((g: Guest) => g.call_status !== "responded");
+  const callablePendingRsvp = pendingRsvpGuests.filter((g: Guest) => g.call_status !== "responded");
+
   async function handleAICall(targetGuestIds?: string[]) {
-    const idsToCall = targetGuestIds || pendingGuests.map((g) => g.id);
-    if (idsToCall.length === 0) return;
+    // Filter out responded guests on the client side too (server also guards)
+    const rawIds = targetGuestIds || pendingGuests.map((g) => g.id);
+    const idsToCall = rawIds.filter(id => {
+      const guest = guests.find(g => g.id === id);
+      return guest?.call_status !== "responded";
+    });
+    if (idsToCall.length === 0) {
+      toast.info("All selected guests have already responded. No calls needed.");
+      return;
+    }
+    if (callingGuests) return; // Prevent double-clicks
     setCallingGuests(true);
     const toastId = toast.loading(`Initiating AI call${idsToCall.length > 1 ? "s" : ""} to ${idsToCall.length} guest${idsToCall.length > 1 ? "s" : ""}...`);
     try {
@@ -222,7 +235,10 @@ export default function InvitesPage() {
       }
 
       if (response.ok && result?.success) {
-        toast.success(`🤖 Initiated ${result.successful} AI calls! ${result.failed > 0 ? `${result.failed} failed.` : ""}`, { id: toastId });
+        const parts = [`🤖 Initiated ${result.successful} AI calls!`];
+        if (result.failed > 0) parts.push(`${result.failed} failed.`);
+        if (result.skipped > 0) parts.push(`${result.skipped} skipped (already responded).`);
+        toast.success(parts.join(" "), { id: toastId });
         fetchData();
       } else {
         toast.error(`Error: ${result?.error || "Failed to trigger calls"}`, { id: toastId });
@@ -422,13 +438,13 @@ export default function InvitesPage() {
           {
             id: 'calls',
             title: 'AI Voice Calls',
-            desc: 'Auto-collect RSVPs',
+            desc: `${callableGuests.length} callable${guests.length - callableGuests.length > 0 ? ` · ${guests.length - callableGuests.length} responded` : ''}`,
             icon: 'record_voice_over',
             color: 'text-purple-600',
             bg: 'bg-[#F3E8FF]',
-            btnText: `Call ${pendingRsvpGuests.length}`,
-            action: () => handleAICall(pendingRsvpGuests.map((g) => g.id)),
-            disabled: callingGuests || pendingRsvpGuests.length === 0,
+            btnText: `Call ${callableGuests.length}`,
+            action: () => handleAICall(callableGuests.map((g) => g.id)),
+            disabled: callingGuests || callableGuests.length === 0,
             isLoading: callingGuests
           },
           {
@@ -605,14 +621,29 @@ export default function InvitesPage() {
                       </a>
                     )}
 
-                    <button
-                      onClick={() => handleAICall([guest.id])}
-                      disabled={callingGuests}
-                      className="p-1.5 text-purple-600/60 hover:text-purple-600 transition-all active:scale-90"
-                      title="AI Voice Call"
-                    >
-                      <span className="material-symbols-outlined text-[18px]">call</span>
-                    </button>
+                    {guest.call_status === "responded" ? (
+                      <span
+                        className="p-1.5 text-emerald-500 cursor-default"
+                        title="Already responded via call"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">call</span>
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => handleAICall([guest.id])}
+                        disabled={callingGuests}
+                        className={`p-1.5 transition-all active:scale-90 ${
+                          guest.call_status === "not_responded"
+                            ? "text-amber-500 hover:text-amber-600"
+                            : "text-purple-600/60 hover:text-purple-600"
+                        }`}
+                        title={guest.call_status === "not_responded" ? "Retry call (no answer last time)" : "AI Voice Call"}
+                      >
+                        <span className="material-symbols-outlined text-[18px]">
+                          {guest.call_status === "not_responded" ? "call_missed" : "call"}
+                        </span>
+                      </button>
+                    )}
 
                     {wedding && guest.email && (
                       <button
@@ -728,14 +759,29 @@ export default function InvitesPage() {
                                 <span className="material-symbols-outlined text-lg">chat</span>
                               </a>
                             )}
-                            <button
-                              onClick={() => handleAICall([guest.id])}
-                              disabled={callingGuests}
-                              className="p-2 hover:bg-purple-50 rounded-lg text-outline hover:text-purple-600 transition-colors"
-                              title="AI Voice Call"
-                            >
-                              <span className="material-symbols-outlined text-lg">call</span>
-                            </button>
+                            {guest.call_status === "responded" ? (
+                              <span
+                                className="p-2 rounded-lg text-emerald-500 cursor-default"
+                                title="Already responded via call"
+                              >
+                                <span className="material-symbols-outlined text-lg">call</span>
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => handleAICall([guest.id])}
+                                disabled={callingGuests}
+                                className={`p-2 rounded-lg transition-colors ${
+                                  guest.call_status === "not_responded"
+                                    ? "hover:bg-amber-50 text-amber-500 hover:text-amber-600"
+                                    : "hover:bg-purple-50 text-outline hover:text-purple-600"
+                                }`}
+                                title={guest.call_status === "not_responded" ? "Retry call (no answer last time)" : "AI Voice Call"}
+                              >
+                                <span className="material-symbols-outlined text-lg">
+                                  {guest.call_status === "not_responded" ? "call_missed" : "call"}
+                                </span>
+                              </button>
+                            )}
                             {wedding && guest.email && (
                               <button
                                 onClick={() => handleBulkEmail([guest])}
@@ -877,7 +923,7 @@ export default function InvitesPage() {
               </button>
               <button
                 onClick={() => handleAICall(Array.from(selectedIds))}
-                disabled={callingGuests}
+                disabled={callingGuests || Array.from(selectedIds).every(id => guests.find(g => g.id === id)?.call_status === "responded")}
                 className="flex-1 lg:flex-none px-2 lg:px-3 py-2 bg-purple-600 text-white rounded-lg font-bold text-[10px] lg:text-xs flex items-center justify-center gap-1 lg:gap-1.5 hover:bg-purple-700 transition-all disabled:opacity-50 font-body"
               >
                 <span className="material-symbols-outlined text-[16px] lg:text-[18px]">

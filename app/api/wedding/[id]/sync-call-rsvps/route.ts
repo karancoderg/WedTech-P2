@@ -1,20 +1,113 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { parseRSVPFromTranscript } from "@/lib/rsvp-parser";
 
 const TABBLY_API_KEY = process.env.TABBLY_API_KEY || "";
 const TABBLY_ORGANIZATION_ID = process.env.TABBLY_ORGANIZATION_ID || "";
 
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
+/** Safely parse JSON — never throws. Handles markdown wrappers, extra text. */
+function safeJsonParse(text: string): any | null {
+    try { return JSON.parse(text); } catch {}
+    // Strip markdown code fences
+    const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (fenced) { try { return JSON.parse(fenced[1]); } catch {} }
+    // Try extracting first JSON array or object
+    const arrayMatch = text.match(/\[[\s\S]*\]/);
+    if (arrayMatch) { try { return JSON.parse(arrayMatch[0]); } catch {} }
+    const objMatch = text.match(/\{[\s\S]*\}/);
+    if (objMatch) { try { return JSON.parse(objMatch[0]); } catch {} }
+    return null;
+}
+
+/** Unwrap LLM response that might be wrapped: { data: [...] } or { results: [...] } */
+function unwrapArray(parsed: any): any[] | null {
+    if (Array.isArray(parsed)) return parsed;
+    if (parsed && typeof parsed === 'object') {
+        for (const key of ['data', 'results', 'rsvps', 'guests', 'items']) {
+            if (Array.isArray(parsed[key])) return parsed[key];
+        }
+    }
+    return null;
+}
+
+const VALID_STATUSES = new Set(["confirmed", "declined", "pending"]);
+const VALID_DIETARY = new Set(["veg", "non-veg", "nonveg", "jain", "vegetarian", ""]);
+
+/** Validate and sanitize a single RSVP entry from LLM output */
+function validateRsvpEntry(entry: any): { id: string; status: string; pax: number; dietary: string | null; needsAccommodation: boolean; accommodationCount: number } | null {
+    if (!entry || typeof entry !== 'object') return null;
+    if (typeof entry.id !== 'string' || !entry.id) return null;
+
+    const status = String(entry.status || "").toLowerCase().trim();
+    if (!VALID_STATUSES.has(status)) return null;
+
+    const pax = Math.max(0, Math.min(100, parseInt(entry.guestCount ?? entry.pax ?? "0") || 0));
+
+    let dietary: string | null = null;
+    const rawDietary = entry.dietaryPreference ?? entry.dietary ?? null;
+    if (typeof rawDietary === 'string' && rawDietary.trim()) {
+        dietary = rawDietary.trim().toLowerCase();
+        // Normalize common variants
+        if (dietary === 'nonveg' || dietary === 'non veg' || dietary === 'non-vegetarian') dietary = 'non-veg';
+        if (dietary === 'vegetarian') dietary = 'veg';
+    } else if (typeof rawDietary === 'object' && rawDietary !== null) {
+        // Gemini sometimes returns { veg: N, nonveg: N, jain: N }
+        const v = rawDietary.veg || 0, nv = rawDietary.nonveg || 0, j = rawDietary.jain || 0;
+        if (nv >= v && nv >= j) dietary = 'non-veg';
+        else if (j >= v) dietary = 'jain';
+        else dietary = 'veg';
+    }
+
+    const needsAccommodation = Boolean(entry.accommodationNeeded ?? entry.needsAccommodation ?? false);
+    const accommodationCount = Math.max(0, parseInt(entry.accommodationCount || "0") || 0);
+
+    return { id: entry.id, status, pax: status === "declined" ? 0 : (pax || (status === "confirmed" ? 1 : 0)), dietary, needsAccommodation: status === "confirmed" && needsAccommodation, accommodationCount };
+}
+
+/** Fetch with retry on 429 / 5xx (max 2 attempts) */
+async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 1): Promise<Response> {
+    let lastResponse: Response | null = null;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        lastResponse = await fetch(url, options);
+        if (lastResponse.ok || (lastResponse.status !== 429 && lastResponse.status < 500)) {
+            return lastResponse;
+        }
+        // Wait before retry (500ms first, 1500ms second)
+        if (attempt < maxRetries) {
+            await new Promise(r => setTimeout(r, 500 + attempt * 1000));
+        }
+    }
+    return lastResponse!;
+}
+
+// ─── Main Handler ──────────────────────────────────────────────────────────
+
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: weddingId } = await params;
+
+    // Use service role client to bypass RLS for server-side operations
+    const supabase = createServerSupabaseClient();
 
     if (!TABBLY_API_KEY || !TABBLY_ORGANIZATION_ID) {
       return NextResponse.json({ error: "Tabbly credentials missing" }, { status: 500 });
     }
 
-    // Fetch latest 100 call logs from Tabbly
-    const response = await fetch(`https://www.tabbly.io/dashboard/agents/endpoints/call-logs-v2?api_key=${TABBLY_API_KEY}&organization_id=${TABBLY_ORGANIZATION_ID}&limit=100`);
+    // Support a configurable limit via request body (default: 10)
+    let fetchLimit = 10;
+    try {
+      const body = await req.json();
+      if (body?.limit && typeof body.limit === "number" && body.limit > 0) {
+        fetchLimit = Math.min(body.limit, 100); // cap at 100
+      }
+    } catch {
+      // No body or invalid JSON — use default limit
+    }
+
+    // Fetch latest call logs from Tabbly
+    const response = await fetch(`https://www.tabbly.io/dashboard/agents/endpoints/call-logs-v2?api_key=${TABBLY_API_KEY}&organization_id=${TABBLY_ORGANIZATION_ID}&limit=${fetchLimit}`);
     
     if (!response.ok) {
         return NextResponse.json({ error: "Failed to fetch Tabbly logs" }, { status: 502 });
@@ -31,15 +124,41 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const transcriptsToParse: { id: string; transcript: string }[] = [];
     const structuredDataMap = new Map<string, any>();
 
-    // Pass 1: Collect what needs LLM vs what has native structured data
+    // ─── Pass 1: Classify call logs ────────────────────────────────────
     for (const log of logs) {
         const guestId = log.custom_identifiers; 
         const transcript = log.call_transcript || log.call_summary || "";
 
-        if (!guestId) continue;
+        if (!guestId || typeof guestId !== 'string') continue;
+
+        // Detect unanswered calls: Tabbly's call_status can be unreliable
+        // (e.g. shows "Not Answered" even for 140-sec conversations with full transcripts)
+        // So we require BOTH a bad call_status AND a short/empty transcript
+        const callDuration = parseInt(log.call_duration || log.duration || "0") || 0;
+        const tabblyCallStatus = String(log.call_status || log.status || "").toLowerCase();
+        const hasShortTranscript = transcript.trim().length < 50 || transcript.includes("No Call Transcript Available");
+        
+        const isBadStatus = 
+            tabblyCallStatus === "no_answer" || 
+            tabblyCallStatus === "not answered" ||
+            tabblyCallStatus === "not_answered" ||
+            tabblyCallStatus === "busy" || 
+            tabblyCallStatus === "failed";
+
+        // Only consider unanswered if BOTH: bad status AND no meaningful transcript
+        const isUnanswered = (isBadStatus && hasShortTranscript) || (callDuration === 0 && hasShortTranscript);
+
+        if (isUnanswered) {
+            // Only mark as unanswered if we don't already have a better (answered) log for this guest
+            if (!structuredDataMap.has(guestId) || structuredDataMap.get(guestId)?.unanswered) {
+                structuredDataMap.set(guestId, { log, unanswered: true });
+            }
+            continue;
+        }
 
         const dataSource = log.variables || log.extracted_data || {};
-        structuredDataMap.set(guestId, { log }); // start with log and pending status
+        // Answered call always overrides any previous unanswered entry
+        structuredDataMap.set(guestId, { log });
 
         if (dataSource.rsvp_status) {
             let status = String(dataSource.rsvp_status).toLowerCase().trim();
@@ -54,72 +173,127 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         }
     }
 
-    // Pass 2: Batch LLM Processing using Gemini 2.5 Flash
-    if (transcriptsToParse.length > 0 && process.env.GEMINI_API_KEY) {
-        // Chunk into groups of 25 to ensure safety and avoid context output limits
-        for (let i = 0; i < transcriptsToParse.length; i += 25) {
-            const chunk = transcriptsToParse.slice(i, i + 25);
-            
-            const prompt = `You are an expert RSVP extractor. I will provide a JSON array of call transcripts.
-Extract the RSVP details for each guest. 
-Return exactly a valid JSON array of objects with this exact structure:
-[
-  {
-    "id": "guest string id from input",
-    "status": "confirmed" | "declined" | "pending",
-    "guestCount": number (total pax, 0 if declined),
-    "dietaryPreference": {"veg": number, "nonveg": number, "jain": number} (if all same, just set the matching key. e.g. {"nonveg": 3, "veg": 0, "jain": 0}),
-    "accommodationNeeded": boolean,
-    "accommodationCount": number (if accommodationNeeded is true, the number of persons needing accommodation, otherwise 0)
-  }
-]
+    // ─── Pass 2: LLM Transcript Parsing (Gemini → Groq → local regex) ─
+    if (transcriptsToParse.length > 0) {
+        const RSVP_PROMPT = `You are an RSVP data extractor. Parse the call transcripts and extract guest responses.
 
-Transcripts to process:
-${JSON.stringify(chunk)}
+RULES:
+- Return ONLY a valid JSON array, no extra text or markdown.
+- Each object MUST have exactly these fields: id, status, guestCount, dietaryPreference, accommodationNeeded, accommodationCount.
+- status MUST be one of: "confirmed", "declined", "pending". Default to "pending" if unclear.
+- guestCount is an integer >= 0. If declined, set to 0. If confirmed but count unclear, set to 1.
+- dietaryPreference is one of: "veg", "non-veg", "jain", or null if not mentioned.
+- accommodationNeeded is a boolean. Default false.
+- accommodationCount is an integer >= 0.
+
+REQUIRED OUTPUT FORMAT (no wrapping, no explanation):
+[{"id":"...","status":"confirmed","guestCount":2,"dietaryPreference":"veg","accommodationNeeded":false,"accommodationCount":0}]
+
+Transcripts:
 `;
 
-            try {
-                const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: prompt }] }],
-                        generationConfig: { responseMimeType: "application/json" }
-                    })
-                });
-                
-                if (geminiRes.ok) {
-                    const data = await geminiRes.json();
-                    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-                    if (text) {
-                        const parsedArray = JSON.parse(text);
-                        for (const parsed of parsedArray) {
-                            const guestData = structuredDataMap.get(parsed.id);
-                            if (guestData) {
-                                let dietaryToSave = parsed.dietaryPreference;
-                                if (typeof dietaryToSave === 'object' && dietaryToSave !== null) {
-                                    dietaryToSave = JSON.stringify({ ...dietaryToSave, _isGeminiParams: true, accommodationCount: parsed.accommodationCount || 0 });
-                                }
-                                Object.assign(guestData, {
-                                    status: parsed.status,
-                                    pax: parsed.guestCount ?? parsed.pax,
-                                    dietary: dietaryToSave ?? parsed.dietary,
-                                    needsAccommodation: parsed.accommodationNeeded ?? parsed.needsAccommodation,
-                                    accommodationCount: parsed.accommodationCount || 0
-                                });
+        // Helper: validate + apply LLM response
+        function processLLMResponse(raw: any): boolean {
+            const arr = unwrapArray(raw);
+            if (!arr || arr.length === 0) return false;
+            let anyValid = false;
+            for (const entry of arr) {
+                const validated = validateRsvpEntry(entry);
+                if (!validated) continue;
+                const guestData = structuredDataMap.get(validated.id);
+                if (guestData) {
+                    Object.assign(guestData, {
+                        status: validated.status,
+                        pax: validated.pax,
+                        dietary: validated.dietary,
+                        needsAccommodation: validated.needsAccommodation,
+                        accommodationCount: validated.accommodationCount
+                    });
+                    anyValid = true;
+                }
+            }
+            return anyValid;
+        }
+
+        // Process in chunks of 25
+        for (let i = 0; i < transcriptsToParse.length; i += 25) {
+            const chunk = transcriptsToParse.slice(i, i + 25);
+            const fullPrompt = RSVP_PROMPT + JSON.stringify(chunk);
+            let llmSuccess = false;
+
+            // Try 1: Gemini 2.5 Flash
+            if (process.env.GEMINI_API_KEY) {
+                try {
+                    const geminiRes = await fetchWithRetry(
+                        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+                        {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                contents: [{ parts: [{ text: fullPrompt }] }],
+                                generationConfig: { responseMimeType: "application/json" }
+                            })
+                        }
+                    );
+                    
+                    if (geminiRes.ok) {
+                        const data = await geminiRes.json();
+                        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                        if (text) {
+                            const parsed = safeJsonParse(text);
+                            if (parsed) {
+                                llmSuccess = processLLMResponse(parsed);
                             }
                         }
+                    } else {
+                        console.error("Gemini API Error:", geminiRes.status);
                     }
-                } else {
-                    console.error("Gemini API Error:", await geminiRes.text());
+                } catch (err) {
+                    console.error("Gemini parse error:", err);
                 }
-            } catch (err) {
-                console.error("Batch parse error with Gemini:", err);
+            }
+
+            // Try 2: Groq fallback (llama-3.3-70b-versatile)
+            if (!llmSuccess && process.env.GROQ_API_KEY) {
+                try {
+                    console.log("Gemini unavailable, falling back to Groq...");
+                    const groqRes = await fetchWithRetry('https://api.groq.com/openai/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${process.env.GROQ_API_KEY}`
+                        },
+                        body: JSON.stringify({
+                            model: 'llama-3.3-70b-versatile',
+                            messages: [
+                                { role: 'system', content: 'You are an RSVP data extractor. Respond with a valid JSON array only. No markdown, no explanation.' },
+                                { role: 'user', content: fullPrompt }
+                            ],
+                            temperature: 0.1,
+                            response_format: { type: "json_object" }
+                        })
+                    });
+
+                    if (groqRes.ok) {
+                        const data = await groqRes.json();
+                        const text = data.choices?.[0]?.message?.content;
+                        if (text) {
+                            const parsed = safeJsonParse(text);
+                            if (parsed) {
+                                llmSuccess = processLLMResponse(parsed);
+                            }
+                        }
+                    } else {
+                        console.error("Groq API Error:", groqRes.status);
+                    }
+                } catch (err) {
+                    console.error("Groq parse error:", err);
+                }
             }
         }
     } 
     
-    // Pass 2B: Fallback for any unparsed transcripts (either failed LLM or no API key)
+    // Pass 2B: Local regex fallback for any still-unparsed transcripts
     for (const item of transcriptsToParse) {
         const guestData = structuredDataMap.get(item.id);
         if (guestData && !guestData.status) {
@@ -133,25 +307,79 @@ ${JSON.stringify(chunk)}
         }
     }
 
-    // Pass 3: Database Update Logic
+    // ─── Pass 3: Database Updates (batch-optimized) ────────────────────
+    
+    // Batch-fetch all guest call_statuses to avoid N+1 queries
+    const guestIds = Array.from(structuredDataMap.keys());
+    const guestStatusMap = new Map<string, string>();
+    if (guestIds.length > 0) {
+        const { data: guestsData } = await supabase
+            .from("guests")
+            .select("id, call_status, function_ids")
+            .eq("wedding_id", weddingId)
+            .in("id", guestIds);
+        if (guestsData) {
+            for (const g of guestsData) {
+                guestStatusMap.set(g.id, g.call_status);
+            }
+        }
+    }
+
+    // Track processed guests to prevent duplicates
+    const processedGuests = new Set<string>();
+
     for (const [guestId, data] of structuredDataMap.entries()) {
-        const { status, pax, dietary, needsAccommodation, log } = data;
+        // Deduplicate
+        if (processedGuests.has(guestId)) continue;
+        processedGuests.add(guestId);
 
-        if (!status || status === "pending") continue;
+        const { status, pax, dietary, needsAccommodation, log, unanswered } = data;
 
-        // 1. Update Guest status
+        // Guard: never revert a guest who already responded
+        if (guestStatusMap.get(guestId) === "responded") continue;
+
+        // If call was unanswered, mark as not_responded and skip RSVP extraction
+        if (unanswered) {
+            await supabase.from("guests")
+                .update({ call_status: "not_responded" })
+                .eq("id", guestId)
+                .eq("wedding_id", weddingId);
+            continue;
+        }
+
+        // If no RSVP status was extracted, mark as not_responded (call happened but no data)
+        if (!status || status === "pending") {
+            await supabase.from("guests")
+                .update({ call_status: "not_responded" })
+                .eq("id", guestId)
+                .eq("wedding_id", weddingId);
+            continue;
+        }
+
+        // 1. Update Guest status + call_status
         const { error: guestUpdateError } = await supabase.from("guests")
-            .update({ overall_status: status })
+            .update({
+                overall_status: status,
+                call_status: "responded"
+            })
             .eq("id", guestId)
             .eq("wedding_id", weddingId);
 
         if (guestUpdateError) continue;
 
-        // 2. Insert/Update RSVPs
+        // 2. Insert/Update RSVPs per function
         const { data: guest } = await supabase.from("guests").select("function_ids").eq("id", guestId).single();
 
         if (guest && guest.function_ids) {
             for (const functionId of guest.function_ids) {
+                const rsvpData = {
+                    status: status,
+                    total_pax: status === "confirmed" ? (pax || 1) : 0,
+                    dietary_preference: dietary,
+                    needs_accommodation: status === "confirmed" && needsAccommodation,
+                    responded_at: log.called_time
+                };
+
                 const { data: existingRSVP } = await supabase
                     .from("rsvps")
                     .select("id")
@@ -160,92 +388,81 @@ ${JSON.stringify(chunk)}
                     .single();
 
                 if (existingRSVP) {
-                    await supabase.from("rsvps").update({
-                        status: status,
-                        total_pax: status === "confirmed" ? pax : 0,
-                        dietary_preference: dietary,
-                        needs_accommodation: status === "confirmed" && needsAccommodation,
-                        responded_at: log.called_time 
-                    }).eq("id", existingRSVP.id);
+                    const { error: updateErr } = await supabase.from("rsvps")
+                        .update(rsvpData)
+                        .eq("id", existingRSVP.id);
+                    if (updateErr) console.error(`RSVP update failed for guest ${guestId}:`, updateErr);
                 } else {
-                    await supabase.from("rsvps").insert({
+                    const { error: insertErr } = await supabase.from("rsvps").insert({
                         wedding_id: weddingId,
                         guest_id: guestId,
                         function_id: functionId,
-                        status: status,
-                        total_pax: status === "confirmed" ? pax : 0,
-                        dietary_preference: dietary,
-                        needs_accommodation: status === "confirmed" && needsAccommodation,
-                        responded_at: log.called_time
+                        ...rsvpData
                     });
+                    if (insertErr) console.error(`RSVP insert failed for guest ${guestId}:`, insertErr);
                 }
             }
         }
         updatedCount++;
     }
 
-    // Pass 4: Recalculate Wedding Function Aggregates
+    // ─── Pass 4: Recalculate Function Aggregates ───────────────────────
     const { data: allFunctions } = await supabase.from('wedding_functions').select('*').eq('wedding_id', weddingId);
     if (allFunctions) {
         for (const func of allFunctions) {
-            const { data: funcRsvps } = await supabase.from('rsvps').select('*').eq('function_id', func.id).eq('status', 'confirmed');
+            const { data: funcRsvps } = await supabase.from('rsvps').select('*').eq('function_id', func.id);
             
-            let total_pax = 0;
-            let total_veg = 0;
-            let total_nonveg = 0;
-            let total_jain = 0;
-            let total_acc = 0;
+            let total_pax = 0, total_veg = 0, total_nonveg = 0, total_jain = 0, total_acc = 0;
+            let funcConfirmed = 0, funcDeclined = 0, funcPending = 0;
 
             if (funcRsvps) {
                 for (const r of funcRsvps) {
-                    total_pax += r.total_pax;
-                    const pref = (r.dietary_preference || "").trim();
-                    let isGeminiParsed = false;
-                    let geminiData: any = null;
+                    if (r.status === 'confirmed') funcConfirmed++;
+                    else if (r.status === 'declined') funcDeclined++;
+                    else funcPending++;
 
-                    if (pref.startsWith("{")) {
-                        try {
-                            const parsed = JSON.parse(pref);
-                            if (parsed._isGeminiParams) {
-                                isGeminiParsed = true;
-                                geminiData = parsed;
-                            }
-                        } catch (e) {}
-                    }
-
+                    if (r.status !== 'confirmed') continue;
+                    total_pax += r.total_pax || 0;
+                    
                     if (r.needs_accommodation) {
-                        if (isGeminiParsed && geminiData.accommodationCount !== undefined) {
-                            total_acc += geminiData.accommodationCount;
-                        } else {
-                            total_acc += r.total_pax;
-                        }
+                        total_acc += r.total_pax || 1;
                     }
 
-                    if (isGeminiParsed) {
-                        total_veg += geminiData.veg || 0;
-                        total_nonveg += geminiData.nonveg || 0;
-                        total_jain += geminiData.jain || 0;
-                    } else {
-                        const prefLower = pref.toLowerCase();
-                        if (prefLower === "veg" || prefLower === "vegetarian") {
-                            total_veg += r.total_pax;
-                        } else if (prefLower === "jain") {
-                            total_jain += r.total_pax;
-                        } else if (prefLower === "non-veg" || prefLower === "nonveg") {
-                            total_nonveg += r.total_pax;
-                        }
-                    }
+                    const pref = (r.dietary_preference || "").trim().toLowerCase();
+                    if (pref === "veg" || pref === "vegetarian") total_veg += r.total_pax || 0;
+                    else if (pref === "jain") total_jain += r.total_pax || 0;
+                    else if (pref === "non-veg" || pref === "nonveg") total_nonveg += r.total_pax || 0;
                 }
             }
 
             await supabase.from('wedding_functions').update({
-                total_pax: total_pax,
+                confirmed: funcConfirmed,
+                declined: funcDeclined,
+                pending: funcPending,
+                total_pax,
                 dietary_veg: total_veg,
                 dietary_nonveg: total_nonveg,
                 dietary_jain: total_jain,
                 accommodation_needed: total_acc
             }).eq('id', func.id);
         }
+    }
+
+    // ─── Pass 5: Recalculate Wedding-Level Aggregates ──────────────────
+    const { data: allGuests } = await supabase.from('guests').select('overall_status').eq('wedding_id', weddingId);
+    const { data: allRsvps } = await supabase.from('rsvps').select('total_pax, status').eq('wedding_id', weddingId);
+    if (allGuests) {
+        const wConfirmed = allGuests.filter(g => g.overall_status === 'confirmed').length;
+        const wDeclined = allGuests.filter(g => g.overall_status === 'declined').length;
+        const wPending = allGuests.filter(g => g.overall_status === 'pending' || g.overall_status === 'partial').length;
+        const wTotalPax = (allRsvps || []).filter(r => r.status === 'confirmed').reduce((s, r) => s + (r.total_pax || 0), 0);
+        await supabase.from('weddings').update({
+            total_guests: allGuests.length,
+            total_confirmed: wConfirmed,
+            total_declined: wDeclined,
+            total_pending: wPending,
+            total_pax: wTotalPax
+        }).eq('id', weddingId);
     }
 
     return NextResponse.json({ 
