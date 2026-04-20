@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 
 const translations = {
@@ -79,6 +79,9 @@ export default function InvitesPage() {
   const [loading, setLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [callingGuests, setCallingGuests] = useState(false);
+  const [autoSyncCountdown, setAutoSyncCountdown] = useState<number | null>(null);
+  const autoSyncTimersRef = useRef<NodeJS.Timeout[]>([]);
+  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [sendingEmails, setSendingEmails] = useState(false);
   const [showBulkEmailDialog, setShowBulkEmailDialog] = useState(false);
   const [guestsWithEmail, setGuestsWithEmail] = useState<Guest[]>([]);
@@ -125,6 +128,65 @@ export default function InvitesPage() {
   }, [weddingId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Cleanup auto-sync timers on unmount
+  useEffect(() => {
+    return () => {
+      autoSyncTimersRef.current.forEach(t => clearTimeout(t));
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+    };
+  }, []);
+
+  // Start auto-sync polling after AI calls
+  function startAutoSyncPolling() {
+    // Clear any existing timers
+    autoSyncTimersRef.current.forEach(t => clearTimeout(t));
+    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+
+    const syncSchedule = [
+      { delay: 60000, label: "1 min" },   // 1 min
+      { delay: 120000, label: "2 min" },  // 2 min
+      { delay: 180000, label: "3 min" },  // 3 min
+    ];
+    const startTime = Date.now();
+    const lastDelay = syncSchedule[syncSchedule.length - 1].delay;
+
+    // Set countdown timer
+    setAutoSyncCountdown(Math.ceil(lastDelay / 1000));
+    countdownIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.ceil((lastDelay - elapsed) / 1000);
+      if (remaining <= 0) {
+        setAutoSyncCountdown(null);
+        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+      } else {
+        setAutoSyncCountdown(remaining);
+      }
+    }, 1000);
+
+    // Schedule sync calls
+    for (const { delay, label } of syncSchedule) {
+      const timer = setTimeout(async () => {
+        try {
+          const res = await fetch(`/api/wedding/${weddingId}/sync-call-rsvps`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ limit: 15 }),
+          });
+          const data = await res.json().catch(() => null);
+          if (res.ok && data?.success) {
+            toast.success(`🔄 Auto-synced at ${label}: ${data.message}`, { duration: 4000 });
+            fetchData(); // Refresh UI without page reload
+          }
+        } catch {
+          // Silent fail — server-side sync is also running
+        }
+      }, delay);
+      autoSyncTimersRef.current.push(timer);
+    }
+
+    toast.info("⏱️ RSVP auto-sync scheduled: will check at 1, 2, and 3 minutes", { duration: 5000 });
+  }
 
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
   const pendingGuests = guests.filter((g: Guest) => !g.invite_sent_at && g.call_status !== "responded");
@@ -240,6 +302,10 @@ export default function InvitesPage() {
         if (result.skipped > 0) parts.push(`${result.skipped} skipped (already responded).`);
         toast.success(parts.join(" "), { id: toastId });
         fetchData();
+        // Start auto-sync polling to capture RSVP data without page refresh
+        if (result.successful > 0) {
+          startAutoSyncPolling();
+        }
       } else {
         toast.error(`Error: ${result?.error || "Failed to trigger calls"}`, { id: toastId });
       }
@@ -368,6 +434,12 @@ export default function InvitesPage() {
             <span className={`material-symbols-outlined text-[20px] ${isSyncing ? 'animate-spin' : ''}`}>sync</span>
             {isSyncing ? "Syncing..." : "Sync RSVPs"}
           </button>
+          {autoSyncCountdown !== null && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 text-amber-700 rounded-lg text-xs font-semibold border border-amber-200 animate-pulse">
+              <span className="material-symbols-outlined text-[16px]">schedule</span>
+              Auto-sync in {Math.floor(autoSyncCountdown / 60)}:{String(autoSyncCountdown % 60).padStart(2, '0')}
+            </div>
+          )}
         </div>
       </header>
 

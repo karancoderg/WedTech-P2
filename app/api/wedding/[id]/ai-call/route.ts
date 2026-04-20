@@ -174,22 +174,29 @@ Keep the conversation natural, short, and respectful. Wait for their responses c
       }
     }
 
-    // Auto-sync: trigger sync of last 5 call logs after a delay
-    // Fire-and-forget — give Tabbly ~30s to process the calls before syncing
+    // Auto-sync: trigger sync at multiple intervals to catch calls at different stages
+    // Calls typically take 1-3 minutes, so we sync at 30s, 2min, and 3min
     if (successful > 0) {
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-      setTimeout(async () => {
-        try {
-          await fetch(`${baseUrl}/api/wedding/${weddingId}/sync-call-rsvps`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ limit: 5 }),
-          });
-          console.log(`Auto-sync triggered for wedding ${weddingId} (last 5 calls)`);
-        } catch (e) {
-          console.error("Auto-sync failed (non-critical):", e);
-        }
-      }, 30000); // 30 second delay
+      const syncDelays = [
+        { delay: 30000, limit: 5 },   // 30s — catch quick calls
+        { delay: 120000, limit: 10 },  // 2min — catch normal calls
+        { delay: 180000, limit: 15 },  // 3min — catch longer calls
+      ];
+      for (const { delay, limit } of syncDelays) {
+        setTimeout(async () => {
+          try {
+            await fetch(`${baseUrl}/api/wedding/${weddingId}/sync-call-rsvps`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ limit }),
+            });
+            console.log(`Auto-sync triggered for wedding ${weddingId} at ${delay / 1000}s (last ${limit} calls)`);
+          } catch (e) {
+            console.error(`Auto-sync failed at ${delay / 1000}s (non-critical):`, e);
+          }
+        }, delay);
+      }
     }
 
     return NextResponse.json({ success: true, successful, failed, skipped });

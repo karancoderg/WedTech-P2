@@ -70,9 +70,11 @@ export default function GuestListPage() {
   const [groupName, setGroupName] = useState("");
   const csvRef = useRef<HTMLInputElement>(null);
 
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 50;
+  const [autoSyncCountdown, setAutoSyncCountdown] = useState<number | null>(null);
+  const autoSyncTimersRef = useRef<NodeJS.Timeout[]>([]);
+  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Add guest form
   const [newName, setNewName] = useState("");
@@ -111,6 +113,63 @@ export default function GuestListPage() {
   }, [weddingId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Cleanup auto-sync timers on unmount
+  useEffect(() => {
+    return () => {
+      autoSyncTimersRef.current.forEach(t => clearTimeout(t));
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+    };
+  }, []);
+
+  // Start auto-sync polling after AI calls
+  function startAutoSyncPolling() {
+    // Clear any existing timers
+    autoSyncTimersRef.current.forEach(t => clearTimeout(t));
+    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+
+    const syncSchedule = [
+      { delay: 60000, label: "1 min" },
+      { delay: 120000, label: "2 min" },
+      { delay: 180000, label: "3 min" },
+    ];
+    const startTime = Date.now();
+    const lastDelay = syncSchedule[syncSchedule.length - 1].delay;
+
+    setAutoSyncCountdown(Math.ceil(lastDelay / 1000));
+    countdownIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.ceil((lastDelay - elapsed) / 1000);
+      if (remaining <= 0) {
+        setAutoSyncCountdown(null);
+        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+      } else {
+        setAutoSyncCountdown(remaining);
+      }
+    }, 1000);
+
+    for (const { delay, label } of syncSchedule) {
+      const timer = setTimeout(async () => {
+        try {
+          const res = await fetch(`/api/wedding/${weddingId}/sync-call-rsvps`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ limit: 15 }),
+          });
+          const data = await res.json().catch(() => null);
+          if (res.ok && data?.success) {
+            toast.success(`🔄 Auto-synced at ${label}: ${data.message}`, { duration: 4000 });
+            fetchData();
+          }
+        } catch {
+          // Silent fail
+        }
+      }, delay);
+      autoSyncTimersRef.current.push(timer);
+    }
+
+    toast.info("⏱️ RSVP auto-sync scheduled: will check at 1, 2, and 3 minutes", { duration: 5000 });
+  }
 
   // Filtering
   const filteredGuests = guests.filter((g) => {
@@ -389,6 +448,10 @@ export default function GuestListPage() {
         toast.success(parts.join(" "), { id: toastId });
         if (!targetGuestIds) setSelectedIds(new Set());
         fetchData();
+        // Start auto-sync polling to capture RSVP data without page refresh
+        if (result.successful > 0) {
+          startAutoSyncPolling();
+        }
       } else {
         toast.error(`Error: ${result?.error || "Failed to trigger calls"}`, { id: toastId });
       }
@@ -624,6 +687,12 @@ export default function GuestListPage() {
           <p className="text-sm md:text-base text-slate-500 font-medium">
             {wedding?.wedding_name} · <span className="text-primary">{guests.length} guests</span>
           </p>
+          {autoSyncCountdown !== null && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-xs font-semibold border border-amber-200 animate-pulse mt-1 w-fit">
+              <span className="material-symbols-outlined text-[16px]">schedule</span>
+              Auto-sync in {Math.floor(autoSyncCountdown / 60)}:{String(autoSyncCountdown % 60).padStart(2, '0')}
+            </div>
+          )}
         </div>
         <div className="flex flex-wrap gap-2 md:gap-3 w-full md:w-auto">
           <button
