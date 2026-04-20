@@ -1036,17 +1036,17 @@ export default function InvitesPage() {
       {isDesignModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl scale-in-95 animate-in">
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+            <div className="p-4 lg:p-6 border-b border-slate-100 flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-bold text-slate-900">Choose Invitation Design</h2>
-                <p className="text-sm text-slate-500 mt-1">Select a premium template for your wedding invitation & RSVP</p>
+                <h2 className="text-lg lg:text-xl font-bold text-slate-900">Choose Invitation Design</h2>
+                <p className="text-xs lg:text-sm text-slate-500 mt-1">Select a premium template for your wedding invitation & RSVP</p>
               </div>
-              <button onClick={() => setIsDesignModalOpen(false)} className="size-10 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all">
-                <span className="material-symbols-outlined">close</span>
+              <button onClick={() => setIsDesignModalOpen(false)} className="size-8 lg:size-10 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all">
+                <span className="material-symbols-outlined text-lg lg:text-base">close</span>
               </button>
             </div>
 
-            <div className="p-8 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-slate-50/50">
+            <div className="p-3 lg:p-8 overflow-y-auto grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-6 bg-slate-50/50">
               {[
                 { id: 'royal', name: 'Royal Traditional', desc: 'Deep maroon & gold, mandala patterns', preview: '/images/templates/royal.png' },
                 { id: 'minimal', name: 'Lavender Elegance', desc: 'Soft purple, wisteria flowers, eucalyptus', preview: '/images/templates/minimal.png' },
@@ -1061,26 +1061,26 @@ export default function InvitesPage() {
                     wedding?.template_id === tpl.id ? 'border-primary ring-4 ring-primary/10' : 'border-white hover:border-primary/20'
                   }`}
                 >
-                  <div className="aspect-[4/5] overflow-hidden bg-slate-100">
+                  <div className="aspect-square overflow-hidden bg-slate-100">
                     <div className="w-full h-full bg-cover bg-center transition-transform duration-500 group-hover:scale-105" style={{ backgroundImage: `url(${tpl.preview})` }} />
                     {wedding?.template_id === tpl.id && (
-                      <div className="absolute top-3 right-3 bg-primary text-white size-8 rounded-full flex items-center justify-center shadow-lg animate-in zoom-in">
-                        <span className="material-symbols-outlined text-base">check</span>
+                      <div className="absolute top-2 right-2 bg-primary text-white size-6 lg:size-8 rounded-full flex items-center justify-center shadow-lg animate-in zoom-in">
+                        <span className="material-symbols-outlined text-[14px] lg:text-base">check</span>
                       </div>
                     )}
                   </div>
-                  <div className="p-4 border-t border-slate-50">
-                    <h3 className="font-bold text-slate-800">{tpl.name}</h3>
-                    <p className="text-xs text-slate-500 mt-1">{tpl.desc}</p>
+                  <div className="p-2 lg:p-4 border-t border-slate-50">
+                    <h3 className="font-bold text-slate-800 text-[11px] lg:text-sm truncate">{tpl.name}</h3>
+                    <p className="text-[9px] lg:text-xs text-slate-500 mt-0.5 lg:mt-1 line-clamp-1">{tpl.desc}</p>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="p-6 border-t border-slate-100 bg-white flex justify-end gap-3">
+            <div className="p-4 lg:p-6 border-t border-slate-100 bg-white flex justify-end gap-3">
               <button 
                 onClick={() => setIsDesignModalOpen(false)}
-                className="px-6 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                className="px-6 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
               >
                 Close
               </button>
