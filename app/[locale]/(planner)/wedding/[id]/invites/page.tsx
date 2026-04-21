@@ -913,7 +913,7 @@ export default function InvitesPage() {
               </button>
             </div>
 
-            <div className="p-8 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-slate-50/50">
+            <div className="p-4 md:p-8 overflow-y-auto grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6 bg-slate-50/50">
               {[
                 { id: 'royal', name: 'Royal Traditional', desc: 'Deep maroon & gold, mandala patterns', preview: '/images/templates/royal.png' },
                 { id: 'minimal', name: 'Lavender Elegance', desc: 'Soft purple, wisteria flowers, eucalyptus', preview: '/images/templates/minimal.png' },
@@ -928,7 +928,7 @@ export default function InvitesPage() {
                     wedding?.template_id === tpl.id ? 'border-primary ring-4 ring-primary/10' : 'border-white hover:border-primary/20'
                   }`}
                 >
-                  <div className="aspect-[4/5] overflow-hidden bg-slate-100">
+                  <div className="aspect-square md:aspect-[4/5] overflow-hidden bg-slate-100">
                     <div className="w-full h-full bg-cover bg-center transition-transform duration-500 group-hover:scale-105" style={{ backgroundImage: `url(${tpl.preview})` }} />
                     {wedding?.template_id === tpl.id && (
                       <div className="absolute top-3 right-3 bg-primary text-white size-8 rounded-full flex items-center justify-center shadow-lg animate-in zoom-in">
@@ -936,9 +936,9 @@ export default function InvitesPage() {
                       </div>
                     )}
                   </div>
-                  <div className="p-4 border-t border-slate-50">
-                    <h3 className="font-bold text-slate-800">{tpl.name}</h3>
-                    <p className="text-xs text-slate-500 mt-1">{tpl.desc}</p>
+                  <div className="p-3 md:p-4 border-t border-slate-50">
+                    <h3 className="font-bold text-slate-800 text-xs md:text-sm truncate">{tpl.name}</h3>
+                    <p className="text-[10px] md:text-xs text-slate-500 mt-0.5 md:mt-1 truncate">{tpl.desc}</p>
                   </div>
                 </div>
               ))}
