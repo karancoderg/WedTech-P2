@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
 
       for (const resp of guestResponses) {
         if (resp.status !== "confirmed") allConfirmed = false;
-        if (resp.status !== "declined") allDeclined = false;f
+        if (resp.status !== "declined") allDeclined = false;
         
         const dietary_preference = resp.status === "confirmed" ? guestDietaryPreferences[guestId] || null : null;
         // Accommodation: only the primary guest carries the accommodation flag.
@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
           status: resp.status,
           plus_ones: 0,
           children: isPrimary && resp.status === "confirmed" ? globalChildrenCount : 0,
-          total_pax: totalPax,
+          total_pax: 1,
           dietary_preference: dietary_preference,
           needs_accommodation: needs_acc,
           responded_at: new Date().toISOString(),
