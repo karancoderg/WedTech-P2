@@ -46,8 +46,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ error: "No guests found" }, { status: 404 });
     }
 
-    // Filter out guests who have already responded — never re-call them
-    const callableGuests = guests.filter(g => g.call_status !== "responded");
+    // Filter out guests who have already responded via call or any other medium
+    const callableGuests = guests.filter(g => 
+      g.call_status !== "responded" && 
+      g.overall_status !== "confirmed" && 
+      g.overall_status !== "declined"
+    );
     const skipped = guests.length - callableGuests.length;
 
     if (callableGuests.length === 0) {
