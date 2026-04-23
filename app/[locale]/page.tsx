@@ -3,12 +3,37 @@
 import { Link } from "@/i18n/routing";
 import { Playfair_Display, Inter } from 'next/font/google';
 import { useAuth } from "@clerk/nextjs";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useRef } from "react";
+import { toast } from "sonner";
 
 const playfair = Playfair_Display({ subsets: ['latin'] });
 const inter = Inter({ subsets: ['latin'] });
 
 export default function HomePage() {
   const { isSignedIn } = useAuth();
+  const searchParams = useSearchParams();
+  const toastShown = useRef(false);
+
+  // Show auth-required toast when redirected from a protected route
+  useEffect(() => {
+    if (searchParams.get('auth') === 'required' && !toastShown.current) {
+      toastShown.current = true;
+      toast.error("Please log in or create an account to access that page.", {
+        duration: 6000,
+        action: {
+          label: "Sign In",
+          onClick: () => {
+            window.location.href = "/sign-in";
+          },
+        },
+      });
+      // Clean up the URL without reloading
+      const url = new URL(window.location.href);
+      url.searchParams.delete('auth');
+      window.history.replaceState({}, '', url.pathname);
+    }
+  }, [searchParams]);
 
   return (
     <div className={`min-h-screen bg-[#FAF8F5] text-[#5C4033] ${inter.className} overflow-x-hidden`}>
