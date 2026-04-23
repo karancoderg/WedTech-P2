@@ -1,57 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { encrypt } from "@/lib/encryption";
+import { requireWeddingOwner } from "@/lib/api-auth";
 import type { WeddingFunction } from "@/lib/types";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "placeholder_service_key";
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-// TODO: `deriveFunctionsForSide` is duplicated in:
-//   - app/[locale]/(planner)/wedding/[id]/guests/page.tsx (client, for add/edit guest)
-//   - here (server, for import)
-// Consolidate into a shared lib (e.g. lib/guest-utils.ts) once the client
-// version is no longer needed for the import flow.
-function deriveFunctionsForSide(
-  side: "bride" | "groom" | "both",
-  allFunctions: WeddingFunction[]
-): string[] {
-  if (side === "both") return allFunctions.map((f) => f.id);
+import { deriveFunctionsForSide } from "@/lib/guest-utils";
 
-  return allFunctions
-    .filter((f) => {
-      const name = f.name.toLowerCase();
-      const isJoint = name.includes("joint") || name.includes("combined");
-      if (isJoint) return true;
-
-      if (side === "bride") {
-        return (
-          !name.includes("groom") &&
-          !name.includes("baraat") &&
-          !name.includes("sehrabandi")
-        );
-      } else {
-        return (
-          !name.includes("bride") &&
-          !(name.includes("mehendi") && !name.includes("joint")) &&
-          !name.includes("chooda") &&
-          !name.includes("bhaat")
-        );
-      }
-    })
-    .map((f) => f.id);
-}
+import { randomBytes } from "crypto";
 
 function generateInviteToken(): string {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) {
-    return crypto.randomUUID().replace(/-/g, "").slice(0, 16);
-  }
-  return (
-    Math.random().toString(36).substring(2, 10) +
-    Math.random().toString(36).substring(2, 10)
-  );
+  return randomBytes(16).toString("hex");
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -121,6 +80,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: weddingId } = await params;
+
+  const authResult = await requireWeddingOwner(weddingId);
+  if ("error" in authResult) return authResult.error;
+  const { supabase } = authResult;
 
   let body: { rows: ImportRow[]; fileName: string };
   try {

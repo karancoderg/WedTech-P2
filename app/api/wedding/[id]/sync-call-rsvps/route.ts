@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { requireWeddingOwner } from "@/lib/api-auth";
 import { parseRSVPFromTranscript } from "@/lib/rsvp-parser";
 
 const TABBLY_API_KEY = process.env.TABBLY_API_KEY || "";
@@ -88,8 +88,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   try {
     const { id: weddingId } = await params;
 
-    // Use service role client to bypass RLS for server-side operations
-    const supabase = createServerSupabaseClient();
+    const authResult = await requireWeddingOwner(weddingId);
+    if ("error" in authResult) return authResult.error;
+    const { supabase } = authResult;
 
     if (!TABBLY_API_KEY || !TABBLY_ORGANIZATION_ID) {
       return NextResponse.json({ error: "Tabbly credentials missing" }, { status: 500 });
@@ -225,10 +226,13 @@ Transcripts:
             if (process.env.GEMINI_API_KEY) {
                 try {
                     const geminiRes = await fetchWithRetry(
-                        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+                        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`,
                         {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'x-goog-api-key': process.env.GEMINI_API_KEY!,
+                            },
                             body: JSON.stringify({
                                 contents: [{ parts: [{ text: fullPrompt }] }],
                                 generationConfig: { responseMimeType: "application/json" }
@@ -328,114 +332,133 @@ Transcripts:
     // Track processed guests to prevent duplicates
     const processedGuests = new Set<string>();
 
-    for (const [guestId, data] of structuredDataMap.entries()) {
-        // Deduplicate
-        if (processedGuests.has(guestId)) continue;
-        processedGuests.add(guestId);
+    // ─── Bulk Fetching for Pass 3 ──────────────────────────────────────
+    const guestIdsToProcess = Array.from(structuredDataMap.keys());
+    updatedCount = 0;
 
-        const { status, pax, dietary, needsAccommodation, log, unanswered } = data;
+    if (guestIdsToProcess.length > 0) {
+        // Fetch all affected guests (for function_ids)
+        const { data: guestsData } = await supabase
+            .from("guests")
+            .select("id, function_ids")
+            .in("id", guestIdsToProcess);
+        const guestFuncs = new Map(guestsData?.map((g: any) => [g.id, g.function_ids]) || []);
 
-        // Guard: never revert a guest who already responded
-        if (guestStatusMap.get(guestId) === "responded") continue;
-
-        // If call was unanswered, mark as not_responded and skip RSVP extraction
-        if (unanswered) {
-            await supabase.from("guests")
-                .update({ call_status: "not_responded" })
-                .eq("id", guestId)
-                .eq("wedding_id", weddingId);
-            continue;
-        }
-
-        // If no RSVP status was extracted, mark as not_responded (call happened but no data)
-        if (!status || status === "pending") {
-            await supabase.from("guests")
-                .update({ call_status: "not_responded" })
-                .eq("id", guestId)
-                .eq("wedding_id", weddingId);
-            continue;
-        }
-
-        // 1. Update Guest status + call_status
-        const { error: guestUpdateError } = await supabase.from("guests")
-            .update({
-                overall_status: status,
-                call_status: "responded"
-            })
-            .eq("id", guestId)
+        // Fetch all existing RSVPs for these guests
+        const { data: existingRsvps } = await supabase
+            .from("rsvps")
+            .select("id, guest_id, function_id")
+            .in("guest_id", guestIdsToProcess)
             .eq("wedding_id", weddingId);
+        const rsvpMap = new Map(existingRsvps?.map((r: any) => [`${r.guest_id}_${r.function_id}`, r.id]) || []);
 
-        if (guestUpdateError) continue;
+        const guestUpdatePromises = [];
+        const rsvpsToUpsert: any[] = [];
 
-        // 2. Insert/Update RSVPs per function
-        const { data: guest } = await supabase.from("guests").select("function_ids").eq("id", guestId).single();
+        for (const [guestId, data] of structuredDataMap.entries()) {
+            if (processedGuests.has(guestId)) continue;
+            processedGuests.add(guestId);
 
-        if (guest && guest.function_ids) {
-            for (const functionId of guest.function_ids) {
-                const rsvpData = {
-                    status: status,
-                    total_pax: status === "confirmed" ? (pax || 1) : 0,
-                    dietary_preference: dietary,
-                    needs_accommodation: status === "confirmed" && needsAccommodation,
-                    responded_at: log.called_time
-                };
+            const { status, pax, dietary, needsAccommodation, log, unanswered } = data;
 
-                const { data: existingRSVP } = await supabase
-                    .from("rsvps")
-                    .select("id")
-                    .eq("guest_id", guestId)
-                    .eq("function_id", functionId)
-                    .single();
+            if (guestStatusMap.get(guestId) === "responded") continue;
 
-                if (existingRSVP) {
-                    const { error: updateErr } = await supabase.from("rsvps")
-                        .update(rsvpData)
-                        .eq("id", existingRSVP.id);
-                    if (updateErr) console.error(`RSVP update failed for guest ${guestId}:`, updateErr);
-                } else {
-                    const { error: insertErr } = await supabase.from("rsvps").insert({
+            if (unanswered) {
+                guestUpdatePromises.push(
+                    supabase.from("guests")
+                        .update({ call_status: "not_responded" })
+                        .eq("id", guestId)
+                        .eq("wedding_id", weddingId)
+                );
+                continue;
+            }
+
+            if (!status || status === "pending") {
+                guestUpdatePromises.push(
+                    supabase.from("guests")
+                        .update({ call_status: "not_responded" })
+                        .eq("id", guestId)
+                        .eq("wedding_id", weddingId)
+                );
+                continue;
+            }
+
+            // Queue guest update
+            guestUpdatePromises.push(
+                supabase.from("guests")
+                    .update({
+                        overall_status: status,
+                        call_status: "responded"
+                    })
+                    .eq("id", guestId)
+                    .eq("wedding_id", weddingId)
+            );
+
+            // Queue RSVP upserts
+            const funcIds = guestFuncs.get(guestId);
+            if (funcIds && Array.isArray(funcIds)) {
+                for (const functionId of funcIds) {
+                    const rsvpData: any = {
                         wedding_id: weddingId,
                         guest_id: guestId,
                         function_id: functionId,
-                        ...rsvpData
-                    });
-                    if (insertErr) console.error(`RSVP insert failed for guest ${guestId}:`, insertErr);
+                        status: status,
+                        total_pax: status === "confirmed" ? (pax || 1) : 0,
+                        dietary_preference: dietary,
+                        needs_accommodation: status === "confirmed" && needsAccommodation,
+                        responded_at: log.called_time
+                    };
+
+                    const existingId = rsvpMap.get(`${guestId}_${functionId}`);
+                    if (existingId) {
+                        rsvpData.id = existingId; // Update existing
+                    }
+                    rsvpsToUpsert.push(rsvpData);
                 }
             }
+            updatedCount++;
         }
-        updatedCount++;
+
+        // Execute bulk updates
+        await Promise.all(guestUpdatePromises);
+
+        if (rsvpsToUpsert.length > 0) {
+            const { error: upsertErr } = await supabase.from("rsvps").upsert(rsvpsToUpsert);
+            if (upsertErr) console.error("RSVP bulk upsert failed:", upsertErr);
+        }
     }
 
     // ─── Pass 4: Recalculate Function Aggregates ───────────────────────
-    const { data: allFunctions } = await supabase.from('wedding_functions').select('*').eq('wedding_id', weddingId);
-    if (allFunctions) {
-        for (const func of allFunctions) {
-            const { data: funcRsvps } = await supabase.from('rsvps').select('*').eq('function_id', func.id);
+    // Bulk fetch to avoid N+1
+    const { data: allFunctions } = await supabase.from('wedding_functions').select('id').eq('wedding_id', weddingId);
+    const { data: allWeddingRsvps } = await supabase.from('rsvps').select('*').eq('wedding_id', weddingId);
+    
+    if (allFunctions && allWeddingRsvps) {
+        const functionUpdatePromises = allFunctions.map((func) => {
+            const funcRsvps = allWeddingRsvps.filter(r => r.function_id === func.id);
             
             let total_pax = 0, total_veg = 0, total_nonveg = 0, total_jain = 0, total_acc = 0;
             let funcConfirmed = 0, funcDeclined = 0, funcPending = 0;
 
-            if (funcRsvps) {
-                for (const r of funcRsvps) {
-                    if (r.status === 'confirmed') funcConfirmed++;
-                    else if (r.status === 'declined') funcDeclined++;
-                    else funcPending++;
+            for (const r of funcRsvps) {
+                if (r.status === 'confirmed') funcConfirmed++;
+                else if (r.status === 'declined') funcDeclined++;
+                else funcPending++;
 
-                    if (r.status !== 'confirmed') continue;
-                    total_pax += r.total_pax || 0;
-                    
-                    if (r.needs_accommodation) {
-                        total_acc += r.total_pax || 1;
-                    }
-
-                    const pref = (r.dietary_preference || "").trim().toLowerCase();
-                    if (pref === "veg" || pref === "vegetarian") total_veg += r.total_pax || 0;
-                    else if (pref === "jain") total_jain += r.total_pax || 0;
-                    else if (pref === "non-veg" || pref === "nonveg") total_nonveg += r.total_pax || 0;
+                if (r.status !== 'confirmed') continue;
+                total_pax += r.total_pax || 0;
+                
+                if (r.needs_accommodation) {
+                    total_acc += r.total_pax || 1;
                 }
+
+                const pref = (r.dietary_preference || "").trim().toLowerCase();
+                if (pref === "veg" || pref === "vegetarian") total_veg += r.total_pax || 0;
+                else if (pref === "jain") total_jain += r.total_pax || 0;
+                else if (pref === "non-veg" || pref === "nonveg") total_nonveg += r.total_pax || 0;
             }
 
-            await supabase.from('wedding_functions').update({
+            return supabase.from('wedding_functions').update({
                 confirmed: funcConfirmed,
                 declined: funcDeclined,
                 pending: funcPending,
@@ -445,7 +468,9 @@ Transcripts:
                 dietary_jain: total_jain,
                 accommodation_needed: total_acc
             }).eq('id', func.id);
-        }
+        });
+
+        await Promise.all(functionUpdatePromises);
     }
 
     // ─── Pass 5: Recalculate Wedding-Level Aggregates ──────────────────

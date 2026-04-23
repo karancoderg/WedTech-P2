@@ -1,12 +1,68 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { encrypt } from "@/lib/encryption";
 import { parseRSVPFromTranscript } from "@/lib/rsvp-parser";
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import crypto from "crypto";
+
+const TABBLY_WEBHOOK_SECRET = process.env.TABBLY_WEBHOOK_SECRET || "";
+
+/**
+ * Verify webhook signature from Tabbly.
+ * Falls back to a shared-secret check if Tabbly doesn't use HMAC signing.
+ */
+function verifyWebhookSignature(body: string, signatureHeader: string | null): boolean {
+  if (!TABBLY_WEBHOOK_SECRET) return false;
+
+  // Option A: HMAC signature verification (preferred)
+  if (signatureHeader) {
+    const expectedSig = crypto
+      .createHmac("sha256", TABBLY_WEBHOOK_SECRET)
+      .update(body)
+      .digest("hex");
+    return crypto.timingSafeEqual(
+      Buffer.from(signatureHeader),
+      Buffer.from(expectedSig)
+    );
+  }
+
+  // Option B: If Tabbly sends the secret as a query param or header token
+  // Adjust this based on Tabbly's actual verification method
+  return false;
+}
 
 export async function POST(req: Request) {
   try {
-    const payload = await req.json();
+    // Rate limit by IP
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rl = checkRateLimit(`webhook:${ip}`, RATE_LIMITS.webhook);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        { status: 429, headers: { "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
+      );
+    }
+
+    // Read raw body for signature verification
+    const rawBody = await req.text();
+
+    // Verify webhook authenticity
+    if (TABBLY_WEBHOOK_SECRET) {
+      const signature = req.headers.get("x-tabbly-signature") || req.headers.get("x-webhook-signature");
+      if (!verifyWebhookSignature(rawBody, signature)) {
+        console.error("[Tabbly Webhook] Invalid or missing signature");
+        return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
+      }
+    } else {
+      // WARN: No webhook secret configured — allowing requests but logging warning
+      console.warn("[Tabbly Webhook] TABBLY_WEBHOOK_SECRET not configured — webhook signature verification is disabled. Set it in .env.local for production.");
+    }
+
+    const payload = JSON.parse(rawBody);
     console.log("Tabbly Webhook Received:", JSON.stringify(payload, null, 2));
+
+    // Use service role client — webhooks don't have user auth context
+    const supabase = createServerSupabaseClient();
 
     const guestId = payload.custom_identifiers;
     const transcript = payload.transcript || payload.summary || "";
@@ -78,19 +134,20 @@ export async function POST(req: Request) {
                     });
                 }
             }
+
+            // Log the communication outcome (with wedding_id — TASK-024 fix)
+            await supabase.from("communication_logs").insert({
+                guest_id: guestId,
+                wedding_id: guest.wedding_id,
+                type: "call_callback",
+                status: payload.status,
+                payload: {
+                    transcript: encrypt(transcript),
+                    parsed: { status, pax, dietary, needsAccommodation }
+                }
+            });
         }
     }
-
-    // Log the communication outcome
-    await supabase.from("communication_logs").insert({
-        guest_id: guestId,
-        type: "call_callback",
-        status: payload.status,
-        payload: {
-            transcript: encrypt(transcript),
-            parsed: { status, pax, dietary, needsAccommodation }
-        }
-    });
 
     return NextResponse.json({ success: true, parsed: { status, pax, dietary } });
 

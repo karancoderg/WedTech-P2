@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { decrypt } from "@/lib/encryption";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder_service_key';
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+import { requireWeddingOwner } from "@/lib/api-auth";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: weddingId } = await params;
+
+  const authResult = await requireWeddingOwner(weddingId);
+  if ("error" in authResult) return authResult.error;
+  const { supabase } = authResult;
 
   const { data, error } = await supabase
     .from("guests")

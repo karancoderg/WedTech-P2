@@ -5,9 +5,9 @@ const IV_LENGTH = 16;
 const TAG_LENGTH = 16;
 
 function getKey(): Buffer {
-  const key = process.env.ENCRYPTION_KEY || 'default-secret-key-fallback-123456789';
-  if (!process.env.ENCRYPTION_KEY) {
-    console.warn("⚠️ WARNING: ENCRYPTION_KEY is missing from your .env file. Using an insecure fallback key.");
+  const key = process.env.ENCRYPTION_KEY;
+  if (!key) {
+    throw new Error("FATAL: ENCRYPTION_KEY environment variable is required but missing. Set it in .env.local");
   }
   // Ensure key is exactly 32 bytes for AES-256
   return crypto.createHash('sha256').update(key).digest();

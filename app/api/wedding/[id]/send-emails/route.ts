@@ -7,6 +7,7 @@ import { z } from "zod";
 import dns from "dns";
 import { promisify } from "util";
 import { encrypt, decrypt } from "@/lib/encryption";
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 const resolveMx = promisify(dns.resolveMx);
 const emailSchema = z.string().email();
@@ -36,6 +37,14 @@ export async function POST(
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const rl = checkRateLimit(`send-emails:${userId}`, RATE_LIMITS.sendEmails);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait before sending more emails." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
+    );
   }
 
   const { id: weddingId } = await params;
@@ -129,10 +138,7 @@ export async function POST(
             }
           }
 
-          // Whitelist Enforcement
-          if (!ALLOWED_DOMAINS.includes(domain)) {
-            throw new Error(`Sending to ${domain} is not supported. Use Gmail, Outlook, Yahoo, or Hotmail.`);
-          }
+          // MX record validation — validates the domain actually accepts email
 
           try {
             const mx = await resolveMx(domain);
