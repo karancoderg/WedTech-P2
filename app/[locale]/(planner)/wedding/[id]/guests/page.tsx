@@ -76,6 +76,24 @@ export default function GuestListPage() {
   const autoSyncTimersRef = useRef<NodeJS.Timeout[]>([]);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // ===== ADDED: bulk call progress state =====
+  const [callProgress, setCallProgress] = useState<{
+    total: number;
+    done: number;
+    failed: number;
+    failedGuests: { guestId: string; reason: string }[];
+    running: boolean;
+  } | null>(null);
+  // ===== END ADDED =====
+
+  // ===== ADDED: sync progress state =====
+  const [syncProgress, setSyncProgress] = useState<{
+    total: number;
+    synced: number;
+    running: boolean;
+  } | null>(null);
+  // ===== END ADDED =====
+
   // Add guest form
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
@@ -411,6 +429,140 @@ export default function GuestListPage() {
 
   // AI Calling
   const [callingGuests, setCallingGuests] = useState(false);
+
+  // ===== ADDED: paginated sync handler =====
+  const handleSyncAllGuests = async (totalGuests: number) => {
+    const BATCH_SIZE = 25;
+    const totalBatches = Math.ceil(totalGuests / BATCH_SIZE);
+
+    setSyncProgress({ total: totalGuests, synced: 0, running: true });
+
+    for (let page = 0; page < totalBatches; page++) {
+      try {
+        const res = await fetch(`/api/wedding/${weddingId}/sync-call-rsvps`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            limit: BATCH_SIZE,
+            offset: page * BATCH_SIZE
+          })
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        setSyncProgress(prev => ({
+          ...prev!,
+          synced: Math.min((page + 1) * BATCH_SIZE, totalGuests)
+        }));
+
+        // If server says no more records, stop early
+        if (data.hasMore === false) break;
+
+      } catch {
+        // Continue to next batch on network error
+      }
+
+      // Breathing room between batches
+      await new Promise(r => setTimeout(r, 500));
+    }
+
+    setSyncProgress(prev => prev ? { ...prev, running: false } : null);
+    fetchData();
+  };
+  // ===== END ADDED =====
+
+  // ===== ADDED: chunked bulk call handler =====
+  const handleAICallChunked = async (targetGuestIds: string[]) => {
+    let idsToCall = targetGuestIds.filter(id => {
+      const guest = guests.find(g => g.id === id);
+      return guest?.call_status !== "responded";
+    });
+
+    if (idsToCall.length === 0) {
+      toast.info("All selected guests have already responded. No calls needed.");
+      return;
+    }
+
+    setCallingGuests(true);
+    setCallProgress({
+      total: idsToCall.length,
+      done: 0,
+      failed: 0,
+      failedGuests: [],
+      running: true
+    });
+
+    const chunkSize = 5;
+    let totalDone = 0;
+    let totalFailed = 0;
+    const allFailedGuests: { guestId: string; reason: string }[] = [];
+
+    for (let i = 0; i < idsToCall.length; i += chunkSize) {
+      const chunk = idsToCall.slice(i, i + chunkSize);
+      
+      try {
+        const response = await fetch(`/api/wedding/${weddingId}/ai-call`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ guestIds: chunk }),
+        });
+        
+        let result;
+        try {
+          result = await response.json();
+        } catch (e) {
+          result = {};
+        }
+        
+        if (response.ok && result.success) {
+          const successCount = Array.isArray(result.successful) ? result.successful.length : (typeof result.successful === 'number' ? result.successful : chunk.length);
+          const failCount = Array.isArray(result.failed) ? result.failed.length : (typeof result.failed === 'number' ? result.failed : 0);
+          totalDone += successCount;
+          totalFailed += failCount;
+        } else {
+          totalFailed += chunk.length;
+          chunk.forEach(id => {
+            allFailedGuests.push({ guestId: id, reason: result?.error || "Server error" });
+          });
+        }
+      } catch (error: any) {
+        totalFailed += chunk.length;
+        chunk.forEach(id => {
+          allFailedGuests.push({ guestId: id, reason: "Network error" });
+        });
+      }
+
+      setCallProgress(prev => prev ? {
+        ...prev,
+        done: totalDone,
+        failed: totalFailed,
+        failedGuests: allFailedGuests
+      } : null);
+      
+      if (i + chunkSize < idsToCall.length) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+
+    setCallProgress(prev => prev ? { ...prev, running: false } : null);
+    setCallingGuests(false);
+    fetchData();
+
+    // ===== ADDED: auto-trigger paginated sync after all calls initiated =====
+    // Wait 3 minutes for Tabbly to complete calls, then auto-sync
+    const calledCount = idsToCall.length;
+    setTimeout(() => {
+      handleSyncAllGuests(calledCount);
+    }, 180000); // 3 minutes
+
+    toast.info(
+      "⏱️ Auto-sync will start in 3 minutes to capture RSVP responses",
+      { duration: 6000 }
+    );
+    // ===== END ADDED =====
+  };
+  // ===== END ADDED =====
+
   async function handleAICall(targetGuestIds?: string[]) {
     const rawIds = targetGuestIds || Array.from(selectedIds);
     // Filter out guests who already responded — never re-call them
@@ -442,8 +594,10 @@ export default function GuestListPage() {
       }
       
       if (response.ok && result?.success) {
-        const parts = [`🤖 Initiated ${result.successful} AI calls!`];
-        if (result.failed > 0) parts.push(`${result.failed} failed.`);
+        const succCount = Array.isArray(result.successful) ? result.successful.length : result.successful;
+        const failCount = Array.isArray(result.failed) ? result.failed.length : result.failed;
+        const parts = [`🤖 Initiated ${succCount} AI calls!`];
+        if (failCount > 0) parts.push(`${failCount} failed.`);
         if (result.skipped > 0) parts.push(`${result.skipped} skipped (already responded).`);
         toast.success(parts.join(" "), { id: toastId });
         if (!targetGuestIds) setSelectedIds(new Set());
@@ -702,6 +856,7 @@ export default function GuestListPage() {
             <span className="material-symbols-outlined text-xl">upload_file</span>
             Import List
           </button>
+
           <input 
             ref={csvRef} 
             type="file" 
@@ -1179,7 +1334,16 @@ export default function GuestListPage() {
                 <span className="material-symbols-outlined text-lg">group_add</span>
                 Group
               </button>
-
+              <button
+                onClick={() => Array.from(selectedIds).length > 1 ? handleAICallChunked(Array.from(selectedIds)) : handleAICall(Array.from(selectedIds))}
+                disabled={callingGuests}
+                className="px-3 py-2 hover:bg-purple-500/10 text-purple-400 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-lg">
+                  {callingGuests ? "sync" : "call"}
+                </span>
+                {callingGuests ? "Calling..." : "AI Call"}
+              </button>
             </div>
           </div>
         </div>
@@ -1496,6 +1660,89 @@ export default function GuestListPage() {
           </div>
         </div>
       )}
+      {/* ===== ADDED: Bulk Call Progress Card ===== */}
+      {callProgress && callProgress.total > 1 && (
+        <div className="fixed bottom-32 md:bottom-24 left-1/2 -translate-x-1/2 w-[90%] md:w-full max-w-md z-[200]">
+          <div className="bg-white p-4 rounded-xl shadow-2xl border border-slate-100 flex flex-col gap-2">
+            <div className="flex justify-between items-center mb-1">
+              <h4 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                {callProgress.running ? (
+                  <span className="material-symbols-outlined text-purple-600 animate-spin text-[18px]">sync</span>
+                ) : (
+                  <span className="material-symbols-outlined text-green-500 text-[18px]">check_circle</span>
+                )}
+                {callProgress.running ? "Initiating Calls..." : "Calls Initiated"}
+              </h4>
+              <span className="text-xs font-bold text-slate-500">
+                {callProgress.done} / {callProgress.total}
+              </span>
+            </div>
+            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+              <div 
+                className={`h-full transition-all duration-300 ${callProgress.running ? 'bg-purple-600' : 'bg-green-500'}`} 
+                style={{ width: `${(callProgress.done / callProgress.total) * 100}%` }}
+              />
+            </div>
+            {callProgress.failed > 0 && (
+              <p className="text-[10px] text-red-500 font-medium mt-1">
+                {callProgress.failed} call(s) could not be initiated.
+              </p>
+            )}
+            {!callProgress.running && (
+              <button onClick={() => setCallProgress(null)} className="mt-2 text-xs font-bold text-slate-500 hover:text-slate-700 w-full py-1">
+                Dismiss
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {/* ===== END ADDED ===== */}
+
+      {/* ===== ADDED: sync progress card ===== */}
+      {syncProgress && (
+        <div className="fixed bottom-6 left-6 bg-white border border-gray-200 shadow-xl rounded-xl p-5 w-80 z-50">
+          <div className="flex items-center justify-between mb-3">
+            <p className="font-semibold text-gray-800">
+              {syncProgress.running ? "🔄 Syncing RSVPs..." : "✅ Sync Complete"}
+            </p>
+            {!syncProgress.running && (
+              <button
+                onClick={() => setSyncProgress(null)}
+                className="text-gray-400 hover:text-gray-600 text-sm"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {syncProgress.running && (
+             <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 mb-3 text-xs text-blue-800">
+               ⏳ Processing in batches of 25 — please wait
+             </div>
+          )}
+
+          <div className="w-full bg-gray-100 rounded-full h-2 mb-2">
+            <div
+              className="bg-green-500 h-2 rounded-full transition-all duration-500"
+              style={{
+                width: `${syncProgress.total > 0
+                  ? (syncProgress.synced / syncProgress.total) * 100
+                  : 0}%`
+              }}
+            />
+          </div>
+
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-500">
+              {syncProgress.synced} / {syncProgress.total} guests synced
+            </span>
+            {!syncProgress.running && syncProgress.synced === syncProgress.total && (
+              <span className="text-green-600 font-medium">All done ✓</span>
+            )}
+          </div>
+        </div>
+      )}
+      {/* ===== END ADDED ===== */}
     </div>
   );
 }

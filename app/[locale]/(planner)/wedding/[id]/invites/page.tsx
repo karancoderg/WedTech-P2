@@ -77,8 +77,19 @@ export default function InvitesPage() {
   const [guestGroups, setGuestGroups] = useState<{ id: string; name: string }[]>([]);
   const [functions, setFunctions] = useState<WeddingFunction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isSyncing, setIsSyncing] = useState(false);
+
   const [callingGuests, setCallingGuests] = useState(false);
+  
+  // ===== ADDED: bulk call progress state =====
+  const [callProgress, setCallProgress] = useState<{
+    total: number;
+    done: number;
+    failed: number;
+    failedGuests: { guestId: string; reason: string }[];
+    running: boolean;
+  } | null>(null);
+  // ===== END ADDED =====
+
   const [sendingEmails, setSendingEmails] = useState(false);
   const [showBulkEmailDialog, setShowBulkEmailDialog] = useState(false);
   const [guestsWithEmail, setGuestsWithEmail] = useState<Guest[]>([]);
@@ -90,6 +101,14 @@ export default function InvitesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 50;
   const [isDesignModalOpen, setIsDesignModalOpen] = useState(false);
+
+  // ===== ADDED: sync progress state =====
+  const [syncProgress, setSyncProgress] = useState<{
+    total: number;
+    synced: number;
+    running: boolean;
+  } | null>(null);
+  // ===== END ADDED =====
 
   const sideColors: Record<string, { bg: string; text: string }> = {
     bride: { bg: "bg-pink-50 border-pink-200", text: "text-pink-600" },
@@ -177,36 +196,138 @@ export default function InvitesPage() {
     toast.success("🔗 Invite link copied!");
   }
 
-  async function handleSyncRSVPs() {
-    setIsSyncing(true);
-    try {
-      const res = await fetch(`/api/wedding/${weddingId}/sync-call-rsvps`, {
-        method: "POST",
-      });
-      
-      let data;
+  // ===== ADDED: paginated sync handler =====
+  const handleSyncAllGuests = async (totalGuests: number) => {
+    const BATCH_SIZE = 25;
+    const totalBatches = Math.ceil(totalGuests / BATCH_SIZE);
+
+    setSyncProgress({ total: totalGuests, synced: 0, running: true });
+
+    for (let page = 0; page < totalBatches; page++) {
       try {
-        data = await res.json();
-      } catch (e) {
-        if (!res.ok) throw new Error("Server communication failed.");
+        const res = await fetch(`/api/wedding/${weddingId}/sync-call-rsvps`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            limit: BATCH_SIZE,
+            offset: page * BATCH_SIZE
+          })
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        setSyncProgress(prev => ({
+          ...prev!,
+          synced: Math.min((page + 1) * BATCH_SIZE, totalGuests)
+        }));
+
+        // If server says no more records, stop early
+        if (data.hasMore === false) break;
+
+      } catch {
+        // Continue to next batch on network error
       }
 
-      if (res.ok && data?.success) {
-        toast.success(data.message || "RSVPs synced successfully!");
-        fetchData();
-      } else {
-        toast.error(data?.error || "Failed to sync RSVPs");
-      }
-    } catch (error: any) {
-      if (typeof window !== "undefined" && !navigator.onLine || error?.message?.includes("Failed to fetch") || error?.message?.includes("Load failed") || error?.message?.includes("NetworkError")) {
-        toast.error("No internet connection. Please check your network.");
-      } else {
-        toast.error(error?.message || "Error syncing RSVPs");
-      }
-    } finally {
-      setIsSyncing(false);
+      // Breathing room between batches
+      await new Promise(r => setTimeout(r, 500));
     }
-  }
+
+    setSyncProgress(prev => prev ? { ...prev, running: false } : null);
+    fetchData();
+  };
+  // ===== END ADDED =====
+
+  // ===== ADDED: chunked bulk call handler =====
+  const handleAICallChunked = async (targetGuestIds: string[]) => {
+    let idsToCall = targetGuestIds.filter(id => {
+      const g = guests.find(guest => guest.id === id);
+      return g && !cannotCallGuest(g);
+    });
+
+    if (idsToCall.length === 0) {
+      toast.error("No eligible guests to call (they may have already responded).");
+      return;
+    }
+
+    setCallingGuests(true);
+    setCallProgress({
+      total: idsToCall.length,
+      done: 0,
+      failed: 0,
+      failedGuests: [],
+      running: true
+    });
+
+    const chunkSize = 5;
+    let totalDone = 0;
+    let totalFailed = 0;
+    const allFailedGuests: { guestId: string; reason: string }[] = [];
+
+    for (let i = 0; i < idsToCall.length; i += chunkSize) {
+      const chunk = idsToCall.slice(i, i + chunkSize);
+      
+      try {
+        const response = await fetch(`/api/wedding/${weddingId}/ai-call`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ guestIds: chunk }),
+        });
+        
+        let result;
+        try {
+          result = await response.json();
+        } catch (e) {
+          result = {};
+        }
+        
+        if (response.ok && result.success) {
+          const successCount = Array.isArray(result.successful) ? result.successful.length : (typeof result.successful === 'number' ? result.successful : chunk.length);
+          const failCount = Array.isArray(result.failed) ? result.failed.length : (typeof result.failed === 'number' ? result.failed : 0);
+          totalDone += successCount;
+          totalFailed += failCount;
+        } else {
+          totalFailed += chunk.length;
+          chunk.forEach(id => {
+            allFailedGuests.push({ guestId: id, reason: result?.error || "Server error" });
+          });
+        }
+      } catch (error: any) {
+        totalFailed += chunk.length;
+        chunk.forEach(id => {
+          allFailedGuests.push({ guestId: id, reason: "Network error" });
+        });
+      }
+
+      setCallProgress(prev => prev ? {
+        ...prev,
+        done: totalDone,
+        failed: totalFailed,
+        failedGuests: allFailedGuests
+      } : null);
+      
+      if (i + chunkSize < idsToCall.length) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+
+    setCallProgress(prev => prev ? { ...prev, running: false } : null);
+    setCallingGuests(false);
+    fetchData();
+
+    // ===== ADDED: auto-trigger paginated sync after all calls initiated =====
+    // Wait 3 minutes for Tabbly to complete calls, then auto-sync
+    const calledCount = idsToCall.length;
+    setTimeout(() => {
+      handleSyncAllGuests(calledCount);
+    }, 180000); // 3 minutes
+
+    toast.info(
+      "⏱️ Auto-sync will start in 3 minutes to capture RSVP responses",
+      { duration: 6000 }
+    );
+    // ===== END ADDED =====
+  };
+  // ===== END ADDED =====
 
   async function handleAICall(targetGuestIds?: string[]) {
     let idsToCall = targetGuestIds || pendingGuests.map((g) => g.id);
@@ -239,7 +360,9 @@ export default function InvitesPage() {
       }
 
       if (response.ok && result?.success) {
-        toast.success(`🤖 Initiated ${result.successful} AI calls! ${result.failed > 0 ? `${result.failed} failed.` : ""}`, { id: toastId });
+        const succCount = Array.isArray(result.successful) ? result.successful.length : result.successful;
+        const failCount = Array.isArray(result.failed) ? result.failed.length : result.failed;
+        toast.success(`🤖 Initiated ${succCount} AI calls! ${failCount > 0 ? `${failCount} failed.` : ""}`, { id: toastId });
         fetchData();
       } else {
         toast.error(`Error: ${result?.error || "Failed to trigger calls"}`, { id: toastId });
@@ -362,12 +485,12 @@ export default function InvitesPage() {
             Change Design
           </button>
           <button
-            onClick={handleSyncRSVPs}
-            disabled={isSyncing}
+            onClick={() => handleSyncAllGuests(guests.length)}
+            disabled={syncProgress?.running}
             className="flex items-center justify-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-semibold hover:bg-primary/20 transition-colors disabled:opacity-50"
           >
-            <span className={`material-symbols-outlined text-[20px] ${isSyncing ? 'animate-spin' : ''}`}>sync</span>
-            {isSyncing ? "Syncing..." : "Sync RSVPs"}
+            <span className={`material-symbols-outlined text-[20px] ${syncProgress?.running ? 'animate-spin' : ''}`}>sync</span>
+            {syncProgress?.running ? "Syncing RSVPs..." : "Sync RSVPs"}
           </button>
         </div>
       </header>
@@ -444,7 +567,7 @@ export default function InvitesPage() {
             color: 'text-purple-600',
             bg: 'bg-[#F3E8FF]',
             btnText: `Call ${remainingToCall.length}`,
-            action: () => handleAICall(remainingToCall.map((g) => g.id)),
+            action: () => remainingToCall.length > 1 ? handleAICallChunked(remainingToCall.map((g) => g.id)) : handleAICall(remainingToCall.map((g) => g.id)),
             disabled: callingGuests || remainingToCall.length === 0,
             isLoading: callingGuests
           },
@@ -898,7 +1021,7 @@ export default function InvitesPage() {
                 Clear
               </button>
               <button
-                onClick={() => handleAICall(Array.from(selectedIds))}
+                onClick={() => Array.from(selectedIds).length > 1 ? handleAICallChunked(Array.from(selectedIds)) : handleAICall(Array.from(selectedIds))}
                 disabled={callingGuests}
                 className="flex-1 lg:flex-none px-2 lg:px-3 py-2 bg-purple-600 text-white rounded-lg font-bold text-[10px] lg:text-xs flex items-center justify-center gap-1 lg:gap-1.5 hover:bg-purple-700 transition-all disabled:opacity-50 font-body"
               >
@@ -1046,6 +1169,89 @@ export default function InvitesPage() {
           </div>
         </div>
       )}
+      {/* ===== ADDED: Bulk Call Progress Card ===== */}
+      {callProgress && callProgress.total > 1 && (
+        <div className="fixed bottom-32 md:bottom-24 left-1/2 -translate-x-1/2 w-[90%] md:w-full max-w-md z-[200]">
+          <div className="bg-white p-4 rounded-xl shadow-2xl border border-slate-100 flex flex-col gap-2">
+            <div className="flex justify-between items-center mb-1">
+              <h4 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                {callProgress.running ? (
+                  <span className="material-symbols-outlined text-purple-600 animate-spin text-[18px]">sync</span>
+                ) : (
+                  <span className="material-symbols-outlined text-green-500 text-[18px]">check_circle</span>
+                )}
+                {callProgress.running ? "Initiating Calls..." : "Calls Initiated"}
+              </h4>
+              <span className="text-xs font-bold text-slate-500">
+                {callProgress.done} / {callProgress.total}
+              </span>
+            </div>
+            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+              <div 
+                className={`h-full transition-all duration-300 ${callProgress.running ? 'bg-purple-600' : 'bg-green-500'}`} 
+                style={{ width: `${(callProgress.done / callProgress.total) * 100}%` }}
+              />
+            </div>
+            {callProgress.failed > 0 && (
+              <p className="text-[10px] text-red-500 font-medium mt-1">
+                {callProgress.failed} call(s) could not be initiated.
+              </p>
+            )}
+            {!callProgress.running && (
+              <button onClick={() => setCallProgress(null)} className="mt-2 text-xs font-bold text-slate-500 hover:text-slate-700 w-full py-1">
+                Dismiss
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {/* ===== END ADDED ===== */}
+
+      {/* ===== ADDED: sync progress card ===== */}
+      {syncProgress && (
+        <div className="fixed bottom-6 left-6 bg-white border border-gray-200 shadow-xl rounded-xl p-5 w-80 z-50">
+          <div className="flex items-center justify-between mb-3">
+            <p className="font-semibold text-gray-800">
+              {syncProgress.running ? "🔄 Syncing RSVPs..." : "✅ Sync Complete"}
+            </p>
+            {!syncProgress.running && (
+              <button
+                onClick={() => setSyncProgress(null)}
+                className="text-gray-400 hover:text-gray-600 text-sm"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {syncProgress.running && (
+             <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 mb-3 text-xs text-blue-800">
+               ⏳ Processing in batches of 25 — please wait
+             </div>
+          )}
+
+          <div className="w-full bg-gray-100 rounded-full h-2 mb-2">
+            <div
+              className="bg-green-500 h-2 rounded-full transition-all duration-500"
+              style={{
+                width: `${syncProgress.total > 0
+                  ? (syncProgress.synced / syncProgress.total) * 100
+                  : 0}%`
+              }}
+            />
+          </div>
+
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-500">
+              {syncProgress.synced} / {syncProgress.total} guests synced
+            </span>
+            {!syncProgress.running && syncProgress.synced === syncProgress.total && (
+              <span className="text-green-600 font-medium">All done ✓</span>
+            )}
+          </div>
+        </div>
+      )}
+      {/* ===== END ADDED ===== */}
     </div>
   );
 }
