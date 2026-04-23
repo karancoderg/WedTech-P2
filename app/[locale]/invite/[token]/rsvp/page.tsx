@@ -143,6 +143,7 @@ export default function RSVPFormPage() {
         responses,
         guestDietaryPreferences,
         needsAccommodation,
+        accommodationCount,
         globalChildrenCount,
         additionalGuests: validAdditionalGuests
       };

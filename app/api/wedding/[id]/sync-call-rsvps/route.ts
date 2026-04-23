@@ -448,14 +448,44 @@ Transcripts:
                 if (r.status !== 'confirmed') continue;
                 total_pax += r.total_pax || 0;
                 
-                if (r.needs_accommodation) {
-                    total_acc += r.total_pax || 1;
+                const rawPref = (r.dietary_preference || "").trim();
+                let pref = rawPref;
+                let isGeminiParsed = false;
+                let geminiData: any = null;
+                let accCount = 1; // Default: 1 accommodation per guest (not total_pax)
+
+                if (rawPref.startsWith("{")) {
+                    try {
+                        const parsed = JSON.parse(rawPref);
+                        if (parsed._isGeminiParams) {
+                            isGeminiParsed = true;
+                            geminiData = parsed;
+                        } else if (parsed.acc !== undefined) {
+                            pref = parsed.pref || "";
+                            accCount = parsed.acc;
+                        }
+                    } catch (e) {}
                 }
 
-                const pref = (r.dietary_preference || "").trim().toLowerCase();
-                if (pref === "veg" || pref === "vegetarian") total_veg += r.total_pax || 0;
-                else if (pref === "jain") total_jain += r.total_pax || 0;
-                else if (pref === "non-veg" || pref === "nonveg") total_nonveg += r.total_pax || 0;
+                if (r.needs_accommodation) {
+                    if (isGeminiParsed && geminiData.accommodationCount !== undefined) {
+                        total_acc += geminiData.accommodationCount;
+                    } else {
+                        total_acc += accCount;
+                    }
+                }
+
+                if (isGeminiParsed) {
+                    total_veg += geminiData.veg || 0;
+                    total_jain += geminiData.jain || 0;
+                    total_nonveg += geminiData.nonveg || 0;
+                } else {
+                    // Count 1 explicit preference per guest, not multiplied by total_pax
+                    const prefLower = pref.toLowerCase();
+                    if (prefLower === "veg" || prefLower === "vegetarian") total_veg += 1;
+                    else if (prefLower === "jain") total_jain += 1;
+                    else if (prefLower === "non-veg" || prefLower === "nonveg") total_nonveg += 1;
+                }
             }
 
             return supabase.from('wedding_functions').update({

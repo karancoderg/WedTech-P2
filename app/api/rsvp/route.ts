@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
       responses, // Record<guestId, Array<{functionId, status}>>
       guestDietaryPreferences, // Record<guestId, string>
       needsAccommodation,
+      accommodationCount,
       globalChildrenCount,
       additionalGuests // Array<{name, phone, dietaryPreference}>
     } = body;
@@ -123,10 +124,13 @@ export async function POST(req: NextRequest) {
 
       for (const resp of guestResponses) {
         if (resp.status !== "confirmed") allConfirmed = false;
-        if (resp.status !== "declined") allDeclined = false;
-
-        const totalPax = resp.status === "confirmed" ? 1 + (isPrimary ? globalChildrenCount : 0) : 0;
+        if (resp.status !== "declined") allDeclined = false;f
         
+        const dietary_preference = resp.status === "confirmed" ? guestDietaryPreferences[guestId] || null : null;
+        // Accommodation: only the primary guest carries the accommodation flag.
+        // Additional guests should NOT duplicate the accommodation request.
+        const needs_acc = isPrimary && resp.status === "confirmed" && needsAccommodation === true;
+
         rsvpsToUpsert.push({
           wedding_id: weddingId,
           guest_id: guestId,
@@ -136,8 +140,8 @@ export async function POST(req: NextRequest) {
           plus_ones: 0,
           children: isPrimary && resp.status === "confirmed" ? globalChildrenCount : 0,
           total_pax: totalPax,
-          dietary_preference: resp.status === "confirmed" ? guestDietaryPreferences[guestId] || null : null,
-          needs_accommodation: resp.status === "confirmed" && needsAccommodation === true,
+          dietary_preference: dietary_preference,
+          needs_accommodation: needs_acc,
           responded_at: new Date().toISOString(),
         });
       }
