@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import * as XLSX from "xlsx";
 import { auth } from "@clerk/nextjs/server";
+import { decrypt } from "@/lib/encryption";
 
 export async function GET(
   request: NextRequest,
@@ -46,8 +47,20 @@ export async function GET(
       const guestRsvps = rsvps.filter((r) => r.guest_id === guest.id);
       const row: Record<string, string | number | boolean> = {
         Name: guest.name,
-        Phone: guest.phone,
-        Email: guest.email || "",
+        Phone: (() => {
+          if (!guest.phone) return "";
+          if (guest.phone.includes(":")) {
+            try { return decrypt(guest.phone); } catch { return "***"; }
+          }
+          return guest.phone;
+        })(),
+        Email: (() => {
+          if (!guest.email) return "";
+          if (guest.email.includes(":")) {
+            try { return decrypt(guest.email); } catch { return "***"; }
+          }
+          return guest.email;
+        })(),
         Side: guest.side,
         Tags: (guest.tags || []).join(", "),
         "Overall Status": guest.overall_status,
@@ -88,7 +101,8 @@ export async function GET(
     const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
 
     // Return as downloadable file
-    const filename = `${wedding.wedding_name.replace(/\s/g, "_")}_GuestReport.xlsx`;
+    const safeName = wedding.wedding_name.replace(/[^a-zA-Z0-9_\- ]/g, "_").slice(0, 50);
+    const filename = `${safeName.replace(/\s/g, "_")}_GuestReport.xlsx`;
 
     return new NextResponse(buffer, {
       headers: {

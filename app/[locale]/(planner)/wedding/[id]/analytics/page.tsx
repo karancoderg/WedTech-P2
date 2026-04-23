@@ -77,33 +77,47 @@ export default function AnalyticsPage() {
   let notSureCount = 0;
   let accommodationHeadcount = 0;
 
+  const processedGuestsForStats = new Set<string>();
+
   rsvps.filter((r) => r.status === "confirmed").forEach((r) => {
-    const pref = (r.dietary_preference || "").trim();
+    if (processedGuestsForStats.has(r.guest_id)) return;
+    processedGuestsForStats.add(r.guest_id);
+
+    const rawPref = (r.dietary_preference || "").trim();
+    let pref = rawPref;
     let isGeminiParsed = false;
     let geminiData: any = null;
+    let accCount = 1; // Default: 1 accommodation per guest (not total_pax)
 
-    if (pref.startsWith("{")) {
+    if (rawPref.startsWith("{")) {
       try {
-        const parsed = JSON.parse(pref);
+        const parsed = JSON.parse(rawPref);
         if (parsed._isGeminiParams) {
           isGeminiParsed = true;
           geminiData = parsed;
+        } else if (parsed.acc !== undefined) {
+          pref = parsed.pref || "";
+          accCount = parsed.acc;
         }
       } catch (e) {
         // Fallback
       }
     }
 
-    // Accommodation
+    // Accommodation: count explicit accommodationCount, or 1 per guest
     if (r.needs_accommodation) {
       if (isGeminiParsed && geminiData.accommodationCount !== undefined) {
         accommodationHeadcount += geminiData.accommodationCount;
       } else {
-        accommodationHeadcount += r.total_pax;
+        accommodationHeadcount += accCount;
       }
     }
 
-    // Dietary
+    // Dietary: count 1 explicit preference per guest.
+    // Remaining pax (children/family) are counted as "Not Specified"
+    // since the DB only stores 1 dietary value per guest.
+    const extraPax = Math.max(0, (r.total_pax || 1) - 1);
+
     if (isGeminiParsed) {
       vegCount += geminiData.veg || 0;
       jainCount += geminiData.jain || 0;
@@ -111,15 +125,19 @@ export default function AnalyticsPage() {
     } else {
       const prefLower = pref.toLowerCase();
       if (!prefLower) {
-        notSureCount += r.total_pax;
+        // No preference set — count entire pax as "not sure"
+        notSureCount += (r.total_pax || 1);
       } else if (prefLower === "veg" || prefLower === "vegetarian") {
-        vegCount += r.total_pax;
+        vegCount += 1;
+        notSureCount += extraPax;
       } else if (prefLower === "jain") {
-        jainCount += r.total_pax;
+        jainCount += 1;
+        notSureCount += extraPax;
       } else if (prefLower === "non-veg" || prefLower === "nonveg") {
-        nonVegCount += r.total_pax;
+        nonVegCount += 1;
+        notSureCount += extraPax;
       } else {
-        notSureCount += r.total_pax;
+        notSureCount += (r.total_pax || 1);
       }
     }
   });

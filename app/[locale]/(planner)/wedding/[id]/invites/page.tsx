@@ -127,10 +127,16 @@ export default function InvitesPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-  const pendingGuests = guests.filter((g: Guest) => !g.invite_sent_at);
-  const sentGuests = guests.filter((g: Guest) => g.invite_sent_at);
-  const pendingRsvpGuests = guests.filter((g: Guest) => g.invite_sent_at && g.overall_status === "pending");
+  // A guest is "sent" if they got an invite link, an AI call was initiated, or they have already RSVPed
+  const isSent = (g: Guest) => !!g.invite_sent_at || !!g.call_initiated_at || g.overall_status === "confirmed" || g.overall_status === "declined";
+  const pendingGuests = guests.filter((g: Guest) => !isSent(g));
+  const sentGuests = guests.filter(isSent);
+  const pendingRsvpGuests = guests.filter((g: Guest) => isSent(g) && g.overall_status === "pending");
   const confirmedGuests = guests.filter((g: Guest) => g.overall_status === "confirmed");
+  
+  const remainingToCall = guests.filter((g: Guest) => g.call_status !== "responded" && g.overall_status !== "confirmed" && g.overall_status !== "declined");
+  const respondedCalls = guests.filter((g: Guest) => g.call_status === "responded" || g.overall_status === "confirmed" || g.overall_status === "declined");
+  const cannotCallGuest = (g: Guest) => g.call_status === "responded" || g.overall_status === "confirmed" || g.overall_status === "declined";
 
   const filteredGuests = (filter === "all" ? guests : filter === "pending" ? pendingGuests : sentGuests)
     .filter((g: Guest) => searchQuery
@@ -203,8 +209,19 @@ export default function InvitesPage() {
   }
 
   async function handleAICall(targetGuestIds?: string[]) {
-    const idsToCall = targetGuestIds || pendingGuests.map((g) => g.id);
-    if (idsToCall.length === 0) return;
+    let idsToCall = targetGuestIds || pendingGuests.map((g) => g.id);
+    
+    // Filter out guests who have already responded to calls
+    idsToCall = idsToCall.filter(id => {
+      const g = guests.find(guest => guest.id === id);
+      return g && !cannotCallGuest(g);
+    });
+
+    if (idsToCall.length === 0) {
+      toast.error("No eligible guests to call (they may have already responded).");
+      return;
+    }
+
     setCallingGuests(true);
     const toastId = toast.loading(`Initiating AI call${idsToCall.length > 1 ? "s" : ""} to ${idsToCall.length} guest${idsToCall.length > 1 ? "s" : ""}...`);
     try {
@@ -422,13 +439,13 @@ export default function InvitesPage() {
           {
             id: 'calls',
             title: 'AI Voice Calls',
-            desc: 'Auto-collect RSVPs',
+            desc: `${respondedCalls.length} guest${respondedCalls.length === 1 ? '' : 's'} responded`,
             icon: 'record_voice_over',
             color: 'text-purple-600',
             bg: 'bg-[#F3E8FF]',
-            btnText: `Call ${pendingRsvpGuests.length}`,
-            action: () => handleAICall(pendingRsvpGuests.map((g) => g.id)),
-            disabled: callingGuests || pendingRsvpGuests.length === 0,
+            btnText: `Call ${remainingToCall.length}`,
+            action: () => handleAICall(remainingToCall.map((g) => g.id)),
+            disabled: callingGuests || remainingToCall.length === 0,
             isLoading: callingGuests
           },
           {
@@ -541,15 +558,23 @@ export default function InvitesPage() {
                     <div className="min-w-0 flex flex-col gap-0.5">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <p className="font-body font-bold text-[13px] text-on-surface truncate leading-tight">{guest.name}</p>
-                        {guest.overall_status === "confirmed" ? (
-                          <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 text-[8px] font-black rounded border border-emerald-100 uppercase tracking-tighter">Confirmed</span>
-                        ) : guest.overall_status === "declined" ? (
-                          <span className="px-1.5 py-0.5 bg-red-50 text-red-700 text-[8px] font-black rounded border border-red-100 uppercase tracking-tighter">Declined</span>
-                        ) : !guest.invite_sent_at ? (
-                          <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[8px] font-black rounded border border-amber-100 uppercase tracking-tighter">Not Sent</span>
-                        ) : (
-                          <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 text-[8px] font-black rounded border border-blue-100 uppercase tracking-tighter">Awaiting</span>
-                        )}
+                        <div className="flex items-center gap-1">
+                          {guest.overall_status === "confirmed" ? (
+                            <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 text-[8px] font-black rounded border border-emerald-100 uppercase tracking-tighter">Confirmed</span>
+                          ) : guest.overall_status === "declined" ? (
+                            <span className="px-1.5 py-0.5 bg-red-50 text-red-700 text-[8px] font-black rounded border border-red-100 uppercase tracking-tighter">Declined</span>
+                          ) : !isSent(guest) ? (
+                            <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[8px] font-black rounded border border-amber-100 uppercase tracking-tighter">Not Sent</span>
+                          ) : (
+                            <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 text-[8px] font-black rounded border border-blue-100 uppercase tracking-tighter">Awaiting</span>
+                          )}
+                          
+                          {guest.call_status === "responded" ? (
+                            <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 text-[8px] font-black rounded border border-emerald-100 uppercase tracking-tighter flex items-center gap-0.5" title="Call Responded"><span className="material-symbols-outlined text-[10px]">phone_in_talk</span>Ans</span>
+                          ) : guest.call_status === "not_responded" ? (
+                            <span className="px-1.5 py-0.5 bg-red-50 text-red-700 text-[8px] font-black rounded border border-red-100 uppercase tracking-tighter flex items-center gap-0.5" title="Call Missed/Unanswered"><span className="material-symbols-outlined text-[10px]">phone_missed</span>Miss</span>
+                          ) : null}
+                        </div>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <p className="text-[10px] text-outline font-medium truncate">{guest.phone || "No phone"}</p>
@@ -591,9 +616,9 @@ export default function InvitesPage() {
 
                     <button
                       onClick={() => handleAICall([guest.id])}
-                      disabled={callingGuests}
-                      className="p-1.5 text-purple-600/60 hover:text-purple-600 transition-all active:scale-90"
-                      title="AI Voice Call"
+                      disabled={callingGuests || cannotCallGuest(guest)}
+                      className={`p-1.5 transition-all active:scale-90 ${cannotCallGuest(guest) ? "text-slate-300 cursor-not-allowed" : "text-purple-600/60 hover:text-purple-600"}`}
+                      title={cannotCallGuest(guest) ? "Already responded" : "AI Voice Call"}
                     >
                       <span className="material-symbols-outlined text-[18px]">call</span>
                     </button>
@@ -673,15 +698,27 @@ export default function InvitesPage() {
                           </div>
                         </td>
                         <td className="px-4 py-5 font-body">
-                          {guest.overall_status === "confirmed" ? (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-full border border-emerald-100 uppercase tracking-tighter">Confirmed</span>
-                          ) : guest.overall_status === "declined" ? (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 text-xs font-bold rounded-full border border-red-100 uppercase tracking-tighter">Declined</span>
-                          ) : !guest.invite_sent_at ? (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 text-xs font-bold rounded-full border border-amber-100 uppercase tracking-tighter">Not Sent</span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full border border-blue-100 uppercase tracking-tighter">Awaiting</span>
-                          )}
+                          <div className="flex flex-col gap-1.5 items-start">
+                            {guest.overall_status === "confirmed" ? (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-full border border-emerald-100 uppercase tracking-tighter">Confirmed</span>
+                            ) : guest.overall_status === "declined" ? (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 text-xs font-bold rounded-full border border-red-100 uppercase tracking-tighter">Declined</span>
+                            ) : !isSent(guest) ? (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 text-xs font-bold rounded-full border border-amber-100 uppercase tracking-tighter">Not Sent</span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full border border-blue-100 uppercase tracking-tighter">Awaiting</span>
+                            )}
+                            
+                            {guest.call_status === "responded" ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded border border-emerald-100 uppercase tracking-tighter" title="Call Responded">
+                                <span className="material-symbols-outlined text-[12px]">phone_in_talk</span> Answered
+                              </span>
+                            ) : guest.call_status === "not_responded" ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-red-50 text-red-700 text-[10px] font-bold rounded border border-red-100 uppercase tracking-tighter" title="Call Missed/Unanswered">
+                                <span className="material-symbols-outlined text-[12px]">phone_missed</span> Missed
+                              </span>
+                            ) : null}
+                          </div>
                         </td>
                         <td className="px-4 py-5 text-sm text-on-surface-variant font-medium">
                           {guest.phone || "—"}
@@ -714,9 +751,9 @@ export default function InvitesPage() {
                             )}
                             <button
                               onClick={() => handleAICall([guest.id])}
-                              disabled={callingGuests}
-                              className="p-2 hover:bg-purple-50 rounded-lg text-outline hover:text-purple-600 transition-colors"
-                              title="AI Voice Call"
+                              disabled={callingGuests || cannotCallGuest(guest)}
+                              className={`p-2 rounded-lg transition-colors ${cannotCallGuest(guest) ? "text-slate-300 cursor-not-allowed" : "hover:bg-purple-50 text-outline hover:text-purple-600"}`}
+                              title={cannotCallGuest(guest) ? "Already responded" : "AI Voice Call"}
                             >
                               <span className="material-symbols-outlined text-lg">call</span>
                             </button>

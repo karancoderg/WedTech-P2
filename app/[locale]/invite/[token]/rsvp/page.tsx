@@ -6,10 +6,8 @@ import { supabase } from "@/lib/supabase";
 import type { Wedding, Guest, WeddingFunction } from "@/lib/types";
 import { toast } from "sonner";
 import { useTranslations, useLocale } from "next-intl";
-import { syncGuestWithCRM } from "@/lib/services/crm-sync";
 import QRCode from "qrcode";
 import { Great_Vibes, Pinyon_Script, Manrope, Noto_Serif } from "next/font/google";
-import { encryptValue } from "@/lib/client-encryption";
 
 const greatVibes = Great_Vibes({ weight: "400", subsets: ["latin"] });
 const pinyonScript = Pinyon_Script({ weight: "400", subsets: ["latin"] });
@@ -128,109 +126,43 @@ export default function RSVPFormPage() {
 
     setSubmitting(true);
     try {
+      const validAdditionalGuests = additionalGuests.filter(ag => ag.name.trim());
       const primaryGuest = guests[0];
 
-      for (const guestId of Object.keys(responses)) {
-        const guestResponses = responses[guestId];
-        const isPrimary = guestId === primaryGuest.id;
-        for (const resp of guestResponses) {
-          const totalPax = resp.status === "confirmed" ? 1 + (isPrimary ? globalChildrenCount : 0) : 0;
-          await supabase.from("rsvps").upsert({
-            wedding_id: wedding!.id,
-            guest_id: guestId,
-            function_id: resp.functionId,
-            invite_token: token,
-            status: resp.status,
-            plus_ones: 0,
-            children: isPrimary && resp.status === "confirmed" ? globalChildrenCount : 0,
-            total_pax: totalPax,
-            dietary_preference: resp.status === "confirmed" ? guestDietaryPreferences[guestId] || null : null,
-            needs_accommodation: resp.status === "confirmed" && needsAccommodation === true,
-            responded_at: new Date().toISOString(),
-          }, { onConflict: "guest_id,function_id" });
-        }
-
-        const allConfirmed = guestResponses.every((r) => r.status === "confirmed");
-        const allDeclined = guestResponses.every((r) => r.status === "declined");
-        await supabase.from("guests")
-          .update({ overall_status: allConfirmed ? "confirmed" : allDeclined ? "declined" : "partial" })
-          .eq("id", guestId);
-
-        // Sync with CRM (Product 1)
-        if (allConfirmed || !allDeclined) {
-          syncGuestWithCRM(guestId);
-        }
-      }
-
-      const validAdditionalGuests = additionalGuests.filter(ag => ag.name.trim());
-      
-      let effectiveGroupId = primaryGuest.group_id;
-
-      // If they don't have a group, create one so they are grouped with their kids/plus ones
-      if (validAdditionalGuests.length > 0 && !effectiveGroupId) {
-        const { data: newGroup, error: groupError } = await supabase
-          .from("guest_groups")
-          .insert({
-            wedding_id: wedding!.id,
-            name: `${primaryGuest.name.split(" ")[0]}'s Family`
-          })
-          .select()
-          .single();
-
-        if (newGroup) {
-          effectiveGroupId = newGroup.id;
-          // Update primary guest to be part of this new group
-          await supabase.from("guests").update({ group_id: effectiveGroupId }).eq("id", primaryGuest.id);
-        } else {
-          console.error("Failed to create guest group:", groupError);
-        }
-      }
-
-      for (const ag of validAdditionalGuests) {
-        // Create a new guest linked to the primary guest's group
-        const { data: newGuest, error: insertError } = await supabase.from("guests").insert({
-          wedding_id: wedding!.id,
-          group_id: effectiveGroupId || null, // Group them together if we successfully resolved the group
-          name: ag.name.trim(),
-          phone: await encryptValue(ag.phone.trim()),
+      const payload = {
+        token,
+        weddingId: wedding!.id,
+        primaryGuest: {
+          id: primaryGuest.id,
+          group_id: primaryGuest.group_id,
+          name: primaryGuest.name,
           side: primaryGuest.side,
           tags: primaryGuest.tags,
-          function_ids: primaryGuest.function_ids,
-          invite_token: window.crypto.randomUUID().replace(/-/g, '').slice(0, 16), // Generate a unique token for this new guest
-          overall_status: "confirmed",
-          imported_via: "manual"
-        }).select().single();
+          function_ids: primaryGuest.function_ids
+        },
+        responses,
+        guestDietaryPreferences,
+        needsAccommodation,
+        accommodationCount,
+        globalChildrenCount,
+        additionalGuests: validAdditionalGuests
+      };
 
-        if (insertError) {
-          console.error("Failed to insert additional guest:", JSON.stringify(insertError, null, 2));
-          toast.error(`Error adding guest ${ag.name.trim()}: ${insertError.message || 'Unknown database error'}`);
-        } else if (newGuest) {
-          // Add confirmed RSVPs for this new guest, defaulting to the primary guest's responses
-          const primaryResponses = responses[primaryGuest.id];
-          for (const resp of primaryResponses) {
-            await supabase.from("rsvps").upsert({
-              wedding_id: wedding!.id,
-              guest_id: newGuest.id,
-              function_id: resp.functionId,
-              invite_token: token,
-              status: resp.status, // Copy the primary guest's status
-              plus_ones: 0,
-              children: 0,
-              total_pax: resp.status === "confirmed" ? 1 : 0,
-              dietary_preference: resp.status === "confirmed" ? ag.dietaryPreference || null : null,
-              needs_accommodation: resp.status === "confirmed" && needsAccommodation === true,
-              responded_at: new Date().toISOString(),
-            }, { onConflict: "guest_id,function_id" });
-          }
-          syncGuestWithCRM(newGuest.id);
-        }
+      const res = await fetch("/api/rsvp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        throw new Error(errorData?.error || "Failed to submit RSVP");
       }
 
-      await supabase.from("invite_tokens").update({ used: true }).eq("token", token);
       router.push(`/invite/${token}/confirmed`);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      toast.error(t_i18n("error"));
+      toast.error(error.message || t_i18n("error"));
     } finally { setSubmitting(false); }
   }
 

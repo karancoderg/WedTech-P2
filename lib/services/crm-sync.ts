@@ -16,7 +16,7 @@ export async function syncGuestWithCRM(guestId: string) {
     if (!guest) return { success: false, error: "Guest not found" };
 
     // Simulating an API call to the Wedding CRM (Product 1)
-    console.log(`[CRM Sync] Pushing guest ${guest.name} (${guest.phone}${guest.email ? `, ${guest.email}` : ''}) to CRM...`);
+    console.log(`[CRM Sync] Pushing guest ${guest.name} (ID: ${guestId}) to CRM...`);
     
     // Simulate latency
     await new Promise(resolve => setTimeout(resolve, 800));

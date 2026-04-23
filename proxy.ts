@@ -6,23 +6,32 @@ import { routing } from './i18n/routing';
 const intlMiddleware = createMiddleware(routing);
 
 const isProtectedRoute = createRouteMatcher([
+  '/:locale/dashboard(.*)',
+  '/:locale/wedding(.*)',
   '/dashboard(.*)',
   '/wedding(.*)',
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
   const { pathname } = req.nextUrl;
-  console.log("Middleware hit path:", pathname);
-
+  console.log("Proxy hit path:", pathname);
 
   // Skip intl middleware for API routes
   if (pathname.startsWith('/api')) {
     return NextResponse.next();
   }
 
-  // Determine if it's a public invite route or a protected dashboard route
+  // Redirect unauthenticated users on protected routes to landing page
   if (isProtectedRoute(req)) {
-    await auth.protect();
+    const { userId } = await auth();
+    if (!userId) {
+      // Extract locale from path (e.g. /en/wedding/... → "en")
+      const localeMatch = pathname.match(/^\/([a-z]{2})\//);
+      const locale = localeMatch?.[1] || 'en';
+      const landingUrl = new URL(`/${locale}`, req.url);
+      landingUrl.searchParams.set('auth', 'required');
+      return NextResponse.redirect(landingUrl);
+    }
   }
 
   // Handle localization

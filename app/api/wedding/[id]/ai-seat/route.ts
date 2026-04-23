@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { GoogleGenAI, Type } from "@google/genai";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { requireWeddingOwner } from "@/lib/api-auth";
 
 const ai = process.env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) : null;
 
@@ -104,6 +104,11 @@ export async function POST(
 ) {
   try {
     const { id: weddingId } = await params;
+
+    const authResult = await requireWeddingOwner(weddingId);
+    if ("error" in authResult) return authResult.error;
+    const { supabase } = authResult;
+
     const body = await request.json();
     const { tables, unassignedGuests, targetSeatingCount, functionId } = body;
 
@@ -266,7 +271,6 @@ export async function POST(
     }
 
     // ─── Save to Supabase ──────────────────────────────────────────────
-    const supabase = createServerSupabaseClient();
     
     // 1. Insert any new tables
     interface NewTable extends NewTableDef { id?: string }
