@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireWeddingOwner } from "@/lib/api-auth";
-import { parseRSVPFromTranscript } from "@/lib/rsvp-parser";
+// ===== ADDED: Shared parser import =====
+import { parseRSVPFromTranscript } from "@/lib/parse-rsvp-transcript";
+// ===== END ADDED =====
 
 const TABBLY_API_KEY = process.env.TABBLY_API_KEY || "";
 const TABBLY_ORGANIZATION_ID = process.env.TABBLY_ORGANIZATION_ID || "";
@@ -98,17 +100,52 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     // Support a configurable limit via request body (default: 10)
     let fetchLimit = 10;
+    // ===== ADDED: offset support =====
+    let fetchOffset = 0;
+    let body: any = {};
+    // ===== END ADDED =====
     try {
-      const body = await req.json();
+      body = await req.json();
       if (body?.limit && typeof body.limit === "number" && body.limit > 0) {
         fetchLimit = Math.min(body.limit, 100); // cap at 100
       }
+      // ===== ADDED: read offset =====
+      if (body?.offset && typeof body.offset === "number" && body.offset >= 0) {
+        fetchOffset = body.offset;
+      }
+      // ===== END ADDED =====
     } catch {
       // No body or invalid JSON — use default limit
     }
 
+    // ===== ADDED: fetch guests slice as fallback =====
+    const { data: targetGuests } = await supabase
+      .from('guests')
+      .select('id')
+      .eq('wedding_id', weddingId)
+      .not('call_initiated_at', 'is', null)
+      .neq('call_status', 'responded')
+      .range(fetchOffset, fetchOffset + fetchLimit - 1);
+      
+    const targetGuestIds = new Set(targetGuests?.map(g => g.id) || []);
+    const hasMore = (targetGuests?.length || 0) === fetchLimit;
+
+    // ===== ADDED: Early return if webhook already handled all guests =====
+    if (targetGuestIds.size === 0) {
+        return NextResponse.json({ 
+            success: true, 
+            processed: 0, 
+            hasMore: false, 
+            message: "All RSVPs already synced via webhook" 
+        });
+    }
+    // ===== END ADDED =====
+
     // Fetch latest call logs from Tabbly
-    const response = await fetch(`https://www.tabbly.io/dashboard/agents/endpoints/call-logs-v2?api_key=${TABBLY_API_KEY}&organization_id=${TABBLY_ORGANIZATION_ID}&limit=${fetchLimit}`);
+    // ===== ADDED: offset passed to tabbly URL and limit increased to ensure we find logs for our slice =====
+    const tabblyLimit = 1000; // fetch a wide net from tabbly to match our local slice
+    const response = await fetch(`https://www.tabbly.io/dashboard/agents/endpoints/call-logs-v2?api_key=${TABBLY_API_KEY}&organization_id=${TABBLY_ORGANIZATION_ID}&limit=${tabblyLimit}&offset=${fetchOffset}`);
+    // ===== END ADDED =====
     
     if (!response.ok) {
         return NextResponse.json({ error: "Failed to fetch Tabbly logs" }, { status: 502 });
@@ -131,6 +168,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         const transcript = log.call_transcript || log.call_summary || "";
 
         if (!guestId || typeof guestId !== 'string') continue;
+
+        // ===== ADDED: process only the current offset slice =====
+        if (targetGuestIds.size > 0 && !targetGuestIds.has(guestId)) continue;
+        // ===== END ADDED =====
 
         // Detect unanswered calls: Tabbly's call_status can be unreliable
         // (e.g. shows "Not Answered" even for 140-sec conversations with full transcripts)
@@ -174,142 +215,34 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         }
     }
 
-    // ─── Pass 2: LLM Transcript Parsing (Gemini → Groq → local regex) ─
+    // ===== ADDED: parallel parsing using shared library =====
     if (transcriptsToParse.length > 0) {
-        const RSVP_PROMPT = `You are an RSVP data extractor. Parse the call transcripts and extract guest responses.
-
-RULES:
-- Return ONLY a valid JSON array, no extra text or markdown.
-- Each object MUST have exactly these fields: id, status, guestCount, dietaryPreference, accommodationNeeded, accommodationCount.
-- status MUST be one of: "confirmed", "declined", "pending". Default to "pending" if unclear.
-- guestCount is an integer >= 0. If declined, set to 0. If confirmed but count unclear, set to 1.
-- dietaryPreference is one of: "veg", "non-veg", "jain", or null if not mentioned.
-- accommodationNeeded is a boolean. Default false.
-- accommodationCount is an integer >= 0.
-
-REQUIRED OUTPUT FORMAT (no wrapping, no explanation):
-[{"id":"...","status":"confirmed","guestCount":2,"dietaryPreference":"veg","accommodationNeeded":false,"accommodationCount":0}]
-
-Transcripts:
-`;
-
-        // Helper: validate + apply LLM response
-        function processLLMResponse(raw: any): boolean {
-            const arr = unwrapArray(raw);
-            if (!arr || arr.length === 0) return false;
-            let anyValid = false;
-            for (const entry of arr) {
-                const validated = validateRsvpEntry(entry);
-                if (!validated) continue;
-                const guestData = structuredDataMap.get(validated.id);
-                if (guestData) {
+        // We chunk parallel requests to avoid hitting rate limits instantly
+        for (let i = 0; i < transcriptsToParse.length; i += 10) {
+            const chunk = transcriptsToParse.slice(i, i + 10);
+            await Promise.all(chunk.map(async (item) => {
+                const guestData = structuredDataMap.get(item.id);
+                if (!guestData) return;
+                
+                try {
+                    const parsed = await parseRSVPFromTranscript(item.transcript, item.id);
                     Object.assign(guestData, {
-                        status: validated.status,
-                        pax: validated.pax,
-                        dietary: validated.dietary,
-                        needsAccommodation: validated.needsAccommodation,
-                        accommodationCount: validated.accommodationCount
+                        status: parsed.status || "pending",
+                        pax: parsed.guestCount || 0,
+                        dietary: parsed.dietaryRequirements || null,
+                        needsAccommodation: parsed.accommodationNeeded || false,
+                        accommodationCount: parsed.accommodationCount || 0
                     });
-                    anyValid = true;
+                } catch (e) {
+                    console.error(`Failed to parse transcript for guest ${item.id}:`, e);
                 }
+            }));
+            if (i + 10 < transcriptsToParse.length) {
+                await new Promise(r => setTimeout(r, 500)); // slight backoff
             }
-            return anyValid;
-        }
-
-        // Process in chunks of 25
-        for (let i = 0; i < transcriptsToParse.length; i += 25) {
-            const chunk = transcriptsToParse.slice(i, i + 25);
-            const fullPrompt = RSVP_PROMPT + JSON.stringify(chunk);
-            let llmSuccess = false;
-
-            // Try 1: Gemini 2.5 Flash
-            if (process.env.GEMINI_API_KEY) {
-                try {
-                    const geminiRes = await fetchWithRetry(
-                        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`,
-                        {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'x-goog-api-key': process.env.GEMINI_API_KEY!,
-                            },
-                            body: JSON.stringify({
-                                contents: [{ parts: [{ text: fullPrompt }] }],
-                                generationConfig: { responseMimeType: "application/json" }
-                            })
-                        }
-                    );
-                    
-                    if (geminiRes.ok) {
-                        const data = await geminiRes.json();
-                        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-                        if (text) {
-                            const parsed = safeJsonParse(text);
-                            if (parsed) {
-                                llmSuccess = processLLMResponse(parsed);
-                            }
-                        }
-                    } else {
-                        console.error("Gemini API Error:", geminiRes.status);
-                    }
-                } catch (err) {
-                    console.error("Gemini parse error:", err);
-                }
-            }
-
-            // Try 2: Groq fallback (llama-3.3-70b-versatile)
-            if (!llmSuccess && process.env.GROQ_API_KEY) {
-                try {
-                    console.log("Gemini unavailable, falling back to Groq...");
-                    const groqRes = await fetchWithRetry('https://api.groq.com/openai/v1/chat/completions', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${process.env.GROQ_API_KEY}`
-                        },
-                        body: JSON.stringify({
-                            model: 'llama-3.3-70b-versatile',
-                            messages: [
-                                { role: 'system', content: 'You are an RSVP data extractor. Respond with a valid JSON array only. No markdown, no explanation.' },
-                                { role: 'user', content: fullPrompt }
-                            ],
-                            temperature: 0.1,
-                            response_format: { type: "json_object" }
-                        })
-                    });
-
-                    if (groqRes.ok) {
-                        const data = await groqRes.json();
-                        const text = data.choices?.[0]?.message?.content;
-                        if (text) {
-                            const parsed = safeJsonParse(text);
-                            if (parsed) {
-                                llmSuccess = processLLMResponse(parsed);
-                            }
-                        }
-                    } else {
-                        console.error("Groq API Error:", groqRes.status);
-                    }
-                } catch (err) {
-                    console.error("Groq parse error:", err);
-                }
-            }
-        }
-    } 
-    
-    // Pass 2B: Local regex fallback for any still-unparsed transcripts
-    for (const item of transcriptsToParse) {
-        const guestData = structuredDataMap.get(item.id);
-        if (guestData && !guestData.status) {
-            const parsed = await parseRSVPFromTranscript(item.transcript);
-            Object.assign(guestData, {
-                status: parsed.status,
-                pax: parsed.total_pax,
-                dietary: parsed.dietary_preference,
-                needsAccommodation: parsed.needs_accommodation
-            });
         }
     }
+    // ===== END ADDED =====
 
     // ─── Pass 3: Database Updates (batch-optimized) ────────────────────
     
@@ -397,7 +330,9 @@ Transcripts:
             // Queue RSVP upserts
             const funcIds = guestFuncs.get(guestId);
             if (funcIds && Array.isArray(funcIds)) {
-                for (const functionId of funcIds) {
+                // Deduplicate function_ids to avoid pushing multiple identical upserts for the same guest and function
+                const uniqueFuncIds = Array.from(new Set(funcIds));
+                for (const functionId of uniqueFuncIds) {
                     const rsvpData: any = {
                         wedding_id: weddingId,
                         guest_id: guestId,
@@ -408,11 +343,8 @@ Transcripts:
                         needs_accommodation: status === "confirmed" && needsAccommodation,
                         responded_at: log.called_time
                     };
-
-                    const existingId = rsvpMap.get(`${guestId}_${functionId}`);
-                    if (existingId) {
-                        rsvpData.id = existingId; // Update existing
-                    }
+                    
+                    // Supabase's upsert handles the conflict by unique constraint
                     rsvpsToUpsert.push(rsvpData);
                 }
             }
@@ -423,7 +355,7 @@ Transcripts:
         await Promise.all(guestUpdatePromises);
 
         if (rsvpsToUpsert.length > 0) {
-            const { error: upsertErr } = await supabase.from("rsvps").upsert(rsvpsToUpsert);
+            const { error: upsertErr } = await supabase.from("rsvps").upsert(rsvpsToUpsert, { onConflict: 'guest_id,function_id' });
             if (upsertErr) console.error("RSVP bulk upsert failed:", upsertErr);
         }
     }
@@ -520,11 +452,15 @@ Transcripts:
         }).eq('id', weddingId);
     }
 
+    // ===== ADDED: hasMore pagination response shape =====
     return NextResponse.json({ 
         success: true, 
+        processed: updatedCount,
+        hasMore,
         message: `Synced ${updatedCount} RSVPs from Tabbly logs.`,
         logs_processed: logs.length
     });
+    // ===== END ADDED =====
 
   } catch (error: any) {
     console.error("Sync Error:", error);

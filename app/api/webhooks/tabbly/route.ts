@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { encrypt } from "@/lib/encryption";
-import { parseRSVPFromTranscript } from "@/lib/rsvp-parser";
+// ===== ADDED: LLM Parser Import =====
+import { parseRSVPFromTranscript } from "@/lib/parse-rsvp-transcript";
+// ===== END ADDED =====
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import crypto from "crypto";
 
@@ -86,18 +88,31 @@ export async function POST(req: Request) {
         const accVal = String(dataSource.accommodation_needed || "").toLowerCase().trim();
         needsAccommodation = ["yes", "true", "needed", "1"].includes(accVal);
     } else {
-        // Approach C: Fallback to local transcript parsing
-        const parsed = await parseRSVPFromTranscript(transcript);
-        status = parsed.status;
-        pax = parsed.total_pax;
-        dietary = parsed.dietary_preference;
-        needsAccommodation = parsed.needs_accommodation;
+        // ===== ADDED: LLM Transcript parsing (try/catch wrapped) =====
+        try {
+            if (transcript && payload.status === "completed") {
+                const parsed = await parseRSVPFromTranscript(transcript, guestId);
+                status = parsed.status || "pending";
+                pax = parsed.guestCount || 0;
+                dietary = parsed.dietaryRequirements || null;
+                needsAccommodation = parsed.accommodationNeeded || false;
+            } else {
+                // Keep the old behavior for non-completed calls if needed
+                status = "pending";
+            }
+        } catch (e) {
+            console.error("[Tabbly Webhook] LLM Parsing failed:", e);
+            // Do not fail the webhook, allow fallback to pending
+            status = "pending";
+        }
+        // ===== END ADDED =====
     }
 
     // Update Guest status
     if (status !== "pending") {
         await supabase.from("guests").update({
-            overall_status: status
+            overall_status: status,
+            call_status: "responded"
         }).eq("id", guestId);
 
         // Fetch the guest to get wedding_id and function_ids
@@ -105,35 +120,19 @@ export async function POST(req: Request) {
 
         if (guest && guest.function_ids) {
             // Update or Insert RSVP records for each function
-            for (const functionId of guest.function_ids) {
-                const { data: existingRSVP } = await supabase
-                    .from("rsvps")
-                    .select("id")
-                    .eq("guest_id", guestId)
-                    .eq("function_id", functionId)
-                    .single();
+            const uniqueFuncIds = Array.from(new Set(guest.function_ids));
+            const rsvpsToUpsert = uniqueFuncIds.map(functionId => ({
+                wedding_id: guest.wedding_id,
+                guest_id: guestId,
+                function_id: functionId,
+                status: status,
+                total_pax: status === "confirmed" ? pax : 0,
+                dietary_preference: dietary,
+                needs_accommodation: status === "confirmed" && needsAccommodation,
+                responded_at: new Date().toISOString()
+            }));
 
-                if (existingRSVP) {
-                    await supabase.from("rsvps").update({
-                        status: status,
-                        total_pax: status === "confirmed" ? pax : 0,
-                        dietary_preference: dietary,
-                        needs_accommodation: status === "confirmed" && needsAccommodation,
-                        responded_at: new Date().toISOString()
-                    }).eq("id", existingRSVP.id);
-                } else {
-                    await supabase.from("rsvps").insert({
-                        wedding_id: guest.wedding_id,
-                        guest_id: guestId,
-                        function_id: functionId,
-                        status: status,
-                        total_pax: status === "confirmed" ? pax : 0,
-                        dietary_preference: dietary,
-                        needs_accommodation: status === "confirmed" && needsAccommodation,
-                        responded_at: new Date().toISOString()
-                    });
-                }
-            }
+            await supabase.from("rsvps").upsert(rsvpsToUpsert, { onConflict: 'guest_id,function_id' });
 
             // Log the communication outcome (with wedding_id — TASK-024 fix)
             await supabase.from("communication_logs").insert({
@@ -147,6 +146,11 @@ export async function POST(req: Request) {
                 }
             });
         }
+    } else {
+        // Just mark as not_responded so the UI drops the "Calling..." state
+        await supabase.from("guests").update({
+            call_status: "not_responded"
+        }).eq("id", guestId);
     }
 
     return NextResponse.json({ success: true, parsed: { status, pax, dietary } });

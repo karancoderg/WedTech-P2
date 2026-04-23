@@ -15,7 +15,7 @@ interface RateLimitEntry {
 
 const rateLimitMap = new Map<string, RateLimitEntry>();
 
-// Clean up stale entries every 5 minutes
+// Clean up stale entries every 1 minute
 setInterval(() => {
   const now = Date.now();
   for (const [key, entry] of rateLimitMap) {
@@ -23,7 +23,7 @@ setInterval(() => {
       rateLimitMap.delete(key);
     }
   }
-}, 5 * 60 * 1000);
+}, 1 * 60 * 1000);
 
 interface RateLimitConfig {
   /** Maximum number of requests allowed in the window */
@@ -66,16 +66,12 @@ export function checkRateLimit(key: string, config: RateLimitConfig): RateLimitR
 
 /**
  * Pre-configured rate limits for different endpoint categories.
+ * All windows are set to 1 minute. maxRequests increased to support bulk actions.
  */
 export const RATE_LIMITS = {
-  /** Encryption oracle — tight limit */
-  encrypt: { maxRequests: 10, windowSeconds: 60 } as RateLimitConfig,
-  /** AI phone calls — very tight (costs money per call) */
-  aiCall: { maxRequests: 5, windowSeconds: 60 } as RateLimitConfig,
-  /** Email sending — tight to prevent spam */
-  sendEmails: { maxRequests: 3, windowSeconds: 60 } as RateLimitConfig,
-  /** Webhooks — generous but bounded */
-  webhook: { maxRequests: 100, windowSeconds: 60 } as RateLimitConfig,
-  /** General API — reasonable default */
-  general: { maxRequests: 30, windowSeconds: 60 } as RateLimitConfig,
+  encrypt: { maxRequests: 1000, windowSeconds: 60 } as RateLimitConfig,
+  aiCall: { maxRequests: 100, windowSeconds: 60 } as RateLimitConfig,
+  sendEmails: { maxRequests: 50, windowSeconds: 60 } as RateLimitConfig,
+  webhook: { maxRequests: 1000, windowSeconds: 60 } as RateLimitConfig,
+  general: { maxRequests: 50, windowSeconds: 60 } as RateLimitConfig,
 };

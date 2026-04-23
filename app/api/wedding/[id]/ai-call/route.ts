@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { encrypt, decrypt } from "@/lib/encryption";
+import { requireWeddingOwner } from "@/lib/api-auth";
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 // Using Tabbly.io - Specific provider for Indian numbers
 const TABBLY_API_KEY = process.env.TABBLY_API_KEY || "";
@@ -13,12 +15,34 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const { id: weddingId } = await params;
     const { guestIds } = await req.json();
 
-    // Use service role client to bypass RLS for server-side operations
-    const supabase = createServerSupabaseClient();
+    // Authenticate and authorize the user
+    const authResult = await requireWeddingOwner(weddingId);
+    if ("error" in authResult) return authResult.error;
+    const { userId, supabase } = authResult;
 
-    if (!guestIds || !Array.isArray(guestIds) || guestIds.length === 0) {
-      return NextResponse.json({ error: "Invalid guest IDs" }, { status: 400 });
+    // Rate Limit (sharing the webhook/general limit or define a new one, but let's use sendEmails since it's an outbound action)
+    const rl = checkRateLimit(`ai-call:${userId}`, RATE_LIMITS.sendEmails);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
+      );
     }
+
+    // ===== ADDED: chunk guard =====
+    if (!guestIds || !Array.isArray(guestIds)) {
+      return NextResponse.json({ error: "guestIds must be an array" }, { status: 400 });
+    }
+    if (guestIds.length === 0) {
+      return NextResponse.json({ error: "No guests selected" }, { status: 400 });
+    }
+    if (guestIds.length > 5) {
+      return NextResponse.json(
+        { error: "Maximum 5 guests per request. Use frontend chunking." },
+        { status: 400 }
+      );
+    }
+    // ===== END ADDED =====
 
     if (!TABBLY_API_KEY || !TABBLY_ORGANIZATION_ID || !TABBLY_AGENT_ID || !TABBLY_CALL_FROM_NUMBER) {
       console.warn("Tabbly API credentials missing in .env.local.");
@@ -72,11 +96,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     let successful = 0;
     let failed = 0;
+    // ===== ADDED =====
+    const successfulArr: string[] = [];
+    const failedArr: { guestId: string; reason: string }[] = [];
+    // ===== END ADDED =====
 
     for (const guest of callableGuests) {
       const phone = guest.phone?.includes(':') ? decrypt(guest.phone) : guest.phone;
       if (!phone) {
         failed++;
+        // ===== ADDED =====
+        failedArr.push({ guestId: guest.id, reason: "missing_phone" });
+        // ===== END ADDED =====
         continue;
       }
 
@@ -87,6 +118,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         if (now - lastCall < 60000) {
           // Too soon — skip this guest silently
           failed++;
+          // ===== ADDED =====
+          failedArr.push({ guestId: guest.id, reason: "debounced" });
+          // ===== END ADDED =====
           continue;
         }
       }
@@ -127,82 +161,88 @@ Phase 4 - Wrap Up: Thank them and let them know they will also receive a WhatsAp
 
 Keep the conversation natural, short, and respectful. Wait for their responses carefully. Do not sound like a robot.`;
 
-      // Make the actual call via Tabbly.io
+      // ===== ADDED: Reordered DB writes and Tabbly call =====
       try {
-        const tabblyReq = await fetch('https://www.tabbly.io/dashboard/agents/endpoints/trigger-call', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            api_key: TABBLY_API_KEY,
-            organization_id: TABBLY_ORGANIZATION_ID,
-            use_agent_id: TABBLY_AGENT_ID,
-            call_from: TABBLY_CALL_FROM_NUMBER,
-            called_to: formattedPhone,
-            custom_first_line: `Hello, am I speaking with ${guest.name}?`,
-            custom_identifiers: guest.id,
-            custom_instruction: customInstruction,
-            called_by_account: "API"
-          })
-        });
-
-        if (!tabblyReq.ok) {
-          console.error("Tabbly AI Error:", await tabblyReq.text());
-          failed++;
-          // Do NOT change call_status on API error
-          continue;
-        }
-
-        // Call was successfully initiated — set timestamp for debounce only.
-        // Actual call_status change happens in sync-call-rsvps after we know the outcome.
-        await supabase.from("guests").update({
+        const { error: guestUpdateError } = await supabase.from("guests").update({
           call_initiated_at: new Date().toISOString()
         }).eq("id", guest.id);
 
-        successful++;
+        if (guestUpdateError) {
+          failed++;
+          failedArr.push({ guestId: guest.id, reason: "db_error" });
+          continue;
+        }
 
-        // Update communication log
-        await supabase.from("communication_logs").insert({
+        const { data: logData, error: logError } = await supabase.from("communication_logs").insert({
           wedding_id: weddingId,
           guest_id: guest.id,
           type: "call",
           status: "initiated",
           payload: { provider: "tabbly", phone: encrypt(formattedPhone) }
-        });
+        }).select("id").single();
+
+        if (logError) {
+          failed++;
+          failedArr.push({ guestId: guest.id, reason: "db_error" });
+          continue;
+        }
+
+        let tabblyReq: Response;
+        try {
+          tabblyReq = await fetch('https://www.tabbly.io/dashboard/agents/endpoints/trigger-call', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              api_key: TABBLY_API_KEY,
+              organization_id: TABBLY_ORGANIZATION_ID,
+              use_agent_id: TABBLY_AGENT_ID,
+              call_from: TABBLY_CALL_FROM_NUMBER,
+              called_to: formattedPhone,
+              custom_first_line: `Hello, am I speaking with ${guest.name}?`,
+              custom_identifiers: guest.id,
+              custom_instruction: customInstruction,
+              called_by_account: "API"
+            })
+          });
+        } catch (fetchErr) {
+          await supabase.from("guests").update({ call_initiated_at: null }).eq("id", guest.id);
+          if (logData) await supabase.from("communication_logs").delete().eq("id", logData.id);
+          console.error("Calling error for guest " + guest.id, fetchErr);
+          failed++;
+          failedArr.push({ guestId: guest.id, reason: "network_error" });
+          continue;
+        }
+
+        if (!tabblyReq.ok) {
+          console.error("Tabbly AI Error:", await tabblyReq.text());
+          await supabase.from("guests").update({ call_initiated_at: null }).eq("id", guest.id);
+          if (logData) await supabase.from("communication_logs").delete().eq("id", logData.id);
+          failed++;
+          let reason = "tabbly_error";
+          if (tabblyReq.status === 429) reason = "tabbly_rate_limited";
+          else if (tabblyReq.status === 400) reason = "invalid_phone";
+          failedArr.push({ guestId: guest.id, reason });
+          continue;
+        }
+
+        successful++;
+        successfulArr.push(guest.id);
 
       } catch (e) {
         console.error("Calling error for guest " + guest.id, e);
         failed++;
-        // Do NOT change call_status on error
+        failedArr.push({ guestId: guest.id, reason: "unknown_error" });
       }
+      // ===== END ADDED =====
     }
 
-    // Auto-sync: trigger sync at multiple intervals to catch calls at different stages
-    // Calls typically take 1-3 minutes, so we sync at 30s, 2min, and 3min
-    if (successful > 0) {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-      const syncDelays = [
-        { delay: 30000, limit: 5 },   // 30s — catch quick calls
-        { delay: 120000, limit: 10 },  // 2min — catch normal calls
-        { delay: 180000, limit: 15 },  // 3min — catch longer calls
-      ];
-      for (const { delay, limit } of syncDelays) {
-        setTimeout(async () => {
-          try {
-            await fetch(`${baseUrl}/api/wedding/${weddingId}/sync-call-rsvps`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ limit }),
-            });
-            console.log(`Auto-sync triggered for wedding ${weddingId} at ${delay / 1000}s (last ${limit} calls)`);
-          } catch (e) {
-            console.error(`Auto-sync failed at ${delay / 1000}s (non-critical):`, e);
-          }
-        }, delay);
-      }
-    }
+    // ===== ADDED: deleted dead setTimeout syncs =====
 
+    // ===== ADDED =====
+    return NextResponse.json({ success: true, successful: successfulArr, failed: failedArr, skipped });
+    // ===== END ADDED =====
     return NextResponse.json({ success: true, successful, failed, skipped });
 
   } catch (error: any) {
