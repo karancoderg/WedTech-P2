@@ -29,7 +29,7 @@ const translations = {
 };
 import { supabase } from "@/lib/supabase";
 import type { Wedding, Guest, WeddingFunction } from "@/lib/types";
-import { generateWhatsAppLink, generateReminderLink, generateWhatsAppMessage, normalizePhone } from "@/lib/whatsapp";
+import { generateWhatsAppLink, generateReminderLink, generateWhatsAppMessage, generateReminderMessage, normalizePhone } from "@/lib/whatsapp";
 import { generateEmailLink } from "@/lib/email";
 import { toast } from "sonner";
 
@@ -551,11 +551,15 @@ export default function InvitesPage() {
             icon: 'notifications_active',
             color: 'text-amber-600',
             bg: 'bg-[#FFF9E6]',
-            btnText: 'Copy Links',
+            btnText: 'Copy JSON',
             action: () => {
-              const links = pendingRsvpGuests.map((g) => (wedding ? generateReminderLink(g, wedding) : "")).join("\n");
-              copyToClipboard(links);
-              toast.success("Reminder links copied!");
+              if (!wedding) return;
+              const data = pendingRsvpGuests.map((guest) => ({
+                phone: normalizePhone(guest.phone).replace("+", ""),
+                message: generateReminderMessage(guest, wedding),
+              }));
+              copyToClipboard(JSON.stringify(data, null, 2));
+              toast.success("📋 Reminder JSON copied for extension!");
             },
             disabled: pendingRsvpGuests.length === 0
           },
