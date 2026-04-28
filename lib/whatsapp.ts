@@ -58,19 +58,27 @@ export function generateWhatsAppLink(
 }
 
 /**
+ * Generate a reminder message for a single guest
+ */
+export function generateReminderMessage(
+  guest: Guest,
+  wedding: Wedding
+): string {
+  return `Hi ${guest.name}! 💌\n\n` +
+    `A gentle reminder to RSVP for ${wedding.bride_name} & ${wedding.groom_name}'s wedding.\n\n` +
+    `Please confirm your attendance here 👇\n` +
+    `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/invite/${guest.invite_token}\n\n` +
+    `We'd love to have you! 🙏`;
+}
+
+/**
  * Generate a reminder message link for pending guests
  */
 export function generateReminderLink(
   guest: Guest,
   wedding: Wedding
 ): string {
-  const message =
-    `Hi ${guest.name}! 💌\n\n` +
-    `A gentle reminder to RSVP for ${wedding.bride_name} & ${wedding.groom_name}'s wedding.\n\n` +
-    `Please confirm your attendance here 👇\n` +
-    `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/invite/${guest.invite_token}\n\n` +
-    `We'd love to have you! 🙏`;
-
+  const message = generateReminderMessage(guest, wedding);
   const phone = normalizePhone(guest.phone).replace('+', '');
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
